@@ -1,0 +1,71 @@
+@page "/conta/login"
+
+<PageTitle>Entrar · Age Nexus</PageTitle>
+
+<section class="account-shell">
+    <div class="account-intro">
+        <span class="eyebrow">Sua mesa continua aqui</span>
+        <h1>Entre no <em>Nexus.</em></h1>
+        <p>Acesse seu perfil, registre partidas e acompanhe sua trajetória na comunidade.</p>
+    </div>
+
+    <div class="account-card">
+        <div class="account-card-heading">
+            <span class="account-step">Acesso</span>
+            <h2>Boas-vindas de volta</h2>
+            <p>Use o e-mail e a senha cadastrados.</p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="form-alert form-alert-error" role="alert">@ErrorMessage</div>
+        }
+
+        <form method="post" action="/account/login" class="account-form">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@SafeReturnUrl" />
+
+            <label class="form-field">
+                <span>E-mail</span>
+                <input name="email" type="email" autocomplete="email" required maxlength="256" placeholder="voce@exemplo.com" />
+            </label>
+
+            <label class="form-field">
+                <span>Senha</span>
+                <input name="password" type="password" autocomplete="current-password" required placeholder="Sua senha" />
+            </label>
+
+            <label class="check-field">
+                <input name="rememberMe" type="checkbox" value="true" />
+                <span>Continuar conectado neste dispositivo</span>
+            </label>
+
+            <button class="button button-primary account-submit" type="submit">Entrar</button>
+        </form>
+
+        <p class="account-switch">Ainda não tem conta? <a href="/conta/criar">Crie seu perfil</a></p>
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "erro")]
+    private string? Error { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    private string? ReturnUrl { get; set; }
+
+    private string SafeReturnUrl => IsSafeLocalUrl(ReturnUrl) ? ReturnUrl! : "/";
+
+    private string? ErrorMessage => Error switch
+    {
+        "bloqueado" => "Muitas tentativas falharam. Aguarde 15 minutos e tente novamente.",
+        "credenciais" => "E-mail ou senha inválidos.",
+        _ => null
+    };
+
+    private static bool IsSafeLocalUrl(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        value.StartsWith('/') &&
+        !value.StartsWith("//", StringComparison.Ordinal) &&
+        !value.StartsWith("/\\", StringComparison.Ordinal);
+}

@@ -1,0 +1,110 @@
+@page "/perfil"
+@attribute [Authorize]
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
+
+<PageTitle>Meu perfil · Age Nexus</PageTitle>
+
+<section class="profile-page">
+    <div class="page-heading compact-heading">
+        <div>
+            <span class="eyebrow">Identidade de jogador</span>
+            <h1>Seu perfil no <em>Nexus.</em></h1>
+            <p>Escolha como os outros jogadores enxergam você. O e-mail da conta permanece privado.</p>
+        </div>
+    </div>
+
+    @if (CurrentProfile is null)
+    {
+        <div class="panel panel-empty">
+            <strong>Não foi possível carregar seu perfil.</strong>
+            <p>Atualize a página. Se o problema continuar, sua conta pode não estar ligada a um perfil.</p>
+        </div>
+    }
+    else
+    {
+        <div class="profile-layout">
+            <aside class="profile-preview panel">
+                @if (!string.IsNullOrWhiteSpace(CurrentProfile.AvatarUrl))
+                {
+                    <img class="profile-avatar-image" src="@CurrentProfile.AvatarUrl" alt="Avatar de @CurrentProfile.DisplayName" />
+                }
+                else
+                {
+                    <span class="avatar avatar-xxl">@GetInitial(CurrentProfile.DisplayName)</span>
+                }
+                <span class="eyebrow">Prévia pública</span>
+                <h2>@CurrentProfile.DisplayName</h2>
+                @if (!string.IsNullOrWhiteSpace(CurrentProfile.Location))
+                {
+                    <p class="profile-location">⌖ @CurrentProfile.Location</p>
+                }
+                <p>@(string.IsNullOrWhiteSpace(CurrentProfile.Bio) ? "Conte um pouco sobre sua jornada nos jogos." : CurrentProfile.Bio)</p>
+            </aside>
+
+            <div class="account-card profile-form-card">
+                <div class="account-card-heading">
+                    <span class="account-step">Personalização</span>
+                    <h2>Informações públicas</h2>
+                    <p>Todos estes campos podem ser alterados novamente.</p>
+                </div>
+
+                @if (Saved == "1")
+                {
+                    <div class="form-alert form-alert-success" role="status">Perfil atualizado com sucesso.</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(Error))
+                {
+                    <div class="form-alert form-alert-error" role="alert">Revise os dados. A URL do avatar deve começar com http:// ou https://.</div>
+                }
+
+                <form method="post" action="/account/profile" class="account-form">
+                    <AntiforgeryToken />
+
+                    <label class="form-field">
+                        <span>Nome público</span>
+                        <input name="displayName" required maxlength="100" value="@CurrentProfile.DisplayName" />
+                    </label>
+
+                    <label class="form-field">
+                        <span>Localização</span>
+                        <input name="location" maxlength="100" value="@CurrentProfile.Location" placeholder="Ex.: Fortaleza, CE" />
+                    </label>
+
+                    <label class="form-field">
+                        <span>URL do avatar</span>
+                        <input name="avatarUrl" type="url" maxlength="500" value="@CurrentProfile.AvatarUrl" placeholder="https://exemplo.com/avatar.jpg" />
+                    </label>
+
+                    <label class="form-field">
+                        <span>Sobre você</span>
+                        <textarea name="bio" maxlength="500" rows="5" placeholder="Jogos favoritos, estilo de jogo, grupos...">@CurrentProfile.Bio</textarea>
+                        <small>Até 500 caracteres.</small>
+                    </label>
+
+                    <button class="button button-primary account-submit" type="submit">Salvar perfil</button>
+                </form>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    [SupplyParameterFromQuery(Name = "salvo")]
+    private string? Saved { get; set; }
+
+    [SupplyParameterFromQuery(Name = "erro")]
+    private string? Error { get; set; }
+
+    private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await AuthenticationStateTask;
+        CurrentProfile = await Accounts.GetProfileAsync(authenticationState.User, CancellationToken.None);
+    }
+
+    private static string GetInitial(string value) => value[..1].ToUpperInvariant();
+}

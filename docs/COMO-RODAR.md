@@ -30,7 +30,23 @@ dotnet restore AgeNexus.slnx
 
 Esse comando baixa os pacotes necessários, incluindo as dependências usadas pelos testes.
 
-## 3. Compilar
+## 3. Configurar o banco
+
+O Age Nexus usa PostgreSQL no Supabase. Configure a connection string em User Secrets, sem gravar senha no repositório:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:AgeNexus" "Host=SEU_HOST;Port=5432;Database=postgres;Username=postgres;Password=SUA_SENHA;SSL Mode=Require;Trust Server Certificate=true" --project src/AgeNexus.Web
+```
+
+Neste computador a conexão do projeto já está configurada. Para preparar outro ambiente, consulte [SUPABASE.md](SUPABASE.md).
+
+Aplique as migrations:
+
+```powershell
+dotnet ef database update --project src/AgeNexus.Infrastructure --startup-project src/AgeNexus.Web
+```
+
+## 4. Compilar
 
 ```powershell
 dotnet build AgeNexus.slnx --no-restore
@@ -38,7 +54,7 @@ dotnet build AgeNexus.slnx --no-restore
 
 Ao final, deve aparecer `Compilação com êxito` e zero erros.
 
-## 4. Executar os testes
+## 5. Executar os testes
 
 ```powershell
 dotnet test AgeNexus.slnx --no-build --no-restore
@@ -46,7 +62,7 @@ dotnet test AgeNexus.slnx --no-build --no-restore
 
 Os testes atuais validam as primeiras regras do domínio, incluindo partidas com equipes assimétricas, humanos contra IA e perfis históricos.
 
-## 5. Iniciar a aplicação
+## 6. Iniciar a aplicação
 
 ```powershell
 dotnet run --project src/AgeNexus.Web
@@ -58,14 +74,15 @@ O terminal mostrará o endereço local:
 http://localhost:5186
 ```
 
-Abra no navegador exatamente o endereço exibido. A resposta inicial será um JSON parecido com:
+Abra no navegador exatamente o endereço exibido. A página inicial mostrará o dashboard vazio, pronto para receber dados reais.
 
-```json
-{
-  "name": "Age Nexus",
-  "status": "Foundation"
-}
-```
+Os fluxos de conta ficam em:
+
+- `/conta/criar` — criação de usuário e perfil;
+- `/conta/login` — entrada na conta;
+- `/perfil` — personalização de nome público, localização, avatar e bio.
+
+A senha deve ter no mínimo 10 caracteres e incluir letra maiúscula, minúscula, número e símbolo.
 
 Para encerrar a aplicação, pressione `Ctrl+C` no terminal.
 
@@ -111,4 +128,4 @@ Depois, acesse `http://localhost:5080`.
 
 ## Estado atual
 
-O projeto está na fase de fundação. A aplicação ainda expõe apenas o endpoint inicial; banco de dados, autenticação e interface Blazor serão adicionados nas próximas etapas.
+A aplicação possui interface Blazor, persistência com EF Core/PostgreSQL e autenticação por ASP.NET Core Identity. As tabelas de credenciais ficam no schema privado `identity`; o perfil público é armazenado em `public.player_profiles`.
