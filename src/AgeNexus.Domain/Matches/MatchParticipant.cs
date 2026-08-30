@@ -4,6 +4,10 @@ namespace AgeNexus.Domain.Matches;
 
 public sealed class MatchParticipant
 {
+    private MatchParticipant()
+    {
+    }
+
     private MatchParticipant(
         Guid id,
         ParticipantType type,
@@ -25,12 +29,12 @@ public sealed class MatchParticipant
         FactionSelection = factionSelection;
     }
 
-    public Guid Id { get; }
-    public ParticipantType Type { get; }
-    public Guid? PlayerProfileId { get; }
-    public Guid? AiDifficultyId { get; }
-    public Guid? FactionId { get; }
-    public FactionSelection FactionSelection { get; }
+    public Guid Id { get; private set; }
+    public ParticipantType Type { get; private set; }
+    public Guid? PlayerProfileId { get; private set; }
+    public Guid? AiDifficultyId { get; private set; }
+    public Guid? FactionId { get; private set; }
+    public FactionSelection FactionSelection { get; private set; }
 
     public static MatchParticipant Human(
         Guid id,

@@ -6,6 +6,10 @@ public sealed class Match
 {
     private readonly List<MatchTeam> _teams = [];
 
+    private Match()
+    {
+    }
+
     public Match(
         Guid id,
         Guid gameEditionId,
@@ -32,12 +36,12 @@ public sealed class Match
         Nature = nature;
     }
 
-    public Guid Id { get; }
-    public Guid GameEditionId { get; }
-    public Guid CreatedByPlayerProfileId { get; }
-    public DateTimeOffset PlayedAtUtc { get; }
-    public MatchType Type { get; }
-    public MatchNature Nature { get; }
+    public Guid Id { get; private set; }
+    public Guid GameEditionId { get; private set; }
+    public Guid CreatedByPlayerProfileId { get; private set; }
+    public DateTimeOffset PlayedAtUtc { get; private set; }
+    public MatchType Type { get; private set; }
+    public MatchNature Nature { get; private set; }
     public MatchStatus Status { get; private set; } = MatchStatus.Draft;
     public IReadOnlyCollection<MatchTeam> Teams => _teams.AsReadOnly();
 

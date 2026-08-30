@@ -4,6 +4,11 @@ namespace AgeNexus.Domain.Players;
 
 public sealed class PlayerProfile
 {
+    private PlayerProfile()
+    {
+        DisplayName = null!;
+    }
+
     public PlayerProfile(Guid id, string displayName, Guid? applicationUserId = null)
     {
         if (id == Guid.Empty)
@@ -21,7 +26,7 @@ public sealed class PlayerProfile
         ApplicationUserId = applicationUserId;
     }
 
-    public Guid Id { get; }
+    public Guid Id { get; private set; }
     public string DisplayName { get; private set; }
     public Guid? ApplicationUserId { get; private set; }
     public bool HasUserAccount => ApplicationUserId.HasValue;

@@ -6,6 +6,10 @@ public sealed class MatchTeam
 {
     private readonly List<MatchParticipant> _participants = [];
 
+    private MatchTeam()
+    {
+    }
+
     internal MatchTeam(Guid id, int position)
     {
         if (id == Guid.Empty)
@@ -17,8 +21,8 @@ public sealed class MatchTeam
         Position = position;
     }
 
-    public Guid Id { get; }
-    public int Position { get; }
+    public Guid Id { get; private set; }
+    public int Position { get; private set; }
     public TeamResult Result { get; private set; } = TeamResult.Undecided;
     public IReadOnlyCollection<MatchParticipant> Participants => _participants.AsReadOnly();
     public int HumanCount => _participants.Count(x => x.Type == ParticipantType.Human);

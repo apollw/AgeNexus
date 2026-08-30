@@ -4,10 +4,8 @@
 
 <section class="page-heading compact-heading">
     <div><span class="eyebrow">Histórico de batalhas</span><h1>Partidas</h1><p>Registre resultados, acompanhe confirmações e preserve cada confronto.</p></div>
-    <button class="button button-primary" type="button"><span>+</span> Nova partida</button>
+    <button class="button button-primary" type="button" disabled title="Cadastro em implementação"><span>+</span> Nova partida</button>
 </section>
-
-<div class="demo-notice"><span>Prévia visual</span> O formulário e os filtros serão conectados aos casos de uso na próxima etapa.</div>
 
 <section class="panel table-panel">
     <div class="filter-bar">
@@ -18,9 +16,10 @@
     </div>
     <div class="data-table">
         <div class="table-head"><span>Confronto</span><span>Formato</span><span>Mapa</span><span>Status</span><span>Data</span></div>
-        <a class="table-row" href="#"><span><strong>Leanderson</strong> vs. Ragnar</span><span>1 × 1</span><span>Arábia</span><span><i class="status-badge validated">Validada</i></span><span>Hoje, 21:42</span></a>
-        <a class="table-row" href="#"><span><strong>Atlas &amp; Davi</strong> vs. Caio &amp; Iago</span><span>2 × 2</span><span>Arena</span><span><i class="status-badge pending">Pendente</i></span><span>Ontem, 23:18</span></a>
-        <a class="table-row" href="#"><span><strong>Davi</strong> vs. IA Extrema</span><span>1 × IA</span><span>Ilhas</span><span><i class="status-badge confirmed">Confirmada</i></span><span>28 ago, 20:05</span></a>
-        <a class="table-row" href="#"><span><strong>Ragnar, Caio &amp; Iago</strong> vs. Atlas &amp; Davi</span><span>3 × 2</span><span>Fortaleza</span><span><i class="status-badge validated">Validada</i></span><span>27 ago, 22:31</span></a>
+        <div class="panel-empty table-empty">
+            <span class="empty-icon">⚔</span>
+            <strong>Nenhuma partida encontrada</strong>
+            <p>O histórico será preenchido somente com dados registrados no banco.</p>
+        </div>
     </div>
 </section>

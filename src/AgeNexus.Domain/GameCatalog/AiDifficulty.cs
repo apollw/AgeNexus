@@ -4,6 +4,11 @@ namespace AgeNexus.Domain.GameCatalog;
 
 public sealed class AiDifficulty
 {
+    private AiDifficulty()
+    {
+        Name = null!;
+    }
+
     public AiDifficulty(Guid id, Guid gameEditionId, string name, int internalLevel)
     {
         if (id == Guid.Empty || gameEditionId == Guid.Empty)
@@ -27,8 +32,8 @@ public sealed class AiDifficulty
         InternalLevel = internalLevel;
     }
 
-    public Guid Id { get; }
-    public Guid GameEditionId { get; }
-    public string Name { get; }
-    public int InternalLevel { get; }
+    public Guid Id { get; private set; }
+    public Guid GameEditionId { get; private set; }
+    public string Name { get; private set; }
+    public int InternalLevel { get; private set; }
 }
