@@ -6,6 +6,10 @@ O projeto está na fase de fundação. Consulte a estrutura em [`docs/architectu
 
 Para configurar o ambiente e iniciar a aplicação, consulte [Como rodar o Age Nexus](docs/COMO-RODAR.md).
 
+Para banco PostgreSQL, autenticação e armazenamento no Supabase, consulte [Supabase no Age Nexus](docs/SUPABASE.md).
+
+Para alterar o schema e aplicar migrações PostgreSQL, consulte [EF Core e PostgreSQL](docs/EF-CORE.md).
+
 ```powershell
 dotnet build AgeNexus.slnx
 dotnet test AgeNexus.slnx

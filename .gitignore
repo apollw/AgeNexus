@@ -1,6 +1,8 @@
 **/bin/
 **/obj/
 **/.keys/
+supabase/.temp/
+supabase/.branches/
 .vs/
 .idea/
 *.user
