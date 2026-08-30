@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\AgeNexus.Application\AgeNexus.Application.csproj" />
+    <ProjectReference Include="..\AgeNexus.Infrastructure\AgeNexus.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

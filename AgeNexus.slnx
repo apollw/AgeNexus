@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AgeNexus.Application/AgeNexus.Application.csproj" />
+    <Project Path="src/AgeNexus.Domain/AgeNexus.Domain.csproj" />
+    <Project Path="src/AgeNexus.Infrastructure/AgeNexus.Infrastructure.csproj" />
+    <Project Path="src/AgeNexus.Web/AgeNexus.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AgeNexus.Domain.Tests/AgeNexus.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

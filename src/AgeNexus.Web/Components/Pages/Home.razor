@@ -1,0 +1,120 @@
+@page "/"
+
+<PageTitle>Visão geral · Age Nexus</PageTitle>
+
+<section class="page-heading dashboard-heading">
+    <div>
+        <span class="eyebrow">Central da comunidade</span>
+        <h1>O campo de batalha<br /><em>nunca esquece.</em></h1>
+        <p>Acompanhe partidas, rivalidades e a evolução de cada jogador em um só lugar.</p>
+    </div>
+    <div class="season-seal" aria-label="Temporada inaugural">
+        <span>Temporada</span>
+        <strong>I</strong>
+        <small>INAUGURAL</small>
+    </div>
+</section>
+
+<div class="demo-notice">
+    <span>Prévia visual</span>
+    Os números e nomes abaixo são demonstrativos. A integração com dados reais será a próxima etapa.
+</div>
+
+<section class="stat-grid" aria-label="Resumo da comunidade">
+    <article class="stat-card stat-card-featured">
+        <div class="stat-icon sword-icon">⚔</div>
+        <div><span>Partidas registradas</span><strong>128</strong><small><b>+12</b> nesta semana</small></div>
+    </article>
+    <article class="stat-card">
+        <div class="stat-icon">♙</div>
+        <div><span>Jogadores ativos</span><strong>24</strong><small>8 jogaram hoje</small></div>
+    </article>
+    <article class="stat-card">
+        <div class="stat-icon">⌁</div>
+        <div><span>Tempo em batalha</span><strong>96h</strong><small>Duração acumulada</small></div>
+    </article>
+    <article class="stat-card">
+        <div class="stat-icon">♜</div>
+        <div><span>Civilização em alta</span><strong class="stat-word">Francos</strong><small>54% de vitórias · n=26</small></div>
+    </article>
+</section>
+
+<div class="dashboard-grid">
+    <section class="panel matches-panel">
+        <header class="panel-header">
+            <div><span class="eyebrow">Últimos confrontos</span><h2>Atividade recente</h2></div>
+            <a href="/partidas">Ver todas <span>→</span></a>
+        </header>
+
+        <div class="match-list">
+            <article class="match-row">
+                <div class="match-meta"><span class="status-badge validated">Validada</span><time>Hoje, 21:42</time></div>
+                <div class="match-sides">
+                    <div class="player-side winner"><span class="avatar avatar-gold">LN</span><div><strong>Leanderson</strong><small>Francos</small></div><b>V</b></div>
+                    <div class="versus"><span>1 × 1</span><small>Arábia</small></div>
+                    <div class="player-side player-side-right"><b>D</b><div><strong>Ragnar</strong><small>Maias</small></div><span class="avatar avatar-blue">RG</span></div>
+                </div>
+            </article>
+
+            <article class="match-row">
+                <div class="match-meta"><span class="status-badge pending">Pendente</span><time>Ontem, 23:18</time></div>
+                <div class="match-sides">
+                    <div class="team-stack"><span class="avatar avatar-purple">AC</span><span class="avatar avatar-red">DV</span><div><strong>Atlas &amp; Davi</strong><small>Bizantinos · Mongóis</small></div></div>
+                    <div class="versus"><span>2 × 2</span><small>Arena</small></div>
+                    <div class="team-stack team-stack-right"><div><strong>Caio &amp; Iago</strong><small>Hunos · Celtas</small></div><span class="avatar avatar-green">CS</span><span class="avatar avatar-orange">IG</span></div>
+                </div>
+            </article>
+
+            <article class="match-row">
+                <div class="match-meta"><span class="status-badge confirmed">Confirmada</span><time>28 ago, 20:05</time></div>
+                <div class="match-sides">
+                    <div class="player-side winner"><span class="avatar avatar-red">DV</span><div><strong>Davi</strong><small>Etíopes</small></div><b>V</b></div>
+                    <div class="versus"><span>1 × IA</span><small>Ilhas</small></div>
+                    <div class="player-side player-side-right"><b>D</b><div><strong>IA Extrema</strong><small>Vikings</small></div><span class="avatar avatar-dark">AI</span></div>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <aside class="panel leaderboard-panel">
+        <header class="panel-header">
+            <div><span class="eyebrow">Elo geral PvP</span><h2>Top jogadores</h2></div>
+            <a href="/rankings">Ranking <span>→</span></a>
+        </header>
+        <div class="leaderboard">
+            <div class="leader leader-first">
+                <span class="rank">1</span><span class="avatar avatar-gold">LN</span>
+                <div><strong>Leanderson</strong><small>12V · 3D · 80%</small></div>
+                <div class="rating"><strong>1.248</strong><small>+18 ↑</small></div>
+            </div>
+            <div class="leader">
+                <span class="rank">2</span><span class="avatar avatar-purple">AC</span>
+                <div><strong>Atlas</strong><small>10V · 5D · 67%</small></div>
+                <div class="rating"><strong>1.194</strong><small>+7 ↑</small></div>
+            </div>
+            <div class="leader">
+                <span class="rank">3</span><span class="avatar avatar-red">DV</span>
+                <div><strong>Davi</strong><small>9V · 6D · 60%</small></div>
+                <div class="rating"><strong>1.156</strong><small class="negative">−4 ↓</small></div>
+            </div>
+            <div class="leader">
+                <span class="rank">4</span><span class="avatar avatar-blue">RG</span>
+                <div><strong>Ragnar</strong><small>7V · 7D · 50%</small></div>
+                <div class="rating"><strong>1.102</strong><small>+11 ↑</small></div>
+            </div>
+        </div>
+        <div class="provisional-note"><span>i</span> O ranking oficial exige 10 partidas e 3 adversários distintos.</div>
+    </aside>
+</div>
+
+<section class="quick-actions">
+    <a href="/partidas" class="quick-card">
+        <span class="quick-number">01</span><div><strong>Registre uma história</strong><small>Adicione equipes, civilizações e evidências.</small></div><b>→</b>
+    </a>
+    <a href="/jogadores" class="quick-card">
+        <span class="quick-number">02</span><div><strong>Explore seus rivais</strong><small>Compare histórico, forma e confrontos diretos.</small></div><b>→</b>
+    </a>
+    <a href="/rankings" class="quick-card">
+        <span class="quick-number">03</span><div><strong>Dispute o topo</strong><small>Acompanhe ratings por modalidade.</small></div><b>→</b>
+    </a>
+</section>

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\AgeNexus.Domain\AgeNexus.Domain.csproj" />
+  </ItemGroup>
+</Project>
