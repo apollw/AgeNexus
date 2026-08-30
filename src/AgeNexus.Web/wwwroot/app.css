@@ -28,7 +28,7 @@ body {
 }
 
 a { color: inherit; text-decoration: none; }
-button, input { font: inherit; }
+button, input, textarea { font: inherit; }
 button { color: inherit; }
 
 .app-shell { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 100vh; }
@@ -92,6 +92,11 @@ button { color: inherit; }
 .profile-copy strong { font-size: 12px; }
 .profile-copy small { color: var(--muted); font-size: 9px; }
 .chevron { margin-left: 2px; color: var(--muted); }
+.topbar-link { color: var(--forest); font-size: 11px; font-weight: 800; }
+.topbar-link:hover { color: var(--gold); }
+.logout-form { display: inline-flex; }
+.logout-button { padding: 6px 2px; color: var(--muted); border: 0; background: transparent; font-size: 10px; font-weight: 700; cursor: pointer; }
+.logout-button:hover { color: var(--red); }
 
 .button { display: inline-flex; justify-content: center; align-items: center; gap: 9px; min-height: 45px; padding: 0 19px; border: 1px solid transparent; border-radius: 5px; font-weight: 700; font-size: 12px; cursor: pointer; transition: .18s ease; }
 .button-primary { color: #fff9ec; background: var(--forest); box-shadow: 0 7px 18px rgba(25,61,53,.16); }
@@ -222,6 +227,45 @@ button { color: inherit; }
 .up { color: #357655; font-weight: 800; }.down { color: var(--red); font-weight: 800; }
 .empty-state { max-width: 620px; margin: 90px auto; padding: 50px; text-align: center; border: 1px solid var(--line); background: var(--surface); }.empty-state h1 { font: 700 30px "Unbounded"; }.empty-state p { margin-bottom: 25px; color: var(--muted); }
 
+.account-shell { display: grid; grid-template-columns: minmax(280px, .9fr) minmax(440px, 1.1fr); align-items: center; gap: clamp(40px, 8vw, 120px); max-width: 1120px; min-height: calc(100vh - 190px); margin: 0 auto; }
+.account-intro h1 { max-width: 600px; margin: 10px 0 20px; font: 700 clamp(39px, 5vw, 66px)/1.08 "Unbounded", sans-serif; letter-spacing: -.055em; }
+.account-intro h1 em { color: var(--gold); font-style: normal; }
+.account-intro > p { max-width: 540px; margin: 0; color: var(--muted); font-size: 15px; line-height: 1.8; }
+.account-benefits { display: grid; gap: 14px; margin: 34px 0 0; padding: 0; list-style: none; }
+.account-benefits li { display: flex; align-items: center; gap: 14px; color: #5f5a50; font-size: 11px; font-weight: 700; }
+.account-benefits li span { display: grid; place-items: center; width: 34px; height: 34px; color: var(--gold); border: 1px solid var(--gold-light); border-radius: 50%; font: 700 8px "Unbounded"; }
+.account-card { padding: clamp(27px, 4vw, 44px); border: 1px solid var(--line); border-radius: 9px; background: rgba(255,253,248,.94); box-shadow: var(--shadow); }
+.account-card-heading { margin-bottom: 27px; }
+.account-step { color: var(--gold); font-size: 8px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+.account-card-heading h2 { margin: 8px 0 8px; font: 700 24px "Unbounded"; letter-spacing: -.04em; }
+.account-card-heading p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.account-form { display: grid; gap: 17px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-field { display: grid; gap: 7px; color: #625d53; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.form-field input, .form-field textarea { width: 100%; padding: 12px 13px; color: var(--ink); border: 1px solid var(--line); border-radius: 5px; outline: 0; background: #faf8f2; font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; transition: .15s ease; }
+.form-field input { height: 45px; }
+.form-field textarea { min-height: 120px; resize: vertical; line-height: 1.6; }
+.form-field input:focus, .form-field textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(189,135,53,.1); background: #fffdf8; }
+.form-field small { color: var(--muted); font-size: 8px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.check-field { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 10px; cursor: pointer; }
+.check-field input { width: 15px; height: 15px; accent-color: var(--forest); }
+.password-hint { margin: -5px 0 0; color: var(--muted); font-size: 8px; line-height: 1.55; }
+.account-submit { width: 100%; margin-top: 3px; }
+.account-switch { margin: 23px 0 0; padding-top: 20px; color: var(--muted); border-top: 1px solid #e8e2d8; text-align: center; font-size: 10px; }
+.account-switch a { color: var(--forest); font-weight: 800; }
+.form-alert { margin-bottom: 19px; padding: 11px 13px; border-radius: 5px; font-size: 10px; line-height: 1.5; }
+.form-alert-error { color: #79332c; border: 1px solid #e6c0bb; background: #f8e8e5; }
+.form-alert-success { color: #255a48; border: 1px solid #b9d6ca; background: #e5f1ec; }
+
+.profile-layout { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(440px, 1.3fr); gap: 20px; max-width: 980px; }
+.profile-preview { display: flex; flex-direction: column; align-items: center; align-self: start; padding: 40px 30px; text-align: center; }
+.profile-preview .eyebrow { margin-top: 23px; }
+.profile-preview h2 { margin: 10px 0 4px; font: 700 20px "Unbounded"; letter-spacing: -.04em; overflow-wrap: anywhere; }
+.profile-preview > p { max-width: 320px; margin: 14px 0 0; color: var(--muted); font-size: 10px; line-height: 1.7; overflow-wrap: anywhere; }
+.profile-preview .profile-location { margin-top: 7px; color: var(--gold); font-weight: 700; }
+.profile-avatar-image { width: 96px; height: 96px; border: 4px solid var(--surface); border-radius: 50%; object-fit: cover; box-shadow: 0 8px 26px rgba(30,25,17,.14); }
+.profile-form-card { padding: 34px; }
+
 @media (max-width: 1150px) {
     .stat-grid { grid-template-columns: repeat(2, 1fr); }
     .dashboard-grid { grid-template-columns: 1fr; }
@@ -238,7 +282,7 @@ button { color: inherit; }
     .main-column { padding-bottom: 65px; }
     .topbar { height: 62px; justify-content: space-between; padding: 0 17px; }
     .mobile-brand { display: block; font: 700 12px "Unbounded"; letter-spacing: .08em; }.mobile-brand span { color: var(--gold); }
-    .icon-button, .profile-copy, .chevron { display: none; }.profile-chip { margin: 0; }.profile-chip .avatar { width: 33px; height: 33px; }
+    .icon-button, .profile-copy, .chevron, .logout-button { display: none; }.profile-chip { margin: 0; }.profile-chip .avatar { width: 33px; height: 33px; }
     .button-compact { width: 38px; min-height: 38px; padding: 0; font-size: 0; }.button-compact span { font-size: 18px; }
     .content { padding: 30px 16px 40px; }
     .page-heading { align-items: flex-start; gap: 18px; }.page-heading h1 { font-size: 31px; }.page-heading p { font-size: 12px; }.season-seal { display: none; }
@@ -253,4 +297,8 @@ button { color: inherit; }
     .ranking-tabs { width: 100%; overflow-x: auto; }.ranking-tabs button { white-space: nowrap; }
     .ranking-hero { grid-template-columns: auto 1fr; padding: 22px 18px; }.hero-rating { grid-column: 1 / -1; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); text-align: left; }.avatar-xxl { width: 60px; height: 60px; }
     .ranking-table-panel { overflow-x: auto; }.ranking-row { min-width: 700px; padding: 0 18px; }
+    .account-shell { display: block; min-height: auto; }
+    .account-intro { margin-bottom: 30px; }.account-intro h1 { font-size: 37px; }.account-intro > p { font-size: 12px; }.account-benefits { display: none; }
+    .account-card { padding: 24px 18px; }.form-grid { grid-template-columns: 1fr; }
+    .profile-layout { grid-template-columns: 1fr; }.profile-preview { padding: 28px 20px; }.profile-form-card { padding: 24px 18px; }
 }

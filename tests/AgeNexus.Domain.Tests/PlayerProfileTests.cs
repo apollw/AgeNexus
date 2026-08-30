@@ -24,4 +24,30 @@ public sealed class PlayerProfileTests
 
         Assert.Throws<DomainRuleException>(() => profile.LinkToUser(Guid.NewGuid()));
     }
+
+    [Fact]
+    public void Public_profile_can_be_personalized()
+    {
+        var profile = new PlayerProfile(Guid.NewGuid(), "Jogador");
+
+        profile.UpdatePublicProfile(
+            "  Mestre Meeple  ",
+            "  Jogos de estratégia e café.  ",
+            "  Fortaleza, CE  ",
+            "https://example.com/avatar.png");
+
+        Assert.Equal("Mestre Meeple", profile.DisplayName);
+        Assert.Equal("Jogos de estratégia e café.", profile.Bio);
+        Assert.Equal("Fortaleza, CE", profile.Location);
+        Assert.Equal("https://example.com/avatar.png", profile.AvatarUrl);
+    }
+
+    [Fact]
+    public void Avatar_rejects_non_http_urls()
+    {
+        var profile = new PlayerProfile(Guid.NewGuid(), "Jogador");
+
+        Assert.Throws<DomainRuleException>(() =>
+            profile.UpdatePublicProfile("Jogador", null, null, "javascript:alert(1)"));
+    }
 }

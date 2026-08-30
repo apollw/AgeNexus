@@ -23,14 +23,25 @@
                 <button class="icon-button" type="button" title="Notificações" aria-label="Notificações">
                     <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
                 </button>
-                <a class="button button-primary button-compact" href="/partidas">
-                    <span>+</span> Registrar partida
-                </a>
-                <button class="profile-chip" type="button">
-                    <span class="avatar">?</span>
-                    <span class="profile-copy"><strong>Visitante</strong><small>Não autenticado</small></span>
-                    <span class="chevron">⌄</span>
-                </button>
+                <AuthorizeView>
+                    <Authorized Context="session">
+                        <a class="button button-primary button-compact" href="/partidas">
+                            <span>+</span> Registrar partida
+                        </a>
+                        <a class="profile-chip" href="/perfil">
+                            <span class="avatar">@GetInitial(session.User.Identity?.Name)</span>
+                            <span class="profile-copy"><strong>@session.User.Identity?.Name</strong><small>Minha conta</small></span>
+                        </a>
+                        <form method="post" action="/account/logout" class="logout-form">
+                            <AntiforgeryToken />
+                            <button class="logout-button" type="submit">Sair</button>
+                        </form>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="topbar-link" href="/conta/login">Entrar</a>
+                        <a class="button button-primary button-compact" href="/conta/criar">Criar conta</a>
+                    </NotAuthorized>
+                </AuthorizeView>
             </div>
         </header>
 
@@ -39,3 +50,8 @@
         </main>
     </div>
 </div>
+
+@code {
+    private static string GetInitial(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "?" : value[..1].ToUpperInvariant();
+}
