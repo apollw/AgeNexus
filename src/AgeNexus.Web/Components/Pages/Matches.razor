@@ -11,7 +11,7 @@
 <section class="panel table-panel">
     <div class="data-table">
         <div class="table-head"><span>Confronto</span><span>Formato</span><span>Categoria</span><span>Status</span><span>Data</span></div>
-        @if (Matches.Count == 0)
+        @if (RecentMatches.Count == 0)
         {
             <div class="panel-empty table-empty">
                 <span class="empty-icon">⚔</span><strong>Nenhuma partida encontrada</strong>
@@ -20,7 +20,7 @@
         }
         else
         {
-            @foreach (var match in Matches)
+            @foreach (var match in RecentMatches)
             {
                 <div class="table-row">
                     <span>@string.Join(" × ", match.Teams)</span>
@@ -35,7 +35,7 @@
 </section>
 
 @code {
-    private IReadOnlyCollection<AgeNexus.Application.Queries.MatchSummary> Matches { get; set; } = [];
+    private IReadOnlyCollection<AgeNexus.Application.Queries.MatchSummary> RecentMatches { get; set; } = [];
 
-    protected override async Task OnInitializedAsync() => Matches = await History.GetRecentAsync();
+    protected override async Task OnInitializedAsync() => RecentMatches = await History.GetRecentAsync();
 }

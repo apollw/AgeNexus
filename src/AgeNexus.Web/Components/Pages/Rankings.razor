@@ -1,5 +1,5 @@
 @page "/rankings"
-@inject AgeNexus.Application.Queries.IRankingQueryService Rankings
+@inject AgeNexus.Application.Queries.IRankingQueryService RankingQueries
 
 <PageTitle>Rankings · Age Nexus</PageTitle>
 
@@ -36,11 +36,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Boards["Geral competitivo"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive);
-        Boards["Carreira"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.Career);
-        Boards["Domínio contra IA"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.Pve);
-        Boards["Equipes fixas"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.TeamLineup);
-        Boards["Clãs"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.ClanCompetitive);
+        Boards["Geral competitivo"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive);
+        Boards["Carreira"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.Career);
+        Boards["Domínio contra IA"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.Pve);
+        Boards["Equipes fixas"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.TeamLineup);
+        Boards["Clãs"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.ClanCompetitive);
     }
 
     private static string GetDescription(string board) => board switch

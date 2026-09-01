@@ -7,7 +7,7 @@
     <div><span class="eyebrow">Guerreiros do Nexus</span><h1>Jogadores</h1><p>Perfis, ratings e evolução em cada modalidade.</p></div>
 </section>
 
-@if (Players.Count == 0)
+@if (PlayerItems.Count == 0)
 {
     <section class="panel panel-empty page-empty">
         <span class="empty-icon">♙</span><strong>Nenhum jogador cadastrado</strong>
@@ -16,7 +16,7 @@
 else
 {
     <section class="card-grid">
-        @foreach (var player in Players)
+        @foreach (var player in PlayerItems)
         {
             <article class="panel quick-card">
                 @if (!string.IsNullOrWhiteSpace(player.AvatarUrl))
@@ -37,7 +37,7 @@ else
 }
 
 @code {
-    private IReadOnlyCollection<AgeNexus.Application.Queries.PlayerSummary> Players { get; set; } = [];
+    private IReadOnlyCollection<AgeNexus.Application.Queries.PlayerSummary> PlayerItems { get; set; } = [];
 
-    protected override async Task OnInitializedAsync() => Players = await Directory.GetAsync();
+    protected override async Task OnInitializedAsync() => PlayerItems = await Directory.GetAsync();
 }
