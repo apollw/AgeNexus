@@ -1,4 +1,7 @@
 using AgeNexus.Domain.GameCatalog;
+using AgeNexus.Domain.Clans;
+using AgeNexus.Domain.Competition;
+using AgeNexus.Domain.EvidenceAndModeration;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Domain.Players;
 using AgeNexus.Infrastructure.Identity;
@@ -16,6 +19,20 @@ public sealed class AgeNexusDbContext(DbContextOptions<AgeNexusDbContext> option
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<MatchTeam> MatchTeams => Set<MatchTeam>();
     public DbSet<MatchParticipant> MatchParticipants => Set<MatchParticipant>();
+    public DbSet<Game> Games => Set<Game>();
+    public DbSet<GameEdition> GameEditions => Set<GameEdition>();
+    public DbSet<Faction> Factions => Set<Faction>();
+    public DbSet<MapDefinition> MapDefinitions => Set<MapDefinition>();
+    public DbSet<GamePatch> GamePatches => Set<GamePatch>();
+    public DbSet<Season> Seasons => Set<Season>();
+    public DbSet<PlayerFavoriteFaction> PlayerFavoriteFactions => Set<PlayerFavoriteFaction>();
+    public DbSet<Clan> Clans => Set<Clan>();
+    public DbSet<ClanMembership> ClanMemberships => Set<ClanMembership>();
+    public DbSet<ChallengeTicket> ChallengeTickets => Set<ChallengeTicket>();
+    public DbSet<MatchEvidence> MatchEvidence => Set<MatchEvidence>();
+    public DbSet<VerificationDecision> VerificationDecisions => Set<VerificationDecision>();
+    public DbSet<RatingEvent> RatingEvents => Set<RatingEvent>();
+    public DbSet<PointEvent> PointEvents => Set<PointEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

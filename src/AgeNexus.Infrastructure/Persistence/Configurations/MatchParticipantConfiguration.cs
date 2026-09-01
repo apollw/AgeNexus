@@ -36,6 +36,12 @@ internal sealed class MatchParticipantConfiguration : IEntityTypeConfiguration<M
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("fk_match_participants_ai_difficulty");
 
+        builder.HasOne<Faction>()
+            .WithMany()
+            .HasForeignKey(x => x.FactionId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .HasConstraintName("fk_match_participants_faction");
+
         builder.HasIndex(x => x.PlayerProfileId).HasDatabaseName("ix_match_participants_player_profile");
         builder.HasIndex(x => x.AiDifficultyId).HasDatabaseName("ix_match_participants_ai_difficulty");
         builder.HasIndex(x => x.FactionId).HasDatabaseName("ix_match_participants_faction");

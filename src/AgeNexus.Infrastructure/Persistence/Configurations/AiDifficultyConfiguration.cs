@@ -20,5 +20,11 @@ internal sealed class AiDifficultyConfiguration : IEntityTypeConfiguration<AiDif
         builder.HasIndex(x => new { x.GameEditionId, x.Name })
             .IsUnique()
             .HasDatabaseName("ux_ai_difficulties_edition_name");
+
+        builder.HasOne<GameEdition>()
+            .WithMany()
+            .HasForeignKey(x => x.GameEditionId)
+            .OnDelete(DeleteBehavior.Cascade)
+            .HasConstraintName("fk_ai_difficulties_game_edition");
     }
 }
