@@ -1,5 +1,9 @@
 using AgeNexus.Infrastructure.Persistence;
 using AgeNexus.Infrastructure.Identity;
+using AgeNexus.Infrastructure.Competition;
+using AgeNexus.Application.Matches;
+using AgeNexus.Application.Queries;
+using AgeNexus.Infrastructure.Queries;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -67,6 +71,14 @@ public static class DependencyInjection
         });
 
         services.AddScoped<AccountService>();
+        services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
+        services.AddScoped<CompetitionQueryService>();
+        services.AddScoped<IRankingQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
+        services.AddScoped<IMatchHistoryQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
+        services.AddScoped<IPlayerDirectoryQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
+        services.AddScoped<IStatisticsQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
+        services.AddScoped<IClanQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
+        services.AddScoped<ICatalogQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
 
         return services;
     }

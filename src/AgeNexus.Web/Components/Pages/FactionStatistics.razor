@@ -1,0 +1,33 @@
+@page "/estatisticas/civilizacoes"
+@inject AgeNexus.Application.Queries.IStatisticsQueryService Statistics
+
+<PageTitle>Civilizações · Age Nexus</PageTitle>
+
+<section class="page-heading compact-heading">
+    <div><span class="eyebrow">Metagame da comunidade</span><h1>Civilizações</h1><p>Uso, vitórias e aproveitamento calculados somente em partidas validadas.</p></div>
+</section>
+
+<section class="panel table-panel">
+    @if (Factions.Count == 0)
+    {
+        <div class="panel-empty page-empty"><strong>Ainda não há amostra suficiente</strong></div>
+    }
+    else
+    {
+        <div class="data-table">
+            <div class="table-head"><span>Civilização</span><span>Usos</span><span>Vitórias</span><span>Derrotas</span><span>Aproveitamento</span></div>
+            @foreach (var faction in Factions)
+            {
+                <div class="table-row">
+                    <span>@faction.Name</span><span>@faction.Uses</span><span>@faction.Victories</span>
+                    <span>@faction.Defeats</span><span>@faction.WinRate.ToString("0.##")%</span>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyCollection<AgeNexus.Application.Queries.FactionStatistics> Factions { get; set; } = [];
+    protected override async Task OnInitializedAsync() => Factions = await Statistics.GetFactionStatisticsAsync();
+}

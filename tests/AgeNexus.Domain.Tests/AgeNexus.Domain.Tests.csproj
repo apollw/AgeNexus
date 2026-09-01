@@ -12,6 +12,7 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\AgeNexus.Application\AgeNexus.Application.csproj" />
     <ProjectReference Include="..\..\src\AgeNexus.Domain\AgeNexus.Domain.csproj" />
   </ItemGroup>
 </Project>

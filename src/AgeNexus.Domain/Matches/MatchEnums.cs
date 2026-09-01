@@ -8,6 +8,14 @@ public enum MatchType
     FreeForAll
 }
 
+public enum MatchScoringCategory
+{
+    PurePvp,
+    HybridPvp,
+    PurePve,
+    Ineligible
+}
+
 public enum MatchStatus
 {
     Draft,
@@ -46,4 +54,10 @@ public enum TeamResult
     Victory,
     Draw,
     Defeat
+}
+
+public enum ConfirmationDecision
+{
+    Confirmed,
+    Contested
 }

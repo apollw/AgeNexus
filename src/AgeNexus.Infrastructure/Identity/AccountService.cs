@@ -92,7 +92,7 @@ public sealed class AccountService(
         return await database.PlayerProfiles
             .AsNoTracking()
             .Where(x => x.ApplicationUserId == userId)
-            .Select(x => new PublicProfile(x.DisplayName, x.Bio, x.Location, x.AvatarUrl))
+            .Select(x => new PublicProfile(x.Id, x.DisplayName, x.Bio, x.Location, x.AvatarUrl))
             .SingleOrDefaultAsync(cancellationToken);
     }
 
@@ -133,7 +133,7 @@ public sealed class AccountService(
         Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ? userId : null;
 }
 
-public sealed record PublicProfile(string DisplayName, string? Bio, string? Location, string? AvatarUrl);
+public sealed record PublicProfile(Guid Id, string DisplayName, string? Bio, string? Location, string? AvatarUrl);
 
 public sealed record AccountOperationResult(bool Succeeded, IReadOnlyCollection<string> ErrorCodes)
 {

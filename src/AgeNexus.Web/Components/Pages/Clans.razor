@@ -1,0 +1,30 @@
+@page "/clas"
+@inject AgeNexus.Application.Queries.IClanQueryService ClanQueries
+
+<PageTitle>Clãs · Age Nexus</PageTitle>
+
+<section class="page-heading compact-heading">
+    <div><span class="eyebrow">Comunidade</span><h1>Clãs</h1><p>Grupos persistentes, membros e prestígio coletivo.</p></div>
+</section>
+
+<section class="panel table-panel">
+    @if (ClanItems.Count == 0)
+    {
+        <div class="panel-empty page-empty"><strong>Nenhum clã criado</strong><p>Os primeiros clãs aparecerão aqui.</p></div>
+    }
+    else
+    {
+        <div class="data-table">
+            <div class="table-head"><span>Tag</span><span>Clã</span><span>Membros</span><span></span><span></span></div>
+            @foreach (var clan in ClanItems)
+            {
+                <div class="table-row"><span>[@clan.Tag]</span><span>@clan.Name</span><span>@clan.ActiveMembers</span><span></span><span></span></div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyCollection<AgeNexus.Application.Queries.ClanSummary> ClanItems { get; set; } = [];
+    protected override async Task OnInitializedAsync() => ClanItems = await ClanQueries.GetAsync();
+}

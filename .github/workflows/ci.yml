@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [master, dev, "feat/**"]
+  pull_request:
+    branches: [master, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore AgeNexus.slnx
+
+      - name: Build
+        run: dotnet build AgeNexus.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test AgeNexus.slnx --configuration Release --no-build
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Verify EF Core model snapshot
+        env:
+          ConnectionStrings__AgeNexus: Host=localhost;Port=5432;Database=agenexus;Username=postgres;Password=postgres
+        run: >-
+          dotnet ef migrations has-pending-model-changes
+          --project src/AgeNexus.Infrastructure/AgeNexus.Infrastructure.csproj
+          --startup-project src/AgeNexus.Web/AgeNexus.Web.csproj
