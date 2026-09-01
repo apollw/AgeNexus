@@ -9,6 +9,7 @@ using AgeNexus.Domain.EvidenceAndModeration;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using DomainMatchType = AgeNexus.Domain.Matches.MatchType;
 
 namespace AgeNexus.Infrastructure.Competition;
 
@@ -193,7 +194,7 @@ public sealed class MatchWorkflowService(
 
         try
         {
-            if (match.Type != MatchType.FreeForAll)
+            if (match.Type != DomainMatchType.FreeForAll)
             {
                 if (match.ScoringCategory is MatchScoringCategory.PurePvp or MatchScoringCategory.HybridPvp)
                 {

@@ -30,7 +30,7 @@ public sealed record RegisterMatchRequest(
     Guid GameEditionId,
     Guid CreatedByPlayerProfileId,
     DateTimeOffset PlayedAtUtc,
-    MatchType Type,
+    AgeNexus.Domain.Matches.MatchType Type,
     MatchNature Nature,
     Guid? SeasonId,
     Guid? MapDefinitionId,
