@@ -31,3 +31,14 @@ jobs:
 
       - name: Test
         run: dotnet test AgeNexus.slnx --configuration Release --no-build
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Verify EF Core model snapshot
+        env:
+          ConnectionStrings__AgeNexus: Host=localhost;Port=5432;Database=agenexus;Username=postgres;Password=postgres
+        run: >-
+          dotnet ef migrations has-pending-model-changes
+          --project src/AgeNexus.Infrastructure/AgeNexus.Infrastructure.csproj
+          --startup-project src/AgeNexus.Web/AgeNexus.Web.csproj
