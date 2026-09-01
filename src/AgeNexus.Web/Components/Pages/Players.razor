@@ -1,14 +1,43 @@
 @page "/jogadores"
+@inject AgeNexus.Application.Queries.IPlayerDirectoryQueryService Directory
 
 <PageTitle>Jogadores · Age Nexus</PageTitle>
 
 <section class="page-heading compact-heading">
-    <div><span class="eyebrow">Guerreiros do Nexus</span><h1>Jogadores</h1><p>Perfis, civilizações favoritas e histórias construídas partida a partida.</p></div>
-    <button class="button button-secondary" type="button" disabled title="Cadastro em implementação"><span>+</span> Perfil histórico</button>
+    <div><span class="eyebrow">Guerreiros do Nexus</span><h1>Jogadores</h1><p>Perfis, ratings e evolução em cada modalidade.</p></div>
 </section>
 
-<section class="panel panel-empty page-empty">
-    <span class="empty-icon">♙</span>
-    <strong>Nenhum jogador cadastrado</strong>
-    <p>Perfis reais e perfis históricos aparecerão aqui após o cadastro.</p>
-</section>
+@if (Players.Count == 0)
+{
+    <section class="panel panel-empty page-empty">
+        <span class="empty-icon">♙</span><strong>Nenhum jogador cadastrado</strong>
+    </section>
+}
+else
+{
+    <section class="card-grid">
+        @foreach (var player in Players)
+        {
+            <article class="panel quick-card">
+                @if (!string.IsNullOrWhiteSpace(player.AvatarUrl))
+                {
+                    <img class="avatar" src="@player.AvatarUrl" alt="Avatar de @player.DisplayName" />
+                }
+                else
+                {
+                    <span class="avatar">@player.DisplayName[..1].ToUpperInvariant()</span>
+                }
+                <div>
+                    <strong>@player.DisplayName</strong>
+                    <small>Rating @player.CompetitiveRating.ToString("0") · Carreira @player.CareerPoints.ToString("0.##") · IA @player.PvePoints.ToString("0.##")</small>
+                </div>
+            </article>
+        }
+    </section>
+}
+
+@code {
+    private IReadOnlyCollection<AgeNexus.Application.Queries.PlayerSummary> Players { get; set; } = [];
+
+    protected override async Task OnInitializedAsync() => Players = await Directory.GetAsync();
+}

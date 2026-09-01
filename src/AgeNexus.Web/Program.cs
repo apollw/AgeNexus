@@ -13,7 +13,7 @@ builder.Logging.AddSimpleConsole(options => options.TimestampFormat = "HH:mm:ss 
 
 builder.Services.AddAgeNexusApplication();
 builder.Services.AddAgeNexusInfrastructure(builder.Configuration);
-builder.Services.AddRazorComponents();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuthenticationStateProvider, HttpContextAuthenticationStateProvider>();
 builder.Services.AddCascadingAuthenticationState();
@@ -49,7 +49,7 @@ app.MapGet("/health/database", async (AgeNexusDbContext database, CancellationTo
         ? Results.Ok(new { status = "healthy", database = "postgresql" })
         : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
 app.MapAgeNexusAccountEndpoints();
-app.MapRazorComponents<App>();
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.Run();
 

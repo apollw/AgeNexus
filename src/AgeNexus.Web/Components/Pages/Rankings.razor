@@ -1,15 +1,54 @@
 @page "/rankings"
+@inject AgeNexus.Application.Queries.IRankingQueryService Rankings
 
 <PageTitle>Rankings · Age Nexus</PageTitle>
 
 <section class="page-heading compact-heading">
-    <div><span class="eyebrow">Competição</span><h1>Rankings</h1><p>Habilidade competitiva e carreira são medidas de forma independente.</p></div>
+    <div><span class="eyebrow">Competição</span><h1>Rankings</h1><p>Habilidade, carreira e domínio contra IA permanecem separados.</p></div>
 </section>
 
-<div class="ranking-tabs"><button class="active">Geral PvP</button><button>1 × 1</button><button>Equipes</button><button>Carreira</button><button>Domínio IA</button></div>
+@foreach (var board in Boards)
+{
+    <section class="panel table-panel ranking-board">
+        <header class="panel-header"><div><span class="eyebrow">@board.Key</span><h2>@GetDescription(board.Key)</h2></div></header>
+        @if (board.Value.Count == 0)
+        {
+            <div class="panel-empty panel-empty-compact"><strong>Nenhum participante elegível</strong></div>
+        }
+        else
+        {
+            <div class="data-table">
+                <div class="table-head"><span>Posição</span><span>Participante</span><span>Pontuação</span><span>Partidas</span><span>Situação</span></div>
+                @foreach (var entry in board.Value)
+                {
+                    <div class="table-row">
+                        <span>#@entry.Position</span><span>@entry.DisplayName</span><span>@entry.Score.ToString("0.##")</span>
+                        <span>@entry.ValidatedMatches</span><span>@(entry.IsProvisional ? "Provisório" : "Classificado")</span>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+}
 
-<section class="panel panel-empty page-empty">
-    <span class="empty-icon">♛</span>
-    <strong>Nenhum jogador elegível</strong>
-    <p>O ranking será calculado somente a partir de partidas reais validadas.</p>
-</section>
+@code {
+    private Dictionary<string, IReadOnlyCollection<AgeNexus.Application.Queries.RankingEntry>> Boards { get; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Boards["Geral competitivo"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive);
+        Boards["Carreira"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.Career);
+        Boards["Domínio contra IA"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.Pve);
+        Boards["Equipes fixas"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.TeamLineup);
+        Boards["Clãs"] = await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.ClanCompetitive);
+    }
+
+    private static string GetDescription(string board) => board switch
+    {
+        "Geral competitivo" => "PvP puro e híbrido com peso reduzido",
+        "Carreira" => "Progressão histórica, incluindo 35% do PvE",
+        "Domínio contra IA" => "Somente partidas verificadas ou auditadas",
+        "Equipes fixas" => "Duplas, trios e quartetos pela formação exata",
+        _ => "Prestígio competitivo dos clãs"
+    };
+}
