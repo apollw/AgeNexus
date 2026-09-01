@@ -10,6 +10,7 @@ public interface IPvePointCalculator
 
 public sealed record PvePointCalculationRequest(
     IReadOnlyCollection<Guid> HumanPlayerIds,
+    int HumanCount,
     IReadOnlyCollection<int> AiInternalLevels,
     ScoringResult Result,
     int PreviousEquivalentWins,

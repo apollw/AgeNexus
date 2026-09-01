@@ -120,6 +120,19 @@ public sealed class Match
         team.AddParticipant(participant);
     }
 
+    public void SetTeamResult(Guid teamId, TeamResult result)
+    {
+        EnsureDraft();
+        if (result == TeamResult.Undecided)
+        {
+            throw new DomainRuleException("A declared team result cannot be undecided.");
+        }
+
+        var team = _teams.SingleOrDefault(x => x.Id == teamId)
+            ?? throw new DomainRuleException("Team does not belong to this match.");
+        team.SetResult(result);
+    }
+
     public void Submit()
     {
         EnsureDraft();
@@ -150,7 +163,84 @@ public sealed class Match
             throw new DomainRuleException("A free-for-all match requires at least three teams.");
         }
 
+        if (Type != MatchType.FreeForAll && _teams.Count != 2)
+        {
+            throw new DomainRuleException("Scored matches require exactly two opposing teams.");
+        }
+
         Status = MatchStatus.Submitted;
+    }
+
+    public void RequestConfirmation()
+    {
+        if (Status != MatchStatus.Submitted)
+        {
+            throw new DomainRuleException("Only a submitted match can request confirmation.");
+        }
+
+        Status = MatchStatus.AwaitingConfirmation;
+    }
+
+    public void MarkConfirmed()
+    {
+        if (Status != MatchStatus.AwaitingConfirmation)
+        {
+            throw new DomainRuleException("Only a match awaiting confirmation can be confirmed.");
+        }
+
+        Status = MatchStatus.Confirmed;
+    }
+
+    public void MarkDisputed()
+    {
+        if (Status is MatchStatus.Draft or MatchStatus.Validated or MatchStatus.Voided)
+        {
+            throw new DomainRuleException("This match cannot be disputed in its current state.");
+        }
+
+        Status = MatchStatus.Disputed;
+    }
+
+    public void Validate()
+    {
+        if (Status != MatchStatus.Confirmed)
+        {
+            throw new DomainRuleException("Only a confirmed match can be validated.");
+        }
+
+        if (!HasCoherentResult())
+        {
+            throw new DomainRuleException("A validated match requires coherent team results.");
+        }
+
+        Status = MatchStatus.Validated;
+    }
+
+    public void Void()
+    {
+        if (Status == MatchStatus.Draft || Status == MatchStatus.Voided)
+        {
+            throw new DomainRuleException("This match cannot be voided in its current state.");
+        }
+
+        Status = MatchStatus.Voided;
+    }
+
+    private bool HasCoherentResult()
+    {
+        var results = _teams.Select(x => x.Result).ToArray();
+        if (results.Any(x => x == TeamResult.Undecided))
+        {
+            return false;
+        }
+
+        if (results.All(x => x == TeamResult.Draw))
+        {
+            return true;
+        }
+
+        return results.Count(x => x == TeamResult.Victory) == 1 &&
+               results.Count(x => x == TeamResult.Defeat) == results.Length - 1;
     }
 
     private MatchScoringCategory ClassifyScoringCategory()

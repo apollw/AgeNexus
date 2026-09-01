@@ -111,6 +111,40 @@ public sealed class MatchTests
         Assert.Throws<DomainRuleException>(() => match.AddTeam(Guid.NewGuid()));
     }
 
+    [Fact]
+    public void Validates_only_after_confirmation_and_coherent_results()
+    {
+        var match = CreateMatch(MatchType.PlayerVersusPlayer);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 1);
+        AddHumans(match, secondTeam.Id, 1);
+        match.SetTeamResult(firstTeam.Id, TeamResult.Victory);
+        match.SetTeamResult(secondTeam.Id, TeamResult.Defeat);
+        match.Submit();
+        match.RequestConfirmation();
+        match.MarkConfirmed();
+
+        match.Validate();
+
+        Assert.Equal(MatchStatus.Validated, match.Status);
+    }
+
+    [Fact]
+    public void Contesting_match_prevents_validation()
+    {
+        var match = CreateMatch(MatchType.PlayerVersusPlayer);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 1);
+        AddHumans(match, secondTeam.Id, 1);
+        match.Submit();
+        match.RequestConfirmation();
+        match.MarkDisputed();
+
+        Assert.Throws<DomainRuleException>(match.Validate);
+    }
+
     private static Match CreateMatch(MatchType type) => new(
         Guid.NewGuid(),
         Guid.NewGuid(),

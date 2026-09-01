@@ -55,3 +55,9 @@ public enum TeamResult
     Draw,
     Defeat
 }
+
+public enum ConfirmationDecision
+{
+    Confirmed,
+    Contested
+}

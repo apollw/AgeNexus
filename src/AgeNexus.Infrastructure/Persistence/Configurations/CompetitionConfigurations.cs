@@ -30,8 +30,12 @@ internal sealed class RatingEventConfiguration : IEntityTypeConfiguration<Rating
         ConfigureCommon(builder);
         builder.Property(x => x.Scope).HasColumnName("scope").HasConversion<string>().HasMaxLength(40);
         builder.Property(x => x.Delta).HasColumnName("delta").HasPrecision(12, 2);
-        builder.HasIndex(x => new { x.MatchId, x.BeneficiaryId, x.SeasonId, x.Scope, x.RuleVersion })
+        builder.Property(x => x.Kind).HasColumnName("kind").HasConversion<string>().HasMaxLength(16);
+        builder.Property(x => x.ReversesEventId).HasColumnName("reverses_event_id");
+        builder.HasIndex(x => new { x.MatchId, x.BeneficiaryId, x.SeasonId, x.Scope, x.RuleVersion, x.Kind })
             .IsUnique().HasDatabaseName("ux_rating_events_idempotency");
+        builder.HasIndex(x => x.ReversesEventId).IsUnique().HasFilter("reverses_event_id IS NOT NULL")
+            .HasDatabaseName("ux_rating_events_reversal");
     }
 
     private static void ConfigureCommon(EntityTypeBuilder<RatingEvent> builder)
@@ -51,7 +55,7 @@ internal sealed class PointEventConfiguration : IEntityTypeConfiguration<PointEv
 {
     public void Configure(EntityTypeBuilder<PointEvent> builder)
     {
-        builder.ToTable("point_events", table => table.HasCheckConstraint("ck_point_events_non_negative", "points >= 0"));
+        builder.ToTable("point_events");
         builder.HasKey(x => x.Id).HasName("pk_point_events");
         builder.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
         builder.Property(x => x.MatchId).HasColumnName("match_id");
@@ -62,7 +66,15 @@ internal sealed class PointEventConfiguration : IEntityTypeConfiguration<PointEv
         builder.Property(x => x.RuleVersion).HasColumnName("rule_version").HasMaxLength(32);
         builder.Property(x => x.CalculationDetails).HasColumnName("calculation_details").HasColumnType("jsonb");
         builder.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc").HasColumnType("timestamp with time zone");
-        builder.HasIndex(x => new { x.MatchId, x.BeneficiaryId, x.SeasonId, x.Scope, x.RuleVersion })
+        builder.Property(x => x.SourceKey).HasColumnName("source_key").HasMaxLength(256);
+        builder.Property(x => x.EvidenceLevel).HasColumnName("evidence_level").HasConversion<string>().HasMaxLength(24);
+        builder.Property(x => x.Kind).HasColumnName("kind").HasConversion<string>().HasMaxLength(16);
+        builder.Property(x => x.ReversesEventId).HasColumnName("reverses_event_id");
+        builder.HasIndex(x => new { x.MatchId, x.BeneficiaryId, x.SeasonId, x.Scope, x.RuleVersion, x.Kind })
             .IsUnique().HasDatabaseName("ux_point_events_idempotency");
+        builder.HasIndex(x => x.ReversesEventId).IsUnique().HasFilter("reverses_event_id IS NOT NULL")
+            .HasDatabaseName("ux_point_events_reversal");
+        builder.HasIndex(x => new { x.BeneficiaryId, x.SeasonId, x.SourceKey })
+            .HasDatabaseName("ix_point_events_repetition");
     }
 }

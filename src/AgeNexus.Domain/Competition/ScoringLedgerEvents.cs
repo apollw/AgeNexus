@@ -1,4 +1,5 @@
 using AgeNexus.Domain.Common;
+using AgeNexus.Domain.EvidenceAndModeration;
 
 namespace AgeNexus.Domain.Competition;
 
@@ -20,6 +21,12 @@ public enum PointScopeKind
     ClanPve
 }
 
+public enum ScoringEventKind
+{
+    Award,
+    Reversal
+}
+
 public sealed class RatingEvent
 {
     private RatingEvent()
@@ -37,7 +44,9 @@ public sealed class RatingEvent
         decimal delta,
         string ruleVersion,
         string calculationDetails,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        ScoringEventKind kind = ScoringEventKind.Award,
+        Guid? reversesEventId = null)
     {
         Validate(id, matchId, beneficiaryId, ruleVersion, calculationDetails, createdAtUtc);
         Id = id;
@@ -49,6 +58,9 @@ public sealed class RatingEvent
         RuleVersion = ruleVersion.Trim();
         CalculationDetails = calculationDetails.Trim();
         CreatedAtUtc = createdAtUtc;
+        Kind = kind;
+        ReversesEventId = reversesEventId;
+        EnsureReversalIsLinked(kind, reversesEventId);
     }
 
     public Guid Id { get; private set; }
@@ -60,6 +72,8 @@ public sealed class RatingEvent
     public string RuleVersion { get; private set; }
     public string CalculationDetails { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
+    public ScoringEventKind Kind { get; private set; }
+    public Guid? ReversesEventId { get; private set; }
 
     private static void Validate(
         Guid id,
@@ -74,6 +88,14 @@ public sealed class RatingEvent
             createdAtUtc.Offset != TimeSpan.Zero)
         {
             throw new DomainRuleException("A scoring event requires ids, rule version, details and UTC creation time.");
+        }
+    }
+
+    private static void EnsureReversalIsLinked(ScoringEventKind kind, Guid? reversesEventId)
+    {
+        if ((kind == ScoringEventKind.Reversal) != reversesEventId.HasValue)
+        {
+            throw new DomainRuleException("A reversal event must reference the event it reverses.");
         }
     }
 }
@@ -95,11 +117,15 @@ public sealed class PointEvent
         decimal points,
         string ruleVersion,
         string calculationDetails,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        string? sourceKey = null,
+        EvidenceLevel? evidenceLevel = null,
+        ScoringEventKind kind = ScoringEventKind.Award,
+        Guid? reversesEventId = null)
     {
-        if (points < 0m)
+        if (points < 0m && kind != ScoringEventKind.Reversal)
         {
-            throw new DomainRuleException("Point awards cannot be negative; reversals use a linked compensating event.");
+            throw new DomainRuleException("Only linked reversal events can contain negative points.");
         }
 
         if (id == Guid.Empty || matchId == Guid.Empty || beneficiaryId == Guid.Empty ||
@@ -118,6 +144,14 @@ public sealed class PointEvent
         RuleVersion = ruleVersion.Trim();
         CalculationDetails = calculationDetails.Trim();
         CreatedAtUtc = createdAtUtc;
+        SourceKey = string.IsNullOrWhiteSpace(sourceKey) ? null : sourceKey.Trim();
+        EvidenceLevel = evidenceLevel;
+        Kind = kind;
+        ReversesEventId = reversesEventId;
+        if ((kind == ScoringEventKind.Reversal) != reversesEventId.HasValue)
+        {
+            throw new DomainRuleException("A reversal event must reference the event it reverses.");
+        }
     }
 
     public Guid Id { get; private set; }
@@ -129,4 +163,8 @@ public sealed class PointEvent
     public string RuleVersion { get; private set; }
     public string CalculationDetails { get; private set; }
     public DateTimeOffset CreatedAtUtc { get; private set; }
+    public string? SourceKey { get; private set; }
+    public EvidenceLevel? EvidenceLevel { get; private set; }
+    public ScoringEventKind Kind { get; private set; }
+    public Guid? ReversesEventId { get; private set; }
 }

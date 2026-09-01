@@ -19,6 +19,8 @@ public sealed class AgeNexusDbContext(DbContextOptions<AgeNexusDbContext> option
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<MatchTeam> MatchTeams => Set<MatchTeam>();
     public DbSet<MatchParticipant> MatchParticipants => Set<MatchParticipant>();
+    public DbSet<MatchConfirmation> MatchConfirmations => Set<MatchConfirmation>();
+    public DbSet<MatchRevision> MatchRevisions => Set<MatchRevision>();
     public DbSet<Game> Games => Set<Game>();
     public DbSet<GameEdition> GameEditions => Set<GameEdition>();
     public DbSet<Faction> Factions => Set<Faction>();
@@ -33,6 +35,8 @@ public sealed class AgeNexusDbContext(DbContextOptions<AgeNexusDbContext> option
     public DbSet<VerificationDecision> VerificationDecisions => Set<VerificationDecision>();
     public DbSet<RatingEvent> RatingEvents => Set<RatingEvent>();
     public DbSet<PointEvent> PointEvents => Set<PointEvent>();
+    public DbSet<TeamLineup> TeamLineups => Set<TeamLineup>();
+    public DbSet<TeamLineupMember> TeamLineupMembers => Set<TeamLineupMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

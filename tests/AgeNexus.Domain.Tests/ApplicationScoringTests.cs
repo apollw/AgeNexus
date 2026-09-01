@@ -41,6 +41,7 @@ public sealed class ApplicationScoringTests
         var calculator = new PvePointCalculator(_rules);
         var calculation = calculator.Calculate(new PvePointCalculationRequest(
             [player],
+            HumanCount: 1,
             [5],
             ScoringResult.Victory,
             PreviousEquivalentWins: 0,
