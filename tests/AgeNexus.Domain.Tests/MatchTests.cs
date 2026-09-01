@@ -40,6 +40,37 @@ public sealed class MatchTests
         Assert.Equal(2, humans.HumanCount);
         Assert.Equal(3, computers.AiCount);
         Assert.Null(match.CompetitiveFormatLabel);
+        Assert.Equal(MatchScoringCategory.PurePve, match.ScoringCategory);
+    }
+
+    [Fact]
+    public void Classifies_hybrid_match_and_keeps_human_format()
+    {
+        var match = CreateMatch(MatchType.Mixed);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 2);
+        AddHumans(match, secondTeam.Id, 1);
+        match.AddParticipant(secondTeam.Id, MatchParticipant.Ai(Guid.NewGuid(), Guid.NewGuid()));
+
+        match.Submit();
+
+        Assert.Equal(MatchScoringCategory.HybridPvp, match.ScoringCategory);
+        Assert.Equal("2x1", match.HumanFormatLabel);
+        Assert.Null(match.CompetitiveFormatLabel);
+    }
+
+    [Fact]
+    public void Rejects_pve_label_when_ai_helps_a_human_team()
+    {
+        var match = CreateMatch(MatchType.HumansVersusAi);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 1);
+        AddHumans(match, secondTeam.Id, 1);
+        match.AddParticipant(secondTeam.Id, MatchParticipant.Ai(Guid.NewGuid(), Guid.NewGuid()));
+
+        Assert.Throws<DomainRuleException>(match.Submit);
     }
 
     [Fact]

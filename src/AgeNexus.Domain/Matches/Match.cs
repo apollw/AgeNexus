@@ -43,7 +43,26 @@ public sealed class Match
     public MatchType Type { get; private set; }
     public MatchNature Nature { get; private set; }
     public MatchStatus Status { get; private set; } = MatchStatus.Draft;
+    public Guid? SeasonId { get; private set; }
+    public Guid? MapDefinitionId { get; private set; }
+    public Guid? GamePatchId { get; private set; }
     public IReadOnlyCollection<MatchTeam> Teams => _teams.AsReadOnly();
+
+    public MatchScoringCategory ScoringCategory => ClassifyScoringCategory();
+
+    public string? HumanFormatLabel
+    {
+        get
+        {
+            var humanTeams = _teams.Where(x => x.HumanCount > 0).ToArray();
+            if (humanTeams.Length < 2)
+            {
+                return null;
+            }
+
+            return string.Join('x', humanTeams.Select(x => x.HumanCount).OrderDescending());
+        }
+    }
 
     public string? CompetitiveFormatLabel
     {
@@ -54,7 +73,7 @@ public sealed class Match
                 return null;
             }
 
-            return string.Join('x', _teams.Select(x => x.HumanCount).OrderDescending());
+            return HumanFormatLabel;
         }
     }
 
@@ -70,6 +89,14 @@ public sealed class Match
         var team = new MatchTeam(teamId, _teams.Count + 1);
         _teams.Add(team);
         return team;
+    }
+
+    public void SetCatalogContext(Guid? seasonId, Guid? mapDefinitionId, Guid? gamePatchId)
+    {
+        EnsureDraft();
+        SeasonId = NormalizeOptionalId(seasonId);
+        MapDefinitionId = NormalizeOptionalId(mapDefinitionId);
+        GamePatchId = NormalizeOptionalId(gamePatchId);
     }
 
     public void AddParticipant(Guid teamId, MatchParticipant participant)
@@ -102,17 +129,20 @@ public sealed class Match
             throw new DomainRuleException("A match requires at least two non-empty teams.");
         }
 
-        var humanCount = _teams.Sum(x => x.HumanCount);
-        var aiCount = _teams.Sum(x => x.AiCount);
-
-        if (Type == MatchType.PlayerVersusPlayer && (humanCount == 0 || aiCount > 0))
+        var category = ClassifyScoringCategory();
+        if (Type == MatchType.PlayerVersusPlayer && category != MatchScoringCategory.PurePvp)
         {
-            throw new DomainRuleException("A PvP match can contain only human participants.");
+            throw new DomainRuleException("A PvP match requires human opponents and cannot contain AI participants.");
         }
 
-        if (Type == MatchType.HumansVersusAi && (humanCount == 0 || aiCount == 0))
+        if (Type == MatchType.HumansVersusAi && category != MatchScoringCategory.PurePve)
         {
-            throw new DomainRuleException("A humans-versus-AI match requires humans and AI.");
+            throw new DomainRuleException("A humans-versus-AI match requires one human-only team against one AI-only team.");
+        }
+
+        if (Type == MatchType.Mixed && category != MatchScoringCategory.HybridPvp)
+        {
+            throw new DomainRuleException("A mixed match requires human opponents and at least one AI participant.");
         }
 
         if (Type == MatchType.FreeForAll && _teams.Count < 3)
@@ -123,6 +153,36 @@ public sealed class Match
         Status = MatchStatus.Submitted;
     }
 
+    private MatchScoringCategory ClassifyScoringCategory()
+    {
+        if (_teams.Count < 2 || _teams.Any(x => x.Participants.Count == 0))
+        {
+            return MatchScoringCategory.Ineligible;
+        }
+
+        var teamsWithHumans = _teams.Count(x => x.HumanCount > 0);
+        var teamsWithAi = _teams.Count(x => x.AiCount > 0);
+        var totalAi = _teams.Sum(x => x.AiCount);
+
+        if (teamsWithHumans >= 2 && totalAi == 0)
+        {
+            return MatchScoringCategory.PurePvp;
+        }
+
+        if (teamsWithHumans >= 2 && totalAi > 0)
+        {
+            return MatchScoringCategory.HybridPvp;
+        }
+
+        if (_teams.Count == 2 && teamsWithHumans == 1 && teamsWithAi == 1 &&
+            _teams.All(x => x.HumanCount == 0 || x.AiCount == 0))
+        {
+            return MatchScoringCategory.PurePve;
+        }
+
+        return MatchScoringCategory.Ineligible;
+    }
+
     private void EnsureDraft()
     {
         if (Status != MatchStatus.Draft)
@@ -130,4 +190,7 @@ public sealed class Match
             throw new DomainRuleException("Match composition can only change while it is a draft.");
         }
     }
+
+    private static Guid? NormalizeOptionalId(Guid? value) =>
+        value == Guid.Empty ? throw new DomainRuleException("Optional catalog ids cannot be empty.") : value;
 }
