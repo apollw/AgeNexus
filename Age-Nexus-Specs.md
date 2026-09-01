@@ -96,6 +96,16 @@ Uma evidência não valida automaticamente o resultado. A política recomendada 
 
 Em partidas PvP, pelo menos um participante de cada lado deve confirmar o resultado, salvo validação administrativa. Em partidas contra IA, a comunidade poderá exigir imagem, vídeo ou replay para que a partida gere pontos. A regra deverá ser configurável.
 
+Para partidas puramente contra IA, a versão `2026.09` adota três níveis de comprovação:
+
+| Nível | Requisitos mínimos | Efeito |
+| --- | --- | --- |
+| Básico | capturas da configuração e do resultado, vinculadas a um desafio emitido pelo servidor e válido por 30 minutos | 40% dos pontos PvE, limitado a 150 pontos por temporada; fora do ranking oficial |
+| Verificado | replay íntegro (com hash SHA-256) ou vídeo completo, além dos dados do desafio | 100% dos pontos e elegibilidade ao ranking PvE oficial e do clã |
+| Auditado | evidência verificada e revisão de moderador | mesmos pontos do nível verificado, selo de auditoria e elegibilidade a recordes |
+
+O desafio contém jogador, edição do jogo, configuração e validade, e só pode ser consumido uma vez. Imagens isoladas, sem desafio, podem permanecer no histórico, mas não geram pontos. Toda decisão de verificação registra responsável, data, motivo e nível; contestação congela os efeitos até nova decisão.
+
 Comentários devem aceitar discussão sem alterar o fato registrado. Correções usam uma ação própria, com motivo, autor e trilha de auditoria.
 
 ### 3.5 Clãs
@@ -112,6 +122,8 @@ O sistema de clãs permitirá:
 - ranking de clãs.
 
 O ranking de clãs não deve ser a simples soma dos pontos de todos os membros, pois clãs maiores teriam vantagem automática. A métrica recomendada usa a média conservadora dos melhores integrantes elegíveis, com limite configurável, mais resultados diretos entre clãs.
+
+Uma equipe representa um clã quando pelo menos 50% de seus humanos eram membros ativos na data do jogo. O fator de representação é a proporção exata, entre 0,50 e 1,00. Prestígio PvP usa bases de 50/25/10 (1x1), 100/50/25 (2x2), 120/60/30 (3x3) e 140/70/35 (4x4+), multiplicadas pela representação e pelo desafio; partidas híbridas recebem ainda fator 0,60. PvE de clã exige evidência verificada ou auditada e usa a média dos prêmios PvE humanos multiplicada pela representação.
 
 ## 4. Sistema de pontuação e ratings
 
@@ -230,25 +242,37 @@ Derrota do lado maior: 0,75
 
 Exemplo: em uma partida 3x2, a base é a linha de 3x3. Cada integrante da dupla recebe `60 × 1,25 = 75` pontos se vencer. Cada integrante do trio recebe `60 × 0,85 = 51` pontos se vencer. O rating ainda fará o ajuste principal pela expectativa de vitória.
 
+### Partidas híbridas: humanos e IAs nos dois lados
+
+Quando humanos se enfrentam e uma ou mais IAs ajudam qualquer lado, a partida continua no ecossistema PvP, mas não vale o mesmo que uma partida puramente humana:
+
+```text
+FatorHibridoRating = clamp(1 - 0,50 × (IAs / participantes), 0,50, 0,85)
+Delta = K × PesoDaModalidade × FatorHibridoRating × (Resultado - Expectativa)
+PontosDeCarreira = BasePvP × 0,70 × clamp(1,50 - Expectativa, 0,60, 1,40)
+```
+
+A força esperada de cada lado incorpora a dificuldade das IAs por ratings equivalentes de 600, 800, 1000, 1200 e 1400 para os níveis internos 1 a 5. Assim, vencer com uma IA fraca contra uma forte é tratado como desafio maior, enquanto a presença de IAs reduz a atribuição de habilidade aos humanos. Partidas híbridas nunca entram no ranking puro de PvE.
+
 ### Pontos contra IA
 
 Cada jogo cadastrará seus níveis de dificuldade numa escala interna de 1 a 5. Para Age II, os nomes concretos das dificuldades serão mapeados a essa escala, sem codificá-los na regra geral.
 
 | Nível interno da IA | Vitória base | Derrota válida |
 | --- | ---: | ---: |
-| 1 | 8 | 2 |
-| 2 | 15 | 3 |
-| 3 | 28 | 5 |
-| 4 | 45 | 7 |
-| 5 | 70 | 10 |
+| 1 | 8 | 1 |
+| 2 | 15 | 2 |
+| 3 | 30 | 4 |
+| 4 | 50 | 6 |
+| 5 | 75 | 8 |
 
-O desafio é ajustado pela proporção entre IAs e humanos:
+Para uma partida puramente PvE, somam-se os pontos de todas as IAs adversárias e divide-se igualmente entre os humanos:
 
 ```text
-MultiplicadorDeDesafio = sqrt(quantidadeDeIAs / quantidadeDeHumanos)
+PontosPorHumano = soma(pontos de cada IA adversária) / quantidadeDeHumanos
 ```
 
-O multiplicador deve ficar entre 0,50 e 2,00. Modificadores de handicap e regras especiais devem reduzir ou aumentar a pontuação por configuração explícita.
+Depois são aplicados o redutor de repetição e o fator da evidência. Apenas partidas com humanos exclusivamente de um lado e IAs exclusivamente do outro usam esta tabela. Handicap e regras especiais devem formar chaves de repetição distintas ou tornar a partida não elegível, conforme configuração explícita.
 
 Para impedir repetição artificial, em cada temporada e para a mesma combinação aproximada de dificuldade, mapa, aliados e adversários:
 
@@ -274,7 +298,7 @@ O sistema oferecerá:
 - Rankings por temporada;
 - Rankings históricos.
 
-O **Ranking Geral Competitivo** será atualizado por todas as partidas PvP elegíveis, usando os pesos de modalidade. Partidas contra IA não o alteram. O **Ranking de Carreira** inclui pontos PvP, IA e conquistas, mas deve ser rotulado claramente como progressão histórica, não habilidade.
+O **Ranking Geral Competitivo** será atualizado por partidas PvP elegíveis, usando os pesos de modalidade e o fator reduzido para jogos híbridos. Partidas puramente contra IA não o alteram. O **Ranking de Carreira** inclui pontos PvP e somente 35% dos pontos PvE concedidos, além de conquistas futuras; deve ser rotulado claramente como progressão histórica, não habilidade.
 
 Critérios de desempate recomendados: rating conservador, confronto direto quando aplicável, força média dos adversários, número de adversários distintos e quantidade de partidas validadas.
 
@@ -592,7 +616,6 @@ Clãs podem entrar no fim do MVP ou na primeira versão posterior, pois não blo
 
 - o nome definitivo e identidade visual;
 - se perfis serão públicos por padrão;
-- política exata de evidência para partidas contra IA;
 - duração e reinício das temporadas;
 - regras para desconexão e substituição de jogador;
 - suporte inicial a todos contra todos;
