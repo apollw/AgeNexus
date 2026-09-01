@@ -14,4 +14,4 @@ tests/
 
 Os namespaces serão subdivididos por módulo: `Identity`, `Players`, `GameCatalog`, `Matches`, `EvidenceAndModeration`, `Ratings`, `Statistics`, `Clans` e `Achievements`. Web e Infrastructure dependem de Application; Application depende de Domain; Domain não depende das demais camadas.
 
-A primeira fatia cobre catálogo mínimo e criação de partidas com equipes arbitrárias. Persistência EF Core, identidade e telas entram depois de estabilizadas as invariantes do agregado `Match`.
+O núcleo atual cobre catálogo configurável, identidade, partidas com equipes arbitrárias, evidências e decisões de verificação, clãs, livros imutáveis de rating/pontos, consultas de rankings e estatísticas e telas Blazor iniciais. O fluxo transacional de validação e anulação fica em `Infrastructure`, implementando contratos de `Application`; as fórmulas permanecem em `Domain`.

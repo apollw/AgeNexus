@@ -23,6 +23,488 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("AgeNexus.Domain.Clans.Clan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CreatedByPlayerProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_player_profile_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Tag")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("tag");
+
+                    b.HasKey("Id")
+                        .HasName("pk_clans");
+
+                    b.HasIndex("CreatedByPlayerProfileId");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_clans_name");
+
+                    b.HasIndex("Tag")
+                        .IsUnique()
+                        .HasDatabaseName("ux_clans_tag");
+
+                    b.ToTable("clans", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Clans.ClanMembership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ClanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("clan_id");
+
+                    b.Property<DateTimeOffset?>("EndedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ended_at_utc");
+
+                    b.Property<Guid>("PlayerProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_profile_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("role");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_clan_memberships");
+
+                    b.HasIndex("ClanId");
+
+                    b.HasIndex("PlayerProfileId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_clan_memberships_active_player")
+                        .HasFilter("ended_at_utc IS NULL");
+
+                    b.ToTable("clan_memberships", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Competition.PointEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BeneficiaryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("beneficiary_id");
+
+                    b.Property<string>("CalculationDetails")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("calculation_details");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("EvidenceLevel")
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("evidence_level");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("match_id");
+
+                    b.Property<decimal>("Points")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("points");
+
+                    b.Property<Guid?>("ReversesEventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reverses_event_id");
+
+                    b.Property<string>("RuleVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("rule_version");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("scope");
+
+                    b.Property<Guid?>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.Property<string>("SourceKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("source_key");
+
+                    b.HasKey("Id")
+                        .HasName("pk_point_events");
+
+                    b.HasIndex("ReversesEventId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_point_events_reversal")
+                        .HasFilter("reverses_event_id IS NOT NULL");
+
+                    b.HasIndex("BeneficiaryId", "SeasonId", "SourceKey")
+                        .HasDatabaseName("ix_point_events_repetition");
+
+                    b.HasIndex("MatchId", "BeneficiaryId", "SeasonId", "Scope", "RuleVersion", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ux_point_events_idempotency");
+
+                    b.ToTable("point_events", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Competition.RatingEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BeneficiaryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("beneficiary_id");
+
+                    b.Property<string>("CalculationDetails")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("calculation_details");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<decimal>("Delta")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("delta");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("match_id");
+
+                    b.Property<Guid?>("ReversesEventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reverses_event_id");
+
+                    b.Property<string>("RuleVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("rule_version");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("scope");
+
+                    b.Property<Guid?>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_rating_events");
+
+                    b.HasIndex("ReversesEventId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_rating_events_reversal")
+                        .HasFilter("reverses_event_id IS NOT NULL");
+
+                    b.HasIndex("MatchId", "BeneficiaryId", "SeasonId", "Scope", "RuleVersion", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ux_rating_events_idempotency");
+
+                    b.ToTable("rating_events", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Competition.Season", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("EndsAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at_utc");
+
+                    b.Property<Guid>("GameEditionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_edition_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("StartsAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_seasons");
+
+                    b.HasIndex("GameEditionId", "StartsAtUtc")
+                        .IsUnique()
+                        .HasDatabaseName("ux_seasons_edition_start");
+
+                    b.ToTable("seasons", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_seasons_interval", "ends_at_utc > starts_at_utc");
+                        });
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Competition.TeamLineup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("GameEditionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_edition_id");
+
+                    b.Property<string>("NormalizedKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("normalized_key");
+
+                    b.HasKey("Id")
+                        .HasName("pk_team_lineups");
+
+                    b.HasIndex("GameEditionId");
+
+                    b.HasIndex("NormalizedKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_team_lineups_key");
+
+                    b.ToTable("team_lineups", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Competition.TeamLineupMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("PlayerProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_profile_id");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<Guid>("team_lineup_id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("team_lineup_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_team_lineup_members");
+
+                    b.HasIndex("PlayerProfileId");
+
+                    b.HasIndex("team_lineup_id", "PlayerProfileId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_team_lineup_members_player");
+
+                    b.HasIndex("team_lineup_id", "Position")
+                        .IsUnique()
+                        .HasDatabaseName("ux_team_lineup_members_position");
+
+                    b.ToTable("team_lineup_members", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.EvidenceAndModeration.ChallengeTicket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("ConfigurationFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("configuration_fingerprint");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<Guid>("GameEditionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_edition_id");
+
+                    b.Property<DateTimeOffset>("IssuedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("issued_at_utc");
+
+                    b.Property<Guid>("PlayerProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_profile_id");
+
+                    b.Property<DateTimeOffset?>("UsedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("used_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_challenge_tickets");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_challenge_tickets_code");
+
+                    b.HasIndex("GameEditionId");
+
+                    b.HasIndex("PlayerProfileId");
+
+                    b.ToTable("challenge_tickets", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.EvidenceAndModeration.MatchEvidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ExternalUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("external_url");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("match_id");
+
+                    b.Property<string>("ObjectKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("object_key");
+
+                    b.Property<string>("Sha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<DateTimeOffset>("SubmittedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at_utc");
+
+                    b.Property<Guid>("SubmittedByPlayerProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by_player_profile_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_match_evidence");
+
+                    b.HasIndex("MatchId");
+
+                    b.HasIndex("Sha256")
+                        .IsUnique()
+                        .HasDatabaseName("ux_match_evidence_sha256")
+                        .HasFilter("sha256 IS NOT NULL");
+
+                    b.HasIndex("SubmittedByPlayerProfileId");
+
+                    b.ToTable("match_evidence", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.EvidenceAndModeration.VerificationDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<Guid?>("DecidedByApplicationUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by_application_user_id");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("match_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_verification_decisions");
+
+                    b.HasIndex("MatchId", "DecidedAtUtc")
+                        .HasDatabaseName("ix_verification_decisions_match_time");
+
+                    b.ToTable("verification_decisions", "public");
+                });
+
             modelBuilder.Entity("AgeNexus.Domain.GameCatalog.AiDifficulty", b =>
                 {
                     b.Property<Guid>("Id")
@@ -56,6 +538,173 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.Faction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("GameEditionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_edition_id");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("image_url");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id")
+                        .HasName("pk_factions");
+
+                    b.HasIndex("GameEditionId", "Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_factions_edition_slug");
+
+                    b.ToTable("factions", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.Game", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id")
+                        .HasName("pk_games");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_games_slug");
+
+                    b.ToTable("games", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.GameEdition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("GameId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id")
+                        .HasName("pk_game_editions");
+
+                    b.HasIndex("GameId", "Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_game_editions_game_slug");
+
+                    b.ToTable("game_editions", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.GamePatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("EffectiveFromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_from_utc");
+
+                    b.Property<DateTimeOffset?>("EffectiveToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("effective_to_utc");
+
+                    b.Property<Guid>("GameEditionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_edition_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_game_patches");
+
+                    b.HasIndex("GameEditionId", "EffectiveFromUtc")
+                        .IsUnique()
+                        .HasDatabaseName("ux_game_patches_edition_start");
+
+                    b.ToTable("game_patches", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.MapDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("GameEditionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_edition_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("slug");
+
+                    b.HasKey("Id")
+                        .HasName("pk_map_definitions");
+
+                    b.HasIndex("GameEditionId", "Slug")
+                        .IsUnique()
+                        .HasDatabaseName("ux_maps_edition_slug");
+
+                    b.ToTable("map_definitions", "public");
+                });
+
             modelBuilder.Entity("AgeNexus.Domain.Matches.Match", b =>
                 {
                     b.Property<Guid>("Id")
@@ -70,6 +719,14 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("game_edition_id");
 
+                    b.Property<Guid?>("GamePatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("game_patch_id");
+
+                    b.Property<Guid?>("MapDefinitionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("map_definition_id");
+
                     b.Property<string>("Nature")
                         .IsRequired()
                         .HasMaxLength(24)
@@ -79,6 +736,10 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("PlayedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("played_at_utc");
+
+                    b.Property<Guid?>("SeasonId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("season_id");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -98,13 +759,63 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                     b.HasIndex("CreatedByPlayerProfileId")
                         .HasDatabaseName("ix_matches_created_by_player_profile");
 
+                    b.HasIndex("GamePatchId")
+                        .HasDatabaseName("ix_matches_patch");
+
+                    b.HasIndex("MapDefinitionId")
+                        .HasDatabaseName("ix_matches_map");
+
                     b.HasIndex("PlayedAtUtc")
                         .HasDatabaseName("ix_matches_played_at_utc");
+
+                    b.HasIndex("SeasonId")
+                        .HasDatabaseName("ix_matches_season");
 
                     b.HasIndex("GameEditionId", "Status")
                         .HasDatabaseName("ix_matches_edition_status");
 
                     b.ToTable("matches", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Matches.MatchConfirmation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTimeOffset>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("character varying(24)")
+                        .HasColumnName("decision");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("match_id");
+
+                    b.Property<Guid>("PlayerProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_profile_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_match_confirmations");
+
+                    b.HasIndex("PlayerProfileId");
+
+                    b.HasIndex("MatchId", "PlayerProfileId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_match_confirmations_match_player");
+
+                    b.ToTable("match_confirmations", "public");
                 });
 
             modelBuilder.Entity("AgeNexus.Domain.Matches.MatchParticipant", b =>
@@ -162,6 +873,44 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AgeNexus.Domain.Matches.MatchRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("ChangedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at_utc");
+
+                    b.Property<Guid>("ChangedByApplicationUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("changed_by_application_user_id");
+
+                    b.Property<Guid>("MatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("match_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Snapshot")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("snapshot");
+
+                    b.HasKey("Id")
+                        .HasName("pk_match_revisions");
+
+                    b.HasIndex("MatchId", "ChangedAtUtc")
+                        .HasDatabaseName("ix_match_revisions_match_time");
+
+                    b.ToTable("match_revisions", "public");
+                });
+
             modelBuilder.Entity("AgeNexus.Domain.Matches.MatchTeam", b =>
                 {
                     b.Property<Guid>("Id")
@@ -190,6 +939,43 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ux_match_teams_match_position");
 
                     b.ToTable("match_teams", "public");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Players.PlayerFavoriteFaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("FactionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("faction_id");
+
+                    b.Property<Guid>("PlayerProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_profile_id");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer")
+                        .HasColumnName("priority");
+
+                    b.HasKey("Id")
+                        .HasName("pk_player_favorite_factions");
+
+                    b.HasIndex("FactionId");
+
+                    b.HasIndex("PlayerProfileId", "FactionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_player_favorite_factions_player_faction");
+
+                    b.HasIndex("PlayerProfileId", "Priority")
+                        .IsUnique()
+                        .HasDatabaseName("ux_player_favorite_factions_player_priority");
+
+                    b.ToTable("player_favorite_factions", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_player_favorite_factions_priority", "priority BETWEEN 1 AND 5");
+                        });
                 });
 
             modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfile", b =>
@@ -472,6 +1258,164 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                     b.ToTable("user_tokens", "identity");
                 });
 
+            modelBuilder.Entity("AgeNexus.Domain.Clans.Clan", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByPlayerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_clans_founder");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Clans.ClanMembership", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.Clans.Clan", null)
+                        .WithMany()
+                        .HasForeignKey("ClanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_clan_memberships_clan");
+
+                    b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_clan_memberships_player");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Competition.Season", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.GameEdition", null)
+                        .WithMany()
+                        .HasForeignKey("GameEditionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_seasons_game_edition");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Competition.TeamLineup", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.GameEdition", null)
+                        .WithMany()
+                        .HasForeignKey("GameEditionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_team_lineups_game_edition");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Competition.TeamLineupMember", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_team_lineup_members_player");
+
+                    b.HasOne("AgeNexus.Domain.Competition.TeamLineup", null)
+                        .WithMany("Members")
+                        .HasForeignKey("team_lineup_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_team_lineup_members_lineup");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.EvidenceAndModeration.ChallengeTicket", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.GameEdition", null)
+                        .WithMany()
+                        .HasForeignKey("GameEditionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_challenge_tickets_edition");
+
+                    b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_challenge_tickets_player");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.EvidenceAndModeration.MatchEvidence", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.Matches.Match", null)
+                        .WithMany()
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_match_evidence_match");
+
+                    b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("SubmittedByPlayerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_match_evidence_submitter");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.EvidenceAndModeration.VerificationDecision", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.Matches.Match", null)
+                        .WithMany()
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_verification_decisions_match");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.AiDifficulty", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.GameEdition", null)
+                        .WithMany()
+                        .HasForeignKey("GameEditionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_ai_difficulties_game_edition");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.Faction", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.GameEdition", null)
+                        .WithMany()
+                        .HasForeignKey("GameEditionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_factions_game_edition");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.GameEdition", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.Game", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_game_editions_game");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.GamePatch", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.GameEdition", null)
+                        .WithMany()
+                        .HasForeignKey("GameEditionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_game_patches_game_edition");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.GameCatalog.MapDefinition", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.GameEdition", null)
+                        .WithMany()
+                        .HasForeignKey("GameEditionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_maps_game_edition");
+                });
+
             modelBuilder.Entity("AgeNexus.Domain.Matches.Match", b =>
                 {
                     b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
@@ -480,6 +1424,48 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_matches_created_by_player_profile");
+
+                    b.HasOne("AgeNexus.Domain.GameCatalog.GameEdition", null)
+                        .WithMany()
+                        .HasForeignKey("GameEditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_matches_game_edition");
+
+                    b.HasOne("AgeNexus.Domain.GameCatalog.GamePatch", null)
+                        .WithMany()
+                        .HasForeignKey("GamePatchId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_matches_patch");
+
+                    b.HasOne("AgeNexus.Domain.GameCatalog.MapDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("MapDefinitionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_matches_map");
+
+                    b.HasOne("AgeNexus.Domain.Competition.Season", null)
+                        .WithMany()
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_matches_season");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Matches.MatchConfirmation", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.Matches.Match", null)
+                        .WithMany()
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_match_confirmations_match");
+
+                    b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_match_confirmations_player");
                 });
 
             modelBuilder.Entity("AgeNexus.Domain.Matches.MatchParticipant", b =>
@@ -489,6 +1475,12 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasForeignKey("AiDifficultyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_match_participants_ai_difficulty");
+
+                    b.HasOne("AgeNexus.Domain.GameCatalog.Faction", null)
+                        .WithMany()
+                        .HasForeignKey("FactionId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_match_participants_faction");
 
                     b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
                         .WithMany()
@@ -504,6 +1496,16 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_match_participants_team");
                 });
 
+            modelBuilder.Entity("AgeNexus.Domain.Matches.MatchRevision", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.Matches.Match", null)
+                        .WithMany()
+                        .HasForeignKey("MatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_match_revisions_match");
+                });
+
             modelBuilder.Entity("AgeNexus.Domain.Matches.MatchTeam", b =>
                 {
                     b.HasOne("AgeNexus.Domain.Matches.Match", null)
@@ -512,6 +1514,23 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_match_teams_match");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Players.PlayerFavoriteFaction", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.Faction", null)
+                        .WithMany()
+                        .HasForeignKey("FactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_player_favorite_factions_faction");
+
+                    b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_player_favorite_factions_player");
                 });
 
             modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfile", b =>
@@ -572,6 +1591,11 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Competition.TeamLineup", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("AgeNexus.Domain.Matches.Match", b =>

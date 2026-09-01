@@ -1,0 +1,228 @@
+@page "/partidas/nova"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject AgeNexus.Application.Matches.IMatchWorkflowService Workflow
+@inject AgeNexus.Application.Queries.ICatalogQueryService CatalogQueries
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
+@inject NavigationManager Navigation
+
+<PageTitle>Nova partida · Age Nexus</PageTitle>
+
+<section class="page-heading compact-heading">
+    <div><span class="eyebrow">Novo registro</span><h1>Registrar partida</h1><p>Informe os lados, participantes, civilizações e resultado.</p></div>
+</section>
+
+@if (Catalog is null || CurrentProfile is null)
+{
+    <section class="panel panel-empty page-empty"><strong>Carregando catálogo...</strong></section>
+}
+else if (Catalog.GameEditions.Count == 0)
+{
+    <section class="panel panel-empty page-empty"><strong>Cadastre uma edição do jogo antes de registrar partidas.</strong></section>
+}
+else
+{
+    <EditForm Model="Form" OnValidSubmit="SubmitAsync" class="account-form">
+        <div class="panel profile-form-card">
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <div class="form-alert form-alert-error">Não foi possível registrar: @Error</div>
+            }
+
+            <div class="form-grid">
+                <label class="form-field"><span>Edição</span>
+                    <InputSelect @bind-Value="Form.GameEditionId">
+                        @foreach (var option in Catalog.GameEditions) { <option value="@option.Id">@option.Name</option> }
+                    </InputSelect>
+                </label>
+                <label class="form-field"><span>Categoria declarada</span>
+                    <InputSelect @bind-Value="Form.Type">
+                        <option value="@AgeNexus.Domain.Matches.MatchType.PlayerVersusPlayer">PvP puro</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchType.Mixed">PvP híbrido</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchType.HumansVersusAi">Humanos contra IA</option>
+                    </InputSelect>
+                </label>
+                <label class="form-field"><span>Mapa</span>
+                    <InputSelect @bind-Value="Form.MapDefinitionId">
+                        <option value="">Não informado</option>
+                        @foreach (var option in Catalog.Maps) { <option value="@option.Id">@option.Name</option> }
+                    </InputSelect>
+                </label>
+                <label class="form-field"><span>Temporada</span>
+                    <InputSelect @bind-Value="Form.SeasonId">
+                        <option value="">Sem temporada</option>
+                        @foreach (var option in Catalog.Seasons) { <option value="@option.Id">@option.Name</option> }
+                    </InputSelect>
+                </label>
+            </div>
+        </div>
+
+        @for (var teamIndex = 0; teamIndex < Form.Teams.Count; teamIndex++)
+        {
+            var team = Form.Teams[teamIndex];
+            <section class="panel profile-form-card" @key="team">
+                <header class="panel-header"><div><span class="eyebrow">Lado @(teamIndex + 1)</span><h2>Equipe @(teamIndex + 1)</h2></div>
+                    <InputSelect @bind-Value="team.Result">
+                        <option value="@AgeNexus.Domain.Matches.TeamResult.Victory">Vitória</option>
+                        <option value="@AgeNexus.Domain.Matches.TeamResult.Draw">Empate</option>
+                        <option value="@AgeNexus.Domain.Matches.TeamResult.Defeat">Derrota</option>
+                    </InputSelect>
+                </header>
+
+                @foreach (var participant in team.Participants)
+                {
+                    <div class="form-grid participant-row" @key="participant">
+                        <label class="form-field"><span>Tipo</span>
+                            <InputSelect @bind-Value="participant.Type">
+                                <option value="@AgeNexus.Domain.Matches.ParticipantType.Human">Humano</option>
+                                <option value="@AgeNexus.Domain.Matches.ParticipantType.ArtificialIntelligence">IA</option>
+                            </InputSelect>
+                        </label>
+                        @if (participant.Type == AgeNexus.Domain.Matches.ParticipantType.Human)
+                        {
+                            <label class="form-field"><span>Jogador</span>
+                                <InputSelect @bind-Value="participant.PlayerProfileId">
+                                    @foreach (var option in Catalog.Players) { <option value="@option.Id">@option.Name</option> }
+                                </InputSelect>
+                            </label>
+                        }
+                        else
+                        {
+                            <label class="form-field"><span>Dificuldade</span>
+                                <InputSelect @bind-Value="participant.AiDifficultyId">
+                                    @foreach (var option in Catalog.AiDifficulties) { <option value="@option.Id">@option.Name</option> }
+                                </InputSelect>
+                            </label>
+                        }
+                        <label class="form-field"><span>Civilização</span>
+                            <InputSelect @bind-Value="participant.FactionId">
+                                <option value="">Aleatória ou desconhecida</option>
+                                @foreach (var option in Catalog.Factions) { <option value="@option.Id">@option.Name</option> }
+                            </InputSelect>
+                        </label>
+                        <button class="button button-secondary" type="button" @onclick="() => RemoveParticipant(team, participant)" disabled="@(team.Participants.Count <= 1)">Remover</button>
+                    </div>
+                }
+                <button class="button button-secondary" type="button" @onclick="() => AddParticipant(team)">+ Participante</button>
+            </section>
+        }
+
+        <button class="button button-primary account-submit" type="submit" disabled="@Saving">
+            @(Saving ? "Registrando..." : "Registrar e solicitar confirmação")
+        </button>
+    </EditForm>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private AgeNexus.Application.Queries.MatchRegistrationCatalog? Catalog { get; set; }
+    private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+    private MatchForm Form { get; } = new();
+    private string? Error { get; set; }
+    private bool Saving { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authentication = await AuthenticationStateTask;
+        CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+        Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync();
+        var edition = Catalog.GameEditions.FirstOrDefault();
+        if (edition is null || CurrentProfile is null)
+        {
+            return;
+        }
+
+        Form.GameEditionId = edition.Id;
+        Form.Teams.Add(CreateTeam(AgeNexus.Domain.Matches.TeamResult.Victory, CurrentProfile.Id));
+        var opponent = Catalog.Players.FirstOrDefault(x => x.Id != CurrentProfile.Id)?.Id ?? CurrentProfile.Id;
+        Form.Teams.Add(CreateTeam(AgeNexus.Domain.Matches.TeamResult.Defeat, opponent));
+    }
+
+    private TeamForm CreateTeam(AgeNexus.Domain.Matches.TeamResult result, Guid playerId)
+    {
+        var team = new TeamForm { Result = result };
+        team.Participants.Add(CreateParticipant(playerId));
+        return team;
+    }
+
+    private ParticipantForm CreateParticipant(Guid? playerId = null) => new()
+    {
+        PlayerProfileId = playerId ?? Catalog?.Players.FirstOrDefault()?.Id,
+        AiDifficultyId = Catalog?.AiDifficulties.FirstOrDefault()?.Id
+    };
+
+    private void AddParticipant(TeamForm team) => team.Participants.Add(CreateParticipant());
+
+    private static void RemoveParticipant(TeamForm team, ParticipantForm participant)
+    {
+        if (team.Participants.Count > 1)
+        {
+            team.Participants.Remove(participant);
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (CurrentProfile is null)
+        {
+            return;
+        }
+
+        Saving = true;
+        Error = null;
+        var request = new AgeNexus.Application.Matches.RegisterMatchRequest(
+            Form.GameEditionId,
+            CurrentProfile.Id,
+            DateTimeOffset.UtcNow,
+            Form.Type,
+            AgeNexus.Domain.Matches.MatchNature.Ranked,
+            Form.SeasonId,
+            Form.MapDefinitionId,
+            Form.GamePatchId,
+            Form.Teams.Select(team => new AgeNexus.Application.Matches.RegisterMatchTeam(
+                team.Result,
+                team.Participants.Select(participant => new AgeNexus.Application.Matches.RegisterMatchParticipant(
+                    participant.Type,
+                    participant.PlayerProfileId,
+                    participant.AiDifficultyId,
+                    participant.FactionId,
+                    participant.FactionId.HasValue
+                        ? AgeNexus.Domain.Matches.FactionSelection.Manual
+                        : AgeNexus.Domain.Matches.FactionSelection.Unknown)).ToArray())).ToArray());
+        var result = await Workflow.RegisterAsync(request);
+        Saving = false;
+        if (result.Succeeded)
+        {
+            Navigation.NavigateTo("/partidas");
+            return;
+        }
+
+        Error = result.ErrorCode;
+    }
+
+    private sealed class MatchForm
+    {
+        public Guid GameEditionId { get; set; }
+        public AgeNexus.Domain.Matches.MatchType Type { get; set; } = AgeNexus.Domain.Matches.MatchType.PlayerVersusPlayer;
+        public Guid? SeasonId { get; set; }
+        public Guid? MapDefinitionId { get; set; }
+        public Guid? GamePatchId { get; set; }
+        public List<TeamForm> Teams { get; } = [];
+    }
+
+    private sealed class TeamForm
+    {
+        public AgeNexus.Domain.Matches.TeamResult Result { get; set; }
+        public List<ParticipantForm> Participants { get; } = [];
+    }
+
+    private sealed class ParticipantForm
+    {
+        public AgeNexus.Domain.Matches.ParticipantType Type { get; set; }
+        public Guid? PlayerProfileId { get; set; }
+        public Guid? AiDifficultyId { get; set; }
+        public Guid? FactionId { get; set; }
+    }
+}

@@ -40,6 +40,37 @@ public sealed class MatchTests
         Assert.Equal(2, humans.HumanCount);
         Assert.Equal(3, computers.AiCount);
         Assert.Null(match.CompetitiveFormatLabel);
+        Assert.Equal(MatchScoringCategory.PurePve, match.ScoringCategory);
+    }
+
+    [Fact]
+    public void Classifies_hybrid_match_and_keeps_human_format()
+    {
+        var match = CreateMatch(MatchType.Mixed);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 2);
+        AddHumans(match, secondTeam.Id, 1);
+        match.AddParticipant(secondTeam.Id, MatchParticipant.Ai(Guid.NewGuid(), Guid.NewGuid()));
+
+        match.Submit();
+
+        Assert.Equal(MatchScoringCategory.HybridPvp, match.ScoringCategory);
+        Assert.Equal("2x1", match.HumanFormatLabel);
+        Assert.Null(match.CompetitiveFormatLabel);
+    }
+
+    [Fact]
+    public void Rejects_pve_label_when_ai_helps_a_human_team()
+    {
+        var match = CreateMatch(MatchType.HumansVersusAi);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 1);
+        AddHumans(match, secondTeam.Id, 1);
+        match.AddParticipant(secondTeam.Id, MatchParticipant.Ai(Guid.NewGuid(), Guid.NewGuid()));
+
+        Assert.Throws<DomainRuleException>(match.Submit);
     }
 
     [Fact]
@@ -78,6 +109,40 @@ public sealed class MatchTests
         match.Submit();
 
         Assert.Throws<DomainRuleException>(() => match.AddTeam(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void Validates_only_after_confirmation_and_coherent_results()
+    {
+        var match = CreateMatch(MatchType.PlayerVersusPlayer);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 1);
+        AddHumans(match, secondTeam.Id, 1);
+        match.SetTeamResult(firstTeam.Id, TeamResult.Victory);
+        match.SetTeamResult(secondTeam.Id, TeamResult.Defeat);
+        match.Submit();
+        match.RequestConfirmation();
+        match.MarkConfirmed();
+
+        match.Validate();
+
+        Assert.Equal(MatchStatus.Validated, match.Status);
+    }
+
+    [Fact]
+    public void Contesting_match_prevents_validation()
+    {
+        var match = CreateMatch(MatchType.PlayerVersusPlayer);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 1);
+        AddHumans(match, secondTeam.Id, 1);
+        match.Submit();
+        match.RequestConfirmation();
+        match.MarkDisputed();
+
+        Assert.Throws<DomainRuleException>(match.Validate);
     }
 
     private static Match CreateMatch(MatchType type) => new(

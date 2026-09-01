@@ -40,5 +40,5 @@ public sealed class MatchTeam
         _participants.Add(participant);
     }
 
-    public void SetResult(TeamResult result) => Result = result;
+    internal void SetResult(TeamResult result) => Result = result;
 }
