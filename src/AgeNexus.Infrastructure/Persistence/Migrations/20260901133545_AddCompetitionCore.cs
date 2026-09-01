@@ -793,6 +793,46 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                 principalTable: "seasons",
                 principalColumn: "id",
                 onDelete: ReferentialAction.SetNull);
+
+            migrationBuilder.Sql("""
+                ALTER TABLE public.clans ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.match_confirmations ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.match_evidence ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.match_revisions ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.point_events ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.rating_events ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.verification_decisions ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.clan_memberships ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.game_editions ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.challenge_tickets ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.factions ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.game_patches ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.map_definitions ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.seasons ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.team_lineups ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.player_favorite_factions ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.team_lineup_members ENABLE ROW LEVEL SECURITY;
+
+                REVOKE ALL ON TABLE public.clans FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.games FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.match_confirmations FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.match_evidence FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.match_revisions FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.point_events FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.rating_events FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.verification_decisions FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.clan_memberships FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.game_editions FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.challenge_tickets FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.factions FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.game_patches FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.map_definitions FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.seasons FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.team_lineups FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.player_favorite_factions FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.team_lineup_members FROM anon, authenticated;
+                """);
         }
 
         /// <inheritdoc />
