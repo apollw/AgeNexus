@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [master, dev, "feat/**"]
+  pull_request:
+    branches: [master, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore AgeNexus.slnx
+
+      - name: Build
+        run: dotnet build AgeNexus.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test AgeNexus.slnx --configuration Release --no-build
