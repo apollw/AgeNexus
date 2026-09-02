@@ -1,4 +1,5 @@
 using AgeNexus.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Antiforgery;
 
 namespace AgeNexus.Web.Identity;
@@ -10,6 +11,8 @@ public static class AccountEndpoints
         var group = endpoints.MapGroup("/account");
         group.MapPost("/register", RegisterAsync);
         group.MapPost("/login", LoginAsync);
+        group.MapPost("/external/google", BeginGoogleLoginAsync);
+        group.MapGet("/external/google/callback", CompleteGoogleLoginAsync);
         group.MapPost("/logout", LogoutAsync).RequireAuthorization();
         group.MapPost("/profile", UpdateProfileAsync).RequireAuthorization();
         return endpoints;
@@ -81,6 +84,45 @@ public static class AccountEndpoints
         return Results.LocalRedirect("/");
     }
 
+    private static async Task<IResult> BeginGoogleLoginAsync(
+        HttpContext context,
+        IAntiforgery antiforgery,
+        IAuthenticationSchemeProvider schemes,
+        AccountService accounts)
+    {
+        await antiforgery.ValidateRequestAsync(context);
+        if (await schemes.GetSchemeAsync(AccountService.GoogleProvider) is null)
+        {
+            return Results.LocalRedirect("/conta/login?erro=google-indisponivel");
+        }
+
+        var form = await context.Request.ReadFormAsync(context.RequestAborted);
+        var returnUrl = GetSafeReturnUrl(form["returnUrl"].ToString());
+        var callbackUrl = "/account/external/google/callback" +
+                          QueryString.Create("returnUrl", returnUrl).ToUriComponent();
+        var properties = accounts.ConfigureExternalLogin(callbackUrl);
+        return Results.Challenge(properties, [AccountService.GoogleProvider]);
+    }
+
+    private static async Task<IResult> CompleteGoogleLoginAsync(
+        HttpContext context,
+        AccountService accounts,
+        CancellationToken cancellationToken)
+    {
+        var result = await accounts.CompleteGoogleLoginAsync(cancellationToken);
+        if (result.Succeeded)
+        {
+            return Results.LocalRedirect(GetSafeReturnUrl(context.Request.Query["returnUrl"].ToString()));
+        }
+
+        var error = result.ErrorCodes.Contains("LockedOut")
+            ? "bloqueado"
+            : result.ErrorCodes.Contains("ExternalAccountLinkRequired")
+                ? "google-vinculacao"
+                : "google";
+        return Results.LocalRedirect($"/conta/login?erro={error}");
+    }
+
     private static async Task<IResult> UpdateProfileAsync(
         HttpContext context,
         IAntiforgery antiforgery,
@@ -113,4 +155,3 @@ public static class AccountEndpoints
         return returnUrl;
     }
 }
-

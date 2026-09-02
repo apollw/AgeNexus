@@ -1,0 +1,22 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+@if (IsConfigured)
+{
+    <form method="post" action="/account/external/google" class="google-sign-in-form">
+        <AntiforgeryToken />
+        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+        <button class="button google-sign-in" type="submit">
+            <span class="google-mark" aria-hidden="true">G</span>
+            Continuar com Google
+        </button>
+    </form>
+    <div class="account-divider"><span>ou</span></div>
+}
+
+@code {
+    [Parameter] public string ReturnUrl { get; set; } = "/";
+
+    private bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(Configuration["Authentication:Google:ClientId"]) &&
+        !string.IsNullOrWhiteSpace(Configuration["Authentication:Google:ClientSecret"]);
+}
