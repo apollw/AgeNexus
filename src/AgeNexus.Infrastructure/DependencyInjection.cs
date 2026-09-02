@@ -4,6 +4,9 @@ using AgeNexus.Infrastructure.Competition;
 using AgeNexus.Application.Matches;
 using AgeNexus.Application.Queries;
 using AgeNexus.Infrastructure.Queries;
+using AgeNexus.Application.MatchPerformance;
+using AgeNexus.Infrastructure.MatchPerformance;
+using AgeNexus.Infrastructure.ReplayAnalysis;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -72,6 +75,8 @@ public static class DependencyInjection
 
         services.AddScoped<AccountService>();
         services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
+        services.AddScoped<IPerformanceStatisticsService, PerformanceStatisticsService>();
+        services.AddScoped<IReplayStatisticsExtractor, PythonReplayStatisticsExtractor>();
         services.AddScoped<CompetitionQueryService>();
         services.AddScoped<IRankingQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IMatchHistoryQueryService>(x => x.GetRequiredService<CompetitionQueryService>());

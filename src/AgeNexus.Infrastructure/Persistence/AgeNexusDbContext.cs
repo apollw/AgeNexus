@@ -3,6 +3,7 @@ using AgeNexus.Domain.Clans;
 using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.EvidenceAndModeration;
 using AgeNexus.Domain.Matches;
+using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Players;
 using AgeNexus.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -37,6 +38,10 @@ public sealed class AgeNexusDbContext(DbContextOptions<AgeNexusDbContext> option
     public DbSet<PointEvent> PointEvents => Set<PointEvent>();
     public DbSet<TeamLineup> TeamLineups => Set<TeamLineup>();
     public DbSet<TeamLineupMember> TeamLineupMembers => Set<TeamLineupMember>();
+    public DbSet<MatchStatisticsReport> MatchStatisticsReports => Set<MatchStatisticsReport>();
+    public DbSet<PlayerMatchStatistics> PlayerMatchStatistics => Set<PlayerMatchStatistics>();
+    public DbSet<StatisticsConfirmation> StatisticsConfirmations => Set<StatisticsConfirmation>();
+    public DbSet<PlayerPerformanceScore> PlayerPerformanceScores => Set<PlayerPerformanceScore>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

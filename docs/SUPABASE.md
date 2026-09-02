@@ -71,3 +71,4 @@ Nesta fase, Supabase fornece PostgreSQL gerenciado e poderá fornecer armazename
 O schema da aplicação é controlado exclusivamente pelas [migrações do EF Core](EF-CORE.md). Não use `supabase db push` para alterar essas tabelas, pois isso criaria um segundo histórico de migrações concorrente.
 
 Referências oficiais: [CLI e desenvolvimento local](https://supabase.com/docs/guides/local-development/cli/getting-started), [fluxo de migrações](https://supabase.com/docs/guides/local-development/cli-workflows) e [conexões PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres).
+

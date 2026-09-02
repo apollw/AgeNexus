@@ -6,3 +6,4 @@ public interface IProjectionRebuilder
 }
 
 public sealed record RebuildScope(Guid? GameEditionId = null, Guid? SeasonId = null);
+

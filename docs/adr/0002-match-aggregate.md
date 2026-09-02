@@ -10,3 +10,4 @@
 ## Consequências
 
 O mesmo modelo atende equipes iguais, assimétricas e partidas contra IA sem mudanças de esquema. As invariantes de composição ficam no agregado.
+

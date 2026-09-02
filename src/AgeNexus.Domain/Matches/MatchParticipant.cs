@@ -64,3 +64,4 @@ public sealed class MatchParticipant
         return new(id, ParticipantType.ArtificialIntelligence, null, aiDifficultyId, factionId, factionSelection);
     }
 }
+
