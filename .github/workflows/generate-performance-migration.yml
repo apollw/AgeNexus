@@ -1,0 +1,48 @@
+name: Generate performance migration
+
+on:
+  push:
+    branches: [feat/match-performance-statistics]
+    paths: [.github/workflows/generate-performance-migration.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feat/match-performance-statistics
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore AgeNexus.slnx
+
+      - name: Restore local tools
+        run: dotnet tool restore
+
+      - name: Generate migration
+        env:
+          ConnectionStrings__AgeNexus: Host=localhost;Port=5432;Database=agenexus;Username=postgres;Password=postgres
+        run: >-
+          dotnet ef migrations add AddMatchPerformanceStatistics
+          --project src/AgeNexus.Infrastructure/AgeNexus.Infrastructure.csproj
+          --startup-project src/AgeNexus.Web/AgeNexus.Web.csproj
+          --output-dir Persistence/Migrations
+
+      - name: Commit migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/AgeNexus.Infrastructure/Persistence/Migrations
+          git commit -m "feat: adiciona migração de desempenho"
+          git push origin HEAD:feat/match-performance-statistics
