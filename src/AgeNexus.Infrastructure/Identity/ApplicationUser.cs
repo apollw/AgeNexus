@@ -17,5 +17,6 @@ public sealed class ApplicationUser : IdentityUser<Guid>
     }
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
-}
 
+    public void ConfirmEmailFromTrustedProvider() => EmailConfirmed = true;
+}

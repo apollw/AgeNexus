@@ -84,6 +84,29 @@ Os fluxos de conta ficam em:
 
 A senha deve ter no mínimo 10 caracteres e incluir letra maiúscula, minúscula, número e símbolo.
 
+## Login com Google
+
+Crie um cliente OAuth do tipo **Aplicativo da Web** no Google Cloud. Cadastre como URI de redirecionamento:
+
+```text
+http://localhost:5186/signin-google
+```
+
+Se a porta local for alterada, atualize também a URI no Google. Armazene as credenciais em User Secrets:
+
+```powershell
+dotnet user-secrets set "Authentication:Google:ClientId" "SEU_CLIENT_ID" --project src/AgeNexus.Web
+dotnet user-secrets set "Authentication:Google:ClientSecret" "SEU_CLIENT_SECRET" --project src/AgeNexus.Web
+```
+
+No Render, cadastre as variáveis `Authentication__Google__ClientId`, `Authentication__Google__ClientSecret` e `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true`. A URI autorizada no Google será:
+
+```text
+https://SEU_DOMINIO/signin-google
+```
+
+O sufixo `/signin-google` pertence ao middleware OAuth e não deve ser alterado. As credenciais nunca devem ser gravadas no `appsettings.json` nem enviadas ao Git.
+
 Para encerrar a aplicação, pressione `Ctrl+C` no terminal.
 
 ## Fluxo rápido
@@ -129,4 +152,3 @@ Depois, acesse `http://localhost:5080`.
 ## Estado atual
 
 A aplicação possui interface Blazor, persistência com EF Core/PostgreSQL e autenticação por ASP.NET Core Identity. As tabelas de credenciais ficam no schema privado `identity`; o perfil público é armazenado em `public.player_profiles`.
-
