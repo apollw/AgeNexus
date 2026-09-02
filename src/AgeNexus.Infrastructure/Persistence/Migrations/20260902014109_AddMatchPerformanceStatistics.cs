@@ -288,6 +288,19 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                 table: "statistics_confirmations",
                 columns: new[] { "report_id", "team_id" },
                 unique: true);
+
+            migrationBuilder.Sql(
+                """
+                ALTER TABLE public.match_statistics_reports ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.player_match_statistics ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.statistics_confirmations ENABLE ROW LEVEL SECURITY;
+                ALTER TABLE public.player_performance_scores ENABLE ROW LEVEL SECURITY;
+
+                REVOKE ALL ON TABLE public.match_statistics_reports FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.player_match_statistics FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.statistics_confirmations FROM anon, authenticated;
+                REVOKE ALL ON TABLE public.player_performance_scores FROM anon, authenticated;
+                """);
         }
 
         /// <inheritdoc />
