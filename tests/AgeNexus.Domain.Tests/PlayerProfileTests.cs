@@ -51,3 +51,4 @@ public sealed class PlayerProfileTests
             profile.UpdatePublicProfile("Jogador", null, null, "javascript:alert(1)"));
     }
 }
+

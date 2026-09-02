@@ -12,3 +12,4 @@ Age Nexus usará ASP.NET Core Identity com cookies e stores do EF Core. As tabel
 ## Consequências
 
 O domínio preserva a distinção entre conta e jogador histórico. Senhas são processadas exclusivamente pelo Identity e nunca armazenadas pela aplicação. Uma integração futura com provedores externos poderá ser adicionada pelos mecanismos do ASP.NET Core Identity sem alterar partidas.
+

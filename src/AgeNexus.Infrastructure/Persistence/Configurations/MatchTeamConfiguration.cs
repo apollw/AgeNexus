@@ -31,3 +31,4 @@ internal sealed class MatchTeamConfiguration : IEntityTypeConfiguration<MatchTea
             .HasDatabaseName("ux_match_teams_match_position");
     }
 }
+

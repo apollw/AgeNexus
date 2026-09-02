@@ -129,3 +129,4 @@ Depois, acesse `http://localhost:5080`.
 ## Estado atual
 
 A aplicação possui interface Blazor, persistência com EF Core/PostgreSQL e autenticação por ASP.NET Core Identity. As tabelas de credenciais ficam no schema privado `identity`; o perfil público é armazenado em `public.player_profiles`.
+

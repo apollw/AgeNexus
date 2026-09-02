@@ -33,3 +33,4 @@ internal sealed class PlayerProfileConfiguration : IEntityTypeConfiguration<Play
             .HasDatabaseName("ux_player_profiles_application_user_id");
     }
 }
+

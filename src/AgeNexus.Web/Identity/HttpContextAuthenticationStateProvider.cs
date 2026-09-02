@@ -13,3 +13,4 @@ public sealed class HttpContextAuthenticationStateProvider(IHttpContextAccessor 
         return Task.FromResult(new AuthenticationState(principal));
     }
 }
+

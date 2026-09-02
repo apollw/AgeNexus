@@ -23,7 +23,7 @@
             @foreach (var match in RecentMatches)
             {
                 <div class="table-row">
-                    <span>@string.Join(" × ", match.Teams)</span>
+                    <span><a href="/partidas/@match.MatchId/desempenho">@string.Join(" × ", match.Teams)</a></span>
                     <span>@match.Format</span>
                     <span>@match.Category</span>
                     <span>@match.Status</span>

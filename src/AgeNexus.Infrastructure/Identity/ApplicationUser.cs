@@ -18,3 +18,4 @@ public sealed class ApplicationUser : IdentityUser<Guid>
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
 }
+
