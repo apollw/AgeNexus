@@ -26,6 +26,8 @@
             <div class="form-alert form-alert-error" role="alert">@ErrorMessage</div>
         }
 
+        <GoogleSignIn ReturnUrl="@SafeReturnUrl" />
+
         <form method="post" action="/account/register" class="account-form">
             <AntiforgeryToken />
             <input type="hidden" name="returnUrl" value="@SafeReturnUrl" />
@@ -83,4 +85,3 @@
         !value.StartsWith("//", StringComparison.Ordinal) &&
         !value.StartsWith("/\\", StringComparison.Ordinal);
 }
-

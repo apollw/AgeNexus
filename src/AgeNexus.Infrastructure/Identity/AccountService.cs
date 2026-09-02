@@ -2,6 +2,7 @@ using System.Security.Claims;
 using AgeNexus.Domain.Common;
 using AgeNexus.Domain.Players;
 using AgeNexus.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,10 @@ public sealed class AccountService(
     SignInManager<ApplicationUser> signInManager,
     AgeNexusDbContext database)
 {
+    public const string GoogleProvider = "Google";
+    public const string GoogleEmailVerifiedClaim = "urn:agenexus:google:email_verified";
+    public const string GoogleHostedDomainClaim = "urn:agenexus:google:hosted_domain";
+
     public async Task<AccountOperationResult> RegisterAsync(
         string email,
         string password,
@@ -81,6 +86,98 @@ public sealed class AccountService(
 
     public Task LogoutAsync() => signInManager.SignOutAsync();
 
+    public AuthenticationProperties ConfigureExternalLogin(string redirectUrl) =>
+        signInManager.ConfigureExternalAuthenticationProperties(GoogleProvider, redirectUrl);
+
+    public async Task<AccountOperationResult> CompleteGoogleLoginAsync(CancellationToken cancellationToken)
+    {
+        var info = await signInManager.GetExternalLoginInfoAsync();
+        if (info is null || info.LoginProvider != GoogleProvider)
+        {
+            return AccountOperationResult.Failure(["ExternalLoginUnavailable"]);
+        }
+
+        var signIn = await signInManager.ExternalLoginSignInAsync(
+            info.LoginProvider,
+            info.ProviderKey,
+            isPersistent: false,
+            bypassTwoFactor: true);
+        if (signIn.Succeeded)
+        {
+            return AccountOperationResult.Success();
+        }
+
+        if (signIn.IsLockedOut)
+        {
+            return AccountOperationResult.Failure(["LockedOut"]);
+        }
+
+        var email = info.Principal.FindFirstValue(ClaimTypes.Email)?.Trim();
+        var verifiedEmail = string.Equals(
+            info.Principal.FindFirstValue(GoogleEmailVerifiedClaim),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(email) || !verifiedEmail)
+        {
+            return AccountOperationResult.Failure(["ExternalEmailNotVerified"]);
+        }
+
+        var strategy = database.Database.CreateExecutionStrategy();
+        ApplicationUser? account = null;
+        var operation = await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+            var user = await userManager.FindByEmailAsync(email);
+            var isNewUser = user is null;
+            var googleIsAuthoritative = email.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase) ||
+                                        !string.IsNullOrWhiteSpace(
+                                            info.Principal.FindFirstValue(GoogleHostedDomainClaim));
+            if (!isNewUser && !googleIsAuthoritative)
+            {
+                return AccountOperationResult.Failure(["ExternalAccountLinkRequired"]);
+            }
+
+            user ??= new ApplicationUser(email);
+            user.ConfirmEmailFromTrustedProvider();
+
+            var identityResult = isNewUser
+                ? await userManager.CreateAsync(user)
+                : await userManager.UpdateAsync(user);
+            if (!identityResult.Succeeded)
+            {
+                return AccountOperationResult.Failure(identityResult.Errors.Select(x => x.Code));
+            }
+
+            identityResult = await userManager.AddLoginAsync(user, info);
+            if (!identityResult.Succeeded)
+            {
+                return AccountOperationResult.Failure(identityResult.Errors.Select(x => x.Code));
+            }
+
+            var hasProfile = await database.PlayerProfiles
+                .AnyAsync(x => x.ApplicationUserId == user.Id, cancellationToken);
+            if (!hasProfile)
+            {
+                var displayName = NormalizeExternalDisplayName(
+                    info.Principal.FindFirstValue(ClaimTypes.Name),
+                    email);
+                database.PlayerProfiles.Add(new PlayerProfile(Guid.NewGuid(), displayName, user.Id));
+                await database.SaveChangesAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            account = user;
+            return AccountOperationResult.Success();
+        });
+
+        if (operation.Succeeded)
+        {
+            await signInManager.SignInAsync(account!, isPersistent: false);
+        }
+
+        return operation;
+    }
+
     public async Task<PublicProfile?> GetProfileAsync(ClaimsPrincipal principal, CancellationToken cancellationToken)
     {
         var userId = GetUserId(principal);
@@ -131,6 +228,13 @@ public sealed class AccountService(
 
     private static Guid? GetUserId(ClaimsPrincipal principal) =>
         Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ? userId : null;
+
+    private static string NormalizeExternalDisplayName(string? name, string email)
+    {
+        var fallback = email.Split('@', 2)[0];
+        var normalized = string.IsNullOrWhiteSpace(name) ? fallback : name.Trim();
+        return normalized.Length <= 100 ? normalized : normalized[..100];
+    }
 }
 
 public sealed record PublicProfile(Guid Id, string DisplayName, string? Bio, string? Location, string? AvatarUrl);

@@ -7,7 +7,9 @@ using AgeNexus.Infrastructure.Queries;
 using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Infrastructure.MatchPerformance;
 using AgeNexus.Infrastructure.ReplayAnalysis;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -56,9 +58,28 @@ public static class DependencyInjection
             .AddSignInManager()
             .AddDefaultTokenProviders();
 
-        services
-            .AddAuthentication(IdentityConstants.ApplicationScheme)
-            .AddIdentityCookies();
+        var authentication = services.AddAuthentication(IdentityConstants.ApplicationScheme);
+        authentication.AddIdentityCookies();
+
+        var googleClientId = configuration["Authentication:Google:ClientId"];
+        var googleClientSecret = configuration["Authentication:Google:ClientSecret"];
+        if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
+        {
+            authentication.AddGoogle(options =>
+            {
+                options.ClientId = googleClientId;
+                options.ClientSecret = googleClientSecret;
+                options.SignInScheme = IdentityConstants.ExternalScheme;
+                options.ClaimActions.MapJsonKey(AccountService.GoogleEmailVerifiedClaim, "verified_email");
+                options.ClaimActions.MapJsonKey(AccountService.GoogleHostedDomainClaim, "hd");
+                options.Events.OnRemoteFailure = context =>
+                {
+                    context.HandleResponse();
+                    context.Response.Redirect("/conta/login?erro=google");
+                    return Task.CompletedTask;
+                };
+            });
+        }
         services.AddAuthorization();
 
         services.ConfigureApplicationCookie(options =>
