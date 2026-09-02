@@ -10,3 +10,4 @@ Construir uma aplicação implantável, organizada por módulos funcionais e cam
 ## Consequências
 
 A implantação e as transações permanecem simples no MVP. Limites explícitos preservam uma separação futura sem assumir agora o custo de microsserviços.
+

@@ -10,3 +10,4 @@ Cada efeito competitivo de uma partida validada produzirá eventos imutáveis e 
 ## Consequências
 
 Correções e anulações podem ser auditadas e recalculadas cronologicamente. Uma chave única futura por partida, escopo e beneficiário impedirá duplicidade.
+

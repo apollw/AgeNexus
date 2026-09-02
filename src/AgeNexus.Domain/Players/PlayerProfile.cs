@@ -88,3 +88,4 @@ public sealed class PlayerProfile
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
+

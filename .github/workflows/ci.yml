@@ -32,6 +32,9 @@ jobs:
       - name: Test
         run: dotnet test AgeNexus.slnx --configuration Release --no-build
 
+      - name: Validate replay extractor
+        run: python3 -m py_compile src/AgeNexus.Infrastructure/ReplayAnalysis/extract_replay.py
+
       - name: Restore local tools
         run: dotnet tool restore
 

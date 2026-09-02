@@ -18,6 +18,10 @@ erDiagram
     MATCH ||--o{ MATCH_EVIDENCE : comprova
     MATCH ||--o{ MATCH_CONFIRMATION : recebe
     MATCH ||--o{ MATCH_REVISION : audita
+    MATCH ||--o| MATCH_STATISTICS_REPORT : detalha
+    MATCH_STATISTICS_REPORT ||--|{ PLAYER_MATCH_STATISTICS : contem
+    MATCH_STATISTICS_REPORT ||--o{ STATISTICS_CONFIRMATION : confirma
+    MATCH_STATISTICS_REPORT ||--o{ PLAYER_PERFORMANCE_SCORE : calcula
     MATCH ||--o{ RATING_EVENT : origina
     MATCH ||--o{ CAREER_POINT_EVENT : origina
     PLAYER_PROFILE ||--o{ PLAYER_RATING : mantem
@@ -29,3 +33,4 @@ erDiagram
 - Uma IA aponta para dificuldade configurável e não é um usuário fictício.
 - Resultado pertence à equipe. O formato (`3x2`) é derivado das quantidades de humanos.
 - Rating e pontos são livros de eventos reconstruíveis e independentes.
+- Relatórios pós-jogo preservam a origem dos dados e só geram bônus de carreira após confirmação e validação.

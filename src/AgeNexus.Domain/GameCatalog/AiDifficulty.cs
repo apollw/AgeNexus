@@ -37,3 +37,4 @@ public sealed class AiDifficulty
     public string Name { get; private set; }
     public int InternalLevel { get; private set; }
 }
+

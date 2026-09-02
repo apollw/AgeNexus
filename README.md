@@ -10,6 +10,8 @@ Para banco PostgreSQL, autenticação e armazenamento no Supabase, consulte [Sup
 
 Para alterar o schema e aplicar migrações PostgreSQL, consulte [EF Core e PostgreSQL](docs/EF-CORE.md).
 
+Para importar replays e entender o cálculo de MVP, consulte [Estatísticas pós-jogo e replays](docs/REPLAY-ANALYSIS.md).
+
 ```powershell
 dotnet build AgeNexus.slnx
 dotnet test AgeNexus.slnx

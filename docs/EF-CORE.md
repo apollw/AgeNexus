@@ -81,3 +81,4 @@ http://localhost:5186/health/database
 ```
 
 Uma conexão funcional responde com HTTP 200 e `{"status":"healthy","database":"postgresql"}`.
+

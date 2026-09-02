@@ -16,6 +16,7 @@ public enum RatingScopeKind
 public enum PointScopeKind
 {
     Career,
+    PerformanceBonus,
     Pve,
     ClanPrestige,
     ClanPve

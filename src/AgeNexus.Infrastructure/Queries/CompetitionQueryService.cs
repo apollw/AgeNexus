@@ -91,7 +91,8 @@ public sealed class CompetitionQueryService(AgeNexusDbContext database) :
             .ToDictionaryAsync(x => x.Id, x => x.Value, cancellationToken);
         var points = await database.PointEvents.AsNoTracking()
             .Where(x => ids.Contains(x.BeneficiaryId) &&
-                        (x.Scope == PointScopeKind.Career || x.Scope == PointScopeKind.Pve))
+                        (x.Scope == PointScopeKind.Career || x.Scope == PointScopeKind.PerformanceBonus ||
+                         x.Scope == PointScopeKind.Pve))
             .GroupBy(x => new { x.BeneficiaryId, x.Scope })
             .Select(x => new { x.Key.BeneficiaryId, x.Key.Scope, Value = x.Sum(e => e.Points) })
             .ToListAsync(cancellationToken);
@@ -101,7 +102,8 @@ public sealed class CompetitionQueryService(AgeNexusDbContext database) :
             x.DisplayName,
             x.AvatarUrl,
             ScoringRuleSet.InitialRating + ratings.GetValueOrDefault(x.Id),
-            pointLookup.GetValueOrDefault((x.Id, PointScopeKind.Career)),
+            pointLookup.GetValueOrDefault((x.Id, PointScopeKind.Career)) +
+            pointLookup.GetValueOrDefault((x.Id, PointScopeKind.PerformanceBonus)),
             pointLookup.GetValueOrDefault((x.Id, PointScopeKind.Pve)))).ToArray();
     }
 
@@ -244,7 +246,8 @@ public sealed class CompetitionQueryService(AgeNexusDbContext database) :
         CancellationToken cancellationToken)
     {
         var query = database.PointEvents.AsNoTracking().Where(x =>
-            x.Scope == scope && (!seasonId.HasValue || x.SeasonId == seasonId));
+            (x.Scope == scope || (scope == PointScopeKind.Career && x.Scope == PointScopeKind.PerformanceBonus)) &&
+            (!seasonId.HasValue || x.SeasonId == seasonId));
         if (officialPveOnly)
         {
             query = query.Where(x => x.EvidenceLevel == EvidenceLevel.Verified || x.EvidenceLevel == EvidenceLevel.Audited);
@@ -255,7 +258,9 @@ public sealed class CompetitionQueryService(AgeNexusDbContext database) :
             {
                 Id = x.Key,
                 Score = x.Sum(e => e.Points),
-                Matches = x.Sum(e => e.Kind == ScoringEventKind.Award ? 1 : -1)
+                Matches = x.Sum(e => e.Scope == scope
+                    ? (e.Kind == ScoringEventKind.Award ? 1 : -1)
+                    : 0)
             })
             .Where(x => x.Matches > 0)
             .OrderByDescending(x => x.Score)

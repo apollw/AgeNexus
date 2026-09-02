@@ -1,4 +1,5 @@
 using AgeNexus.Application.Ratings;
+using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Domain.Competition;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,6 +13,7 @@ public static class DependencyInjection
         services.AddSingleton<IRatingCalculator, EloRatingCalculator>();
         services.AddSingleton<ICareerPointCalculator, CareerPointCalculator>();
         services.AddSingleton<IPvePointCalculator, PvePointCalculator>();
+        services.AddSingleton<IPerformanceCalculator, PerformanceCalculator>();
         return services;
     }
 }

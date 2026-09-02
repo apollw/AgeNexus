@@ -282,7 +282,23 @@ Para impedir repetição artificial, em cada temporada e para a mesma combinaç�
 
 O Índice de Domínio contra IA deve valorizar maior dificuldade comprovada, desvantagem numérica, variedade de mapas/civilizações e sequência, e não apenas quantidade bruta de partidas.
 
-### 4.6 Rankings públicos
+### 4.6 Desempenho pós-jogo, MVP e destaques
+
+Cada partida pode receber um relatório de desempenho por importação de replay (`.aoe2record`, `.mgz` ou `.mgx`), transcrição de capturas ou preenchimento manual. O sistema registra a origem, o hash SHA-256 e a versão do extrator. Como nem todo replay contém o placar final completo, valores ausentes permanecem nulos e podem ser completados manualmente; nunca são estimados silenciosamente.
+
+O índice compara apenas os humanos da mesma partida. As pontuações oficiais militar, econômica, tecnológica e social são normalizadas entre 0 e 1. Os pesos são 45/35/10/10 em 1x1 e 40/30/10/20 quando a maior equipe humana possui dois ou mais integrantes.
+
+| Distinção | PvP puro | PvP híbrido | PvE puro |
+| --- | ---: | ---: | ---: |
+| MVP único | +2 carreira | +1 carreira | distintivo, sem pontos |
+| MVP compartilhado, diferença até 0,02 | +1 para cada | +1 para cada | distintivo, sem pontos |
+| Destaque da equipe derrotada | +1 carreira | +1 carreira | não se aplica |
+
+O destaque da derrota exige liderança em pelo menos um dos quatro pilares, índice geral mínimo de 0,55 e distância máxima de 0,15 para o líder. Ele não acumula com MVP. Um único humano em PvE não recebe MVP automaticamente.
+
+Os bônus são eventos imutáveis no escopo `PerformanceBonus`: integram apenas a pontuação/ranking de carreira, nunca rating competitivo, ranking de formações ou ranking PvE. A concessão exige relatório completo, decisão de todas as equipes humanas e partida validada. Contestações bloqueiam a concessão. A fórmula é versionada para auditoria e recálculo.
+
+### 4.7 Rankings públicos
 
 O sistema oferecerá:
 
@@ -425,6 +441,8 @@ Partidas anuladas são excluídas. Partidas pendentes podem aparecer apenas em v
 ### Estatísticas
 
 As tabelas de partidas são a fonte da verdade. Projeções como `PlayerStats`, `FactionStats`, `MatchupStats`, `TeamStats` e `ClanStats` podem ser materializadas para leitura rápida, mas devem ser reconstruíveis.
+
+Os relatórios pós-jogo usam `MatchStatisticsReport`, `PlayerMatchStatistics`, `StatisticsConfirmation` e `PlayerPerformanceScore`. O primeiro registra origem e cobertura; o segundo preserva os valores por humano; o terceiro audita a decisão de cada equipe; e o último congela o resultado da fórmula versionada.
 
 ### Decisões importantes de modelagem
 
