@@ -105,6 +105,7 @@ public static class DependencyInjection
         services.AddScoped<IRankingQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IMatchHistoryQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IPlayerDirectoryQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
+        services.AddScoped<IGeneralStatisticsQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IStatisticsQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IClanQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<ICatalogQueryService>(x => x.GetRequiredService<CompetitionQueryService>());

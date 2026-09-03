@@ -1,4 +1,6 @@
 @page "/"
+@inject AgeNexus.Application.Queries.IMatchHistoryQueryService MatchHistory
+@inject AgeNexus.Application.Queries.IRankingQueryService Rankings
 
 <PageTitle>Visão geral · Age Nexus</PageTitle>
 
@@ -17,11 +19,42 @@
             <a href="/partidas">Ver todas <span>→</span></a>
         </header>
 
-        <div class="panel-empty">
-            <span class="empty-icon">⚔</span>
-            <strong>Nenhuma partida registrada</strong>
-            <p>As partidas reais da comunidade aparecerão aqui.</p>
-        </div>
+        @if (RecentMatches.Count == 0)
+        {
+            <div class="panel-empty">
+                <span class="empty-icon">⚔</span>
+                <strong>Nenhuma partida registrada</strong>
+                <p>As partidas reais da comunidade aparecerão aqui.</p>
+            </div>
+        }
+        else
+        {
+            <div class="home-match-list">
+                @foreach (var match in RecentMatches)
+                {
+                    <a class="home-match-row" href="/partidas/@match.MatchId/desempenho">
+                        <div class="home-match-meta">
+                            <span class="status-badge @StatusClass(match.Status)">@StatusLabel(match.Status)</span>
+                            <time datetime="@match.PlayedAtUtc.ToString("O")">@match.PlayedAtUtc.ToLocalTime().ToString("dd MMM · HH:mm")</time>
+                        </div>
+                        <div class="home-match-main">
+                            <div class="home-match-teams">
+                                @foreach (var team in match.Teams)
+                                {
+                                    <strong class="@(IsWinner(team) ? "winner" : null)"><span>@TeamResultMark(team)</span>@TeamLabel(team)</strong>
+                                }
+                            </div>
+                            <span class="home-match-versus">VS</span>
+                            <div class="home-match-context">
+                                <b>@match.Format</b>
+                                <small>@CategoryLabel(match.Category)</small>
+                            </div>
+                            <span class="home-match-arrow">→</span>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
     </section>
 
     <aside class="panel leaderboard-panel">
@@ -29,11 +62,28 @@
             <div><span class="eyebrow">Elo geral PvP</span><h2>Top jogadores</h2></div>
             <a href="/rankings">Ranking <span>→</span></a>
         </header>
-        <div class="panel-empty panel-empty-compact">
-            <span class="empty-icon">♛</span>
-            <strong>Ranking ainda vazio</strong>
-            <p>Jogadores elegíveis aparecerão após partidas ranqueadas validadas.</p>
-        </div>
+        @if (TopPlayers.Count == 0)
+        {
+            <div class="panel-empty panel-empty-compact">
+                <span class="empty-icon">♛</span>
+                <strong>Ranking ainda vazio</strong>
+                <p>Jogadores elegíveis aparecerão após partidas ranqueadas validadas.</p>
+            </div>
+        }
+        else
+        {
+            <div class="leaderboard home-leaderboard">
+                @foreach (var player in TopPlayers)
+                {
+                    <div class="leader @(player.Position == 1 ? "leader-first" : "")">
+                        <span class="rank">@player.Position</span>
+                        <span class="avatar @(player.Position == 1 ? "avatar-gold" : "avatar-dark")">@Initials(player.DisplayName)</span>
+                        <div><strong>@player.DisplayName</strong><small>@player.ValidatedMatches partida(s) validada(s)</small></div>
+                        <span class="rating"><strong>@player.Score.ToString("N0")</strong><small>Elo</small></span>
+                    </div>
+                }
+            </div>
+        }
     </aside>
 </div>
 
@@ -48,4 +98,56 @@
         <span class="quick-number">03</span><div><strong>Dispute o topo</strong><small>Acompanhe ratings por modalidade.</small></div><b>→</b>
     </a>
 </section>
+
+@code {
+    private IReadOnlyCollection<AgeNexus.Application.Queries.MatchSummary> RecentMatches { get; set; } = [];
+    private IReadOnlyCollection<AgeNexus.Application.Queries.RankingEntry> TopPlayers { get; set; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Both query services share the scoped EF Core context used by this request.
+        // Keep the operations sequential because DbContext is intentionally not thread-safe.
+        RecentMatches = await MatchHistory.GetRecentAsync(5);
+        TopPlayers = await Rankings.GetAsync(
+            AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive,
+            limit: 5);
+    }
+
+    private static string TeamLabel(string value)
+    {
+        var resultIndex = value.LastIndexOf(" (", StringComparison.Ordinal);
+        return resultIndex > 0 ? value[..resultIndex] : value;
+    }
+
+    private static bool IsWinner(string value) => value.EndsWith("(Victory)", StringComparison.Ordinal);
+    private static string TeamResultMark(string value) => IsWinner(value) ? "◆" : "◇";
+
+    private static string CategoryLabel(string value) => value switch
+    {
+        "PurePvp" => "PvP competitivo",
+        "PurePve" => "Humanos contra IA",
+        "HybridPvp" => "Partida híbrida",
+        _ => value
+    };
+
+    private static string StatusLabel(string value) => value switch
+    {
+        "Validated" => "Validada",
+        "Confirmed" => "Confirmada",
+        "AwaitingConfirmation" => "Pendente",
+        _ => value
+    };
+
+    private static string StatusClass(string value) => value switch
+    {
+        "Validated" => "validated",
+        "Confirmed" => "confirmed",
+        _ => "pending"
+    };
+
+    private static string Initials(string name) => string.Concat(name
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Take(2)
+        .Select(x => char.ToUpperInvariant(x[0])));
+}
 

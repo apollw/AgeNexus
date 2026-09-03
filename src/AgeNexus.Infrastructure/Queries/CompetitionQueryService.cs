@@ -11,6 +11,7 @@ public sealed class CompetitionQueryService(AgeNexusDbContext database) :
     IRankingQueryService,
     IMatchHistoryQueryService,
     IPlayerDirectoryQueryService,
+    IGeneralStatisticsQueryService,
     IStatisticsQueryService,
     IClanQueryService,
     ICatalogQueryService
@@ -105,6 +106,115 @@ public sealed class CompetitionQueryService(AgeNexusDbContext database) :
             pointLookup.GetValueOrDefault((x.Id, PointScopeKind.Career)) +
             pointLookup.GetValueOrDefault((x.Id, PointScopeKind.PerformanceBonus)),
             pointLookup.GetValueOrDefault((x.Id, PointScopeKind.Pve)))).ToArray();
+    }
+
+    async Task<GeneralStatisticsDashboard> IGeneralStatisticsQueryService.GetAsync(
+        int leadersPerBoard,
+        CancellationToken cancellationToken)
+    {
+        leadersPerBoard = Math.Clamp(leadersPerBoard, 1, 20);
+        var rows = await (
+            from statistic in database.PlayerMatchStatistics.AsNoTracking()
+            join report in database.MatchStatisticsReports.AsNoTracking()
+                on statistic.ReportId equals report.Id
+            join match in database.Matches.AsNoTracking()
+                on statistic.MatchId equals match.Id
+            where match.Status == MatchStatus.Validated &&
+                  (report.Status == Domain.MatchPerformance.MatchStatisticsStatus.Confirmed ||
+                   report.Status == Domain.MatchPerformance.MatchStatisticsStatus.Awarded)
+            select statistic).ToArrayAsync(cancellationToken);
+
+        var playerIds = rows.Select(x => x.PlayerProfileId).Distinct().ToArray();
+        var names = await database.PlayerProfiles.AsNoTracking()
+            .Where(x => playerIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
+
+        GeneralStatisticBoard Total(
+            string key, string category, string title, string description,
+            Func<Domain.MatchPerformance.PlayerMatchStatistics, decimal?> selector,
+            GeneralStatisticValueKind valueKind = GeneralStatisticValueKind.Integer) =>
+            Board(key, category, title, description, valueKind, selector, values => values.Sum(), descending: true);
+
+        GeneralStatisticBoard Average(
+            string key, string category, string title, string description,
+            Func<Domain.MatchPerformance.PlayerMatchStatistics, decimal?> selector,
+            GeneralStatisticValueKind valueKind = GeneralStatisticValueKind.Decimal) =>
+            Board(key, category, title, description, valueKind, selector, values => values.Average(), descending: true);
+
+        GeneralStatisticBoard Record(
+            string key, string category, string title, string description,
+            Func<Domain.MatchPerformance.PlayerMatchStatistics, decimal?> selector,
+            GeneralStatisticValueKind valueKind = GeneralStatisticValueKind.Integer,
+            bool lowerIsBetter = false) =>
+            Board(key, category, title, description, valueKind, selector,
+                values => lowerIsBetter ? values.Min() : values.Max(), descending: !lowerIsBetter);
+
+        GeneralStatisticBoard Board(
+            string key, string category, string title, string description,
+            GeneralStatisticValueKind valueKind,
+            Func<Domain.MatchPerformance.PlayerMatchStatistics, decimal?> selector,
+            Func<IReadOnlyCollection<decimal>, decimal> aggregate,
+            bool descending)
+        {
+            var values = rows
+                .GroupBy(x => x.PlayerProfileId)
+                .Select(group =>
+                {
+                    var available = group.Select(selector).Where(x => x.HasValue)
+                        .Select(x => x!.Value).ToArray();
+                    return new
+                    {
+                        PlayerId = group.Key,
+                        Values = available,
+                        Matches = group.Where(x => selector(x).HasValue).Select(x => x.MatchId).Distinct().Count()
+                    };
+                })
+                .Where(x => x.Values.Length > 0);
+            var ordered = descending
+                ? values.OrderByDescending(x => aggregate(x.Values)).ThenBy(x => names.GetValueOrDefault(x.PlayerId))
+                : values.OrderBy(x => aggregate(x.Values)).ThenBy(x => names.GetValueOrDefault(x.PlayerId));
+            var entries = ordered.Take(leadersPerBoard).Select((x, index) => new GeneralStatisticEntry(
+                index + 1, x.PlayerId, names.GetValueOrDefault(x.PlayerId, "Jogador"),
+                aggregate(x.Values), x.Matches)).ToArray();
+            return new GeneralStatisticBoard(key, category, title, description, valueKind, entries);
+        }
+
+        var boards = new GeneralStatisticBoard[]
+        {
+            Total("units-killed", "Combate", "Mais unidades eliminadas", "Total de unidades inimigas eliminadas.", x => x.UnitsKilled),
+            Total("units-lost", "Combate", "Mais unidades perdidas", "Total de unidades perdidas durante as batalhas.", x => x.UnitsLost),
+            Total("buildings-destroyed", "Combate", "Mais construções destruídas", "Edifícios inimigos destruídos no histórico.", x => x.BuildingsDestroyed),
+            Total("buildings-lost", "Combate", "Mais construções perdidas", "Edifícios próprios perdidos no histórico.", x => x.BuildingsLost),
+            Total("conversions", "Combate", "Mais conversões", "Unidades convertidas por monges.", x => x.UnitsConverted),
+            Record("largest-army", "Combate", "Maior exército", "Maior exército registrado em uma única partida.", x => x.LargestArmy),
+
+            Total("food", "Economia", "Maior coleta de comida", "Soma de toda a comida coletada.", x => x.FoodCollected),
+            Total("wood", "Economia", "Maior coleta de madeira", "Soma de toda a madeira coletada.", x => x.WoodCollected),
+            Total("gold", "Economia", "Maior coleta de ouro", "Soma de todo o ouro coletado.", x => x.GoldCollected),
+            Total("stone", "Economia", "Maior coleta de pedra", "Soma de toda a pedra coletada.", x => x.StoneCollected),
+            Total("trade-gold", "Economia", "Mais ouro comercial", "Ouro produzido por comércio.", x => x.TradeGold),
+            Total("relic-gold", "Economia", "Mais ouro de relíquias", "Ouro gerado por relíquias.", x => x.RelicGold),
+
+            Total("research", "Tecnologia", "Mais tecnologias pesquisadas", "Total de tecnologias concluídas.", x => x.ResearchCount),
+            Average("explored", "Tecnologia", "Maior exploração média", "Percentual médio do mapa explorado.", x => x.ExploredPercent, GeneralStatisticValueKind.Percentage),
+            Record("fastest-feudal", "Tecnologia", "Feudal mais rápido", "Menor tempo registrado para chegar à Era Feudal.", x => x.FeudalAgeSeconds, GeneralStatisticValueKind.Duration, true),
+            Record("fastest-castle", "Tecnologia", "Castelos mais rápido", "Menor tempo registrado para chegar à Era dos Castelos.", x => x.CastleAgeSeconds, GeneralStatisticValueKind.Duration, true),
+            Record("fastest-imperial", "Tecnologia", "Imperial mais rápido", "Menor tempo registrado para chegar à Era Imperial.", x => x.ImperialAgeSeconds, GeneralStatisticValueKind.Duration, true),
+
+            Record("villagers", "Sociedade", "Maior população de aldeões", "Maior pico de aldeões em uma partida.", x => x.PeakVillagers),
+            Total("castles", "Sociedade", "Mais castelos construídos", "Total de castelos construídos.", x => x.CastlesBuilt),
+            Total("wonders", "Sociedade", "Mais maravilhas construídas", "Total de maravilhas construídas.", x => x.WondersBuilt),
+            Total("relics", "Sociedade", "Mais relíquias capturadas", "Total de relíquias capturadas.", x => x.RelicsCaptured),
+            Average("total-score", "Placar", "Maior pontuação média", "Média da pontuação total nas partidas.", x => x.TotalScore),
+            Average("military-score", "Placar", "Maior placar militar médio", "Média da pontuação militar.", x => x.MilitaryScore),
+            Average("economy-score", "Placar", "Maior placar econômico médio", "Média da pontuação econômica.", x => x.EconomyScore)
+        };
+
+        return new GeneralStatisticsDashboard(
+            rows.Select(x => x.MatchId).Distinct().Count(),
+            playerIds.Length,
+            rows.Length,
+            boards);
     }
 
     public async Task<IReadOnlyCollection<FactionStatistics>> GetFactionStatisticsAsync(

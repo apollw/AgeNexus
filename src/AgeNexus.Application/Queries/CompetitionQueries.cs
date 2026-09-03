@@ -57,6 +57,42 @@ public interface IPlayerDirectoryQueryService
         CancellationToken cancellationToken = default);
 }
 
+public enum GeneralStatisticValueKind
+{
+    Integer,
+    Decimal,
+    Percentage,
+    Duration
+}
+
+public sealed record GeneralStatisticEntry(
+    int Position,
+    Guid PlayerId,
+    string DisplayName,
+    decimal Value,
+    int Matches);
+
+public sealed record GeneralStatisticBoard(
+    string Key,
+    string Category,
+    string Title,
+    string Description,
+    GeneralStatisticValueKind ValueKind,
+    IReadOnlyCollection<GeneralStatisticEntry> Entries);
+
+public sealed record GeneralStatisticsDashboard(
+    int MatchesWithStatistics,
+    int PlayersWithStatistics,
+    int StatisticRows,
+    IReadOnlyCollection<GeneralStatisticBoard> Boards);
+
+public interface IGeneralStatisticsQueryService
+{
+    Task<GeneralStatisticsDashboard> GetAsync(
+        int leadersPerBoard = 5,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record FactionStatistics(
     Guid FactionId,
     string Name,

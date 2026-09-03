@@ -29,6 +29,19 @@ if (builder.Environment.IsDevelopment())
 
 var app = builder.Build();
 
+if (args.Contains("--diagnose-general-statistics", StringComparer.OrdinalIgnoreCase))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var statistics = scope.ServiceProvider
+        .GetRequiredService<AgeNexus.Application.Queries.IGeneralStatisticsQueryService>();
+    var dashboard = await statistics.GetAsync();
+    Console.WriteLine(
+        $"Partidas={dashboard.MatchesWithStatistics}; Jogadores={dashboard.PlayersWithStatistics}; " +
+        $"Linhas={dashboard.StatisticRows}; Rankings={dashboard.Boards.Count}; " +
+        $"ComLider={dashboard.Boards.Count(x => x.Entries.Count > 0)}");
+    return;
+}
+
 if (args.Contains("--finalize-latest-match", StringComparer.OrdinalIgnoreCase))
 {
     await using var scope = app.Services.CreateAsyncScope();

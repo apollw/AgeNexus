@@ -1,0 +1,234 @@
+@page "/estatisticas/gerais"
+@inject AgeNexus.Application.Queries.IGeneralStatisticsQueryService Statistics
+
+<PageTitle>Estatísticas gerais · Age Nexus</PageTitle>
+
+<section class="page-heading records-page-heading">
+    <div>
+        <span class="eyebrow">Crônicas do Nexus</span>
+        <h1>Hall dos <em>recordes.</em></h1>
+        <p>As grandes marcas de combate, economia e evolução construídas em todas as partidas validadas.</p>
+    </div>
+    @if (Dashboard is not null)
+    {
+        <div class="records-seal" aria-label="@Dashboard.Boards.Count recordes acompanhados">
+            <span>Recordes</span>
+            <strong>@Dashboard.Boards.Count</strong>
+            <small>monitorados</small>
+        </div>
+    }
+</section>
+
+@if (Dashboard is null)
+{
+    <section class="panel panel-empty page-empty"><strong>Consultando as crônicas...</strong></section>
+}
+else if (Dashboard.MatchesWithStatistics == 0)
+{
+    <section class="panel panel-empty page-empty">
+        <span class="empty-icon">◇</span>
+        <strong>O salão ainda está vazio</strong>
+        <p>Preencha e aplique as estatísticas de uma partida para inaugurar os recordes.</p>
+    </section>
+}
+else
+{
+    <section class="records-hero">
+        <div class="records-hero-main">
+            <span class="records-hero-label">Maior detentor de recordes</span>
+            @if (OverallLeaders.FirstOrDefault() is { } master)
+            {
+                <div class="records-master">
+                    <span class="records-master-avatar">@Initials(master.DisplayName)</span>
+                    <div>
+                        <h2>@master.DisplayName</h2>
+                        <p>Ocupa o primeiro lugar em <strong>@master.FirstPlaces</strong> categorias.</p>
+                    </div>
+                </div>
+            }
+            <div class="records-hero-rule"><span></span><b>AGE NEXUS</b><span></span></div>
+            <div class="records-podium">
+                @foreach (var leader in OverallLeaders.Take(3))
+                {
+                    <div class="records-podium-place records-podium-@leader.Position">
+                        <span>@Roman(leader.Position)</span>
+                        <div><strong>@leader.DisplayName</strong><small>@leader.FirstPlaces liderança(s)</small></div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <aside class="records-ledger">
+            <span class="eyebrow">Livro da temporada</span>
+            <div><strong>@Dashboard.MatchesWithStatistics</strong><span>Partidas analisadas</span></div>
+            <div><strong>@Dashboard.PlayersWithStatistics</strong><span>Jogadores presentes</span></div>
+            <div><strong>@Dashboard.StatisticRows</strong><span>Desempenhos registrados</span></div>
+            <a href="/partidas">Consultar partidas <span>→</span></a>
+        </aside>
+    </section>
+
+    <section class="records-feature-strip" aria-label="Recordes em destaque">
+        @foreach (var board in FeaturedBoards)
+        {
+            var champion = board.Entries.First();
+            <a href="#@CategoryId(board.Category)" class="records-feature">
+                <span class="records-feature-mark">@ShortMark(board.Key)</span>
+                <div><small>@board.Title</small><strong>@champion.DisplayName</strong></div>
+                <b>@FormatValue(champion.Value, board.ValueKind)</b>
+            </a>
+        }
+    </section>
+
+    <nav class="records-category-nav" aria-label="Categorias de recordes">
+        <span>Ir para</span>
+        @foreach (var category in Categories)
+        {
+            <a href="#@CategoryId(category)"><b>@CategoryNumber(category)</b>@category</a>
+        }
+    </nav>
+
+    @foreach (var category in Categories)
+    {
+        var categoryBoards = Dashboard.Boards.Where(x => x.Category == category).ToArray();
+        <section class="records-category records-category-@CategoryClass(category)" id="@CategoryId(category)">
+            <header class="records-category-heading">
+                <div class="records-category-number">@CategoryNumber(category)</div>
+                <div>
+                    <span class="eyebrow">Domínio</span>
+                    <h2>@category</h2>
+                    <p>@CategoryDescription(category)</p>
+                </div>
+                <span class="records-category-count">@categoryBoards.Length marcas</span>
+            </header>
+
+            <div class="records-board-grid">
+                @foreach (var indexed in categoryBoards.Select((board, index) => new { Board = board, Index = index + 1 }))
+                {
+                    var board = indexed.Board;
+                    <article class="record-board">
+                        <header class="record-board-heading">
+                            <span>@indexed.Index.ToString("00")</span>
+                            <div><h3>@board.Title</h3><p>@board.Description</p></div>
+                        </header>
+
+                        @if (board.Entries.Count == 0)
+                        {
+                            <div class="record-board-empty">Aguardando dados</div>
+                        }
+                        else
+                        {
+                            var champion = board.Entries.First();
+                            <div class="record-board-champion">
+                                <span class="record-crown">♛</span>
+                                <span class="record-avatar">@Initials(champion.DisplayName)</span>
+                                <div>
+                                    <small>Recordista atual</small>
+                                    <strong>@champion.DisplayName</strong>
+                                    <span>@champion.Matches partida(s) contabilizada(s)</span>
+                                </div>
+                                <b>@FormatValue(champion.Value, board.ValueKind)</b>
+                            </div>
+
+                            @if (board.Entries.Count > 1)
+                            {
+                                <ol class="record-board-ranking">
+                                    @foreach (var entry in board.Entries.Skip(1))
+                                    {
+                                        <li>
+                                            <span>@entry.Position</span>
+                                            <strong>@entry.DisplayName</strong>
+                                            <small>@entry.Matches jogo(s)</small>
+                                            <b>@FormatValue(entry.Value, board.ValueKind)</b>
+                                        </li>
+                                    }
+                                </ol>
+                            }
+                        }
+                    </article>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    private AgeNexus.Application.Queries.GeneralStatisticsDashboard? Dashboard { get; set; }
+
+    private IReadOnlyCollection<string> Categories => Dashboard?.Boards
+        .Select(x => x.Category).Distinct().ToArray() ?? [];
+
+    private IReadOnlyCollection<RecordLeader> OverallLeaders => Dashboard?.Boards
+        .Where(x => x.Entries.Count > 0)
+        .Select(x => x.Entries.First())
+        .GroupBy(x => new { x.PlayerId, x.DisplayName })
+        .Select(x => new { x.Key.PlayerId, x.Key.DisplayName, FirstPlaces = x.Count() })
+        .OrderByDescending(x => x.FirstPlaces)
+        .ThenBy(x => x.DisplayName)
+        .Take(3)
+        .Select((x, index) => new RecordLeader(index + 1, x.PlayerId, x.DisplayName, x.FirstPlaces))
+        .ToArray() ?? [];
+
+    private IReadOnlyCollection<AgeNexus.Application.Queries.GeneralStatisticBoard> FeaturedBoards =>
+        Dashboard?.Boards.Where(x => x.Entries.Count > 0 &&
+            new[] { "units-killed", "gold", "fastest-feudal", "total-score" }.Contains(x.Key)).ToArray() ?? [];
+
+    protected override async Task OnInitializedAsync() => Dashboard = await Statistics.GetAsync();
+
+    private static string FormatValue(decimal value, AgeNexus.Application.Queries.GeneralStatisticValueKind kind) => kind switch
+    {
+        AgeNexus.Application.Queries.GeneralStatisticValueKind.Percentage => $"{value:0.##}%",
+        AgeNexus.Application.Queries.GeneralStatisticValueKind.Duration => FormatDuration(value),
+        AgeNexus.Application.Queries.GeneralStatisticValueKind.Decimal => value.ToString("N1"),
+        _ => value.ToString("N0")
+    };
+
+    private static string FormatDuration(decimal value)
+    {
+        var seconds = Math.Max(0, decimal.ToInt32(decimal.Truncate(value)));
+        return $"{seconds / 3600:00}:{seconds % 3600 / 60:00}:{seconds % 60:00}";
+    }
+
+    private static string Initials(string name) => string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Take(2).Select(x => char.ToUpperInvariant(x[0])));
+
+    private static string CategoryId(string category) => $"categoria-{CategoryClass(category)}";
+    private static string CategoryClass(string category) => category.ToLowerInvariant() switch
+    {
+        "combate" => "combat",
+        "economia" => "economy",
+        "tecnologia" => "technology",
+        "sociedade" => "society",
+        _ => "score"
+    };
+
+    private static string CategoryNumber(string category) => category.ToLowerInvariant() switch
+    {
+        "combate" => "I",
+        "economia" => "II",
+        "tecnologia" => "III",
+        "sociedade" => "IV",
+        _ => "V"
+    };
+
+    private static string CategoryDescription(string category) => category switch
+    {
+        "Combate" => "Força militar, perdas e domínio sobre o campo de batalha.",
+        "Economia" => "A abundância que sustentou exércitos, muralhas e impérios.",
+        "Tecnologia" => "Velocidade de evolução, conhecimento e visão do mapa.",
+        "Sociedade" => "O legado construído em população, monumentos e relíquias.",
+        _ => "A consistência refletida nos placares finais de cada confronto."
+    };
+
+    private static string ShortMark(string key) => key switch
+    {
+        "units-killed" => "K",
+        "gold" => "Au",
+        "fastest-feudal" => "F",
+        "total-score" => "Σ",
+        _ => "•"
+    };
+
+    private static string Roman(int value) => value switch { 1 => "I", 2 => "II", _ => "III" };
+
+    private sealed record RecordLeader(int Position, Guid PlayerId, string DisplayName, int FirstPlaces);
+}
