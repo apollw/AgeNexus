@@ -9,8 +9,8 @@
 </section>
 
 <section class="panel table-panel">
-    <div class="data-table">
-        <div class="table-head"><span>Confronto</span><span>Formato</span><span>Categoria</span><span>Status</span><span>Data</span></div>
+    <div class="data-table match-table">
+        <div class="table-head"><span>Confronto</span><span>Formato</span><span>Categoria</span><span>Status</span><span>Data</span><span>Ações</span></div>
         @if (RecentMatches.Count == 0)
         {
             <div class="panel-empty table-empty">
@@ -28,6 +28,7 @@
                     <span>@match.Category</span>
                     <span>@match.Status</span>
                     <span>@match.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                    <span><a class="table-action" href="/partidas/@match.MatchId/desempenho">Preencher estatísticas →</a></span>
                 </div>
             }
         }

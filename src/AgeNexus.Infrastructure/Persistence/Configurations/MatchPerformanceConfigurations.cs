@@ -42,6 +42,7 @@ internal sealed class PlayerMatchStatisticsConfiguration : IEntityTypeConfigurat
         builder.ToTable("player_match_statistics", table =>
         {
             table.HasCheckConstraint("ck_player_match_statistics_explored", "explored_percent IS NULL OR (explored_percent >= 0 AND explored_percent <= 100)");
+            table.HasCheckConstraint("ck_player_match_statistics_research", "research_percent IS NULL OR (research_percent >= 0 AND research_percent <= 100)");
         });
         builder.HasKey(x => x.Id).HasName("pk_player_match_statistics");
         builder.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
@@ -91,6 +92,11 @@ internal sealed class PlayerMatchStatisticsConfiguration : IEntityTypeConfigurat
         builder.Property(x => x.CastleAgeSeconds).HasColumnName("castle_age_seconds");
         builder.Property(x => x.ImperialAgeSeconds).HasColumnName("imperial_age_seconds");
         builder.Property(x => x.EffectiveActionsPerMinute).HasColumnName("effective_actions_per_minute");
+        builder.Property(x => x.ResearchPercent).HasColumnName("research_percent").HasPrecision(5, 2);
+        builder.Property(x => x.WondersBuilt).HasColumnName("wonders_built");
+        builder.Property(x => x.CastlesBuilt).HasColumnName("castles_built");
+        builder.Property(x => x.RelicsCaptured).HasColumnName("relics_captured");
+        builder.Property(x => x.IsTeamMvp).HasColumnName("is_team_mvp").HasDefaultValue(false);
     }
 }
 

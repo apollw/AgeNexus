@@ -180,7 +180,6 @@ public sealed class MatchWorkflowService(
         Guid matchId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         var match = await LoadMatchAsync(matchId, cancellationToken);
         if (match is null)
         {
@@ -208,7 +207,6 @@ public sealed class MatchWorkflowService(
 
             match.Validate();
             await database.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
             return MatchWorkflowResult.Success(matchId);
         }
         catch (DomainRuleException)
@@ -223,7 +221,6 @@ public sealed class MatchWorkflowService(
         string reason,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         var match = await LoadMatchAsync(matchId, cancellationToken);
         if (match is null)
         {
@@ -289,7 +286,6 @@ public sealed class MatchWorkflowService(
                 DateTimeOffset.UtcNow));
             match.Void();
             await database.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
             return MatchWorkflowResult.Success(matchId);
         }
         catch (DomainRuleException)

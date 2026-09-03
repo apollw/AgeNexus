@@ -29,6 +29,67 @@ if (builder.Environment.IsDevelopment())
 
 var app = builder.Build();
 
+if (args.Contains("--finalize-latest-match", StringComparer.OrdinalIgnoreCase))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+    var reportId = await database.MatchStatisticsReports.AsNoTracking()
+        .OrderByDescending(x => x.CreatedAtUtc)
+        .Select(x => (Guid?)x.Id)
+        .FirstOrDefaultAsync();
+    if (!reportId.HasValue)
+    {
+        Console.WriteLine("Nenhum relatório encontrado.");
+        return;
+    }
+
+    var performance = scope.ServiceProvider
+        .GetRequiredService<AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService>();
+    var result = await performance.FinalizeAsync(reportId.Value);
+    Console.WriteLine(result.Succeeded
+        ? $"Relatório {reportId} finalizado com sucesso."
+        : $"Falha ao finalizar relatório {reportId}: {result.ErrorCode}.");
+    return;
+}
+
+if (args.Contains("--diagnose-latest-match", StringComparer.OrdinalIgnoreCase))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+    var match = await database.Matches.AsNoTracking()
+        .OrderByDescending(x => x.PlayedAtUtc)
+        .FirstOrDefaultAsync();
+    if (match is null)
+    {
+        Console.WriteLine("Nenhuma partida encontrada.");
+        return;
+    }
+
+    var report = await database.MatchStatisticsReports.AsNoTracking()
+        .SingleOrDefaultAsync(x => x.MatchId == match.Id);
+    var statisticCount = report is null
+        ? 0
+        : await database.PlayerMatchStatistics.AsNoTracking().CountAsync(x => x.ReportId == report.Id);
+    var scoreCount = report is null
+        ? 0
+        : await database.PlayerPerformanceScores.AsNoTracking().CountAsync(x => x.ReportId == report.Id);
+    Console.WriteLine(
+        $"Partida={match.Id}; MatchStatus={match.Status}; Report={report?.Id}; " +
+        $"ReportStatus={report?.Status}; Estatísticas={statisticCount}; Scores={scoreCount}");
+    return;
+}
+
+if (args.Contains("--sync-aoe2-catalog", StringComparer.OrdinalIgnoreCase))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var catalog = scope.ServiceProvider.GetRequiredService<AgeNexus.Application.GameCatalog.ICatalogSetupService>();
+    var result = await catalog.SyncAge2DefinitiveEditionAsync();
+    Console.WriteLine(result.Succeeded
+        ? $"Catálogo AoE II: DE sincronizado: {result.TotalCivilizations} civilizações e {result.TotalMaps} mapas."
+        : $"Falha ao sincronizar catálogo AoE II: DE: {result.ErrorCode}.");
+    return;
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");

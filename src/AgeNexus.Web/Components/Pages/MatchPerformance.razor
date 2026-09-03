@@ -10,7 +10,7 @@
     <div>
         <span class="eyebrow">Relatório pós-jogo</span>
         <h1>Desempenho e MVP</h1>
-        <p>Importe o replay ou transcreva as telas finais. Somente relatórios completos e confirmados geram bônus.</p>
+        <p>Importe o replay ou transcreva as telas finais. No modo administrador, seu envio valida os dados sem depender do login dos participantes.</p>
     </div>
     <a class="button button-secondary" href="/partidas">Voltar</a>
 </section>
@@ -53,11 +53,19 @@ else
                     <option value="@AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.ScreenshotTranscription">Transcrição de capturas</option>
                 </InputSelect>
             </header>
+            <p class="performance-guidance">Marque exatamente um MVP por equipe, conforme indicado pelo jogo. O Age Nexus usa essa escolha manual ao conceder os bônus.</p>
 
             @foreach (var row in Rows)
             {
                 <article class="performance-player" @key="row.PlayerProfileId">
-                    <header><div><span class="eyebrow">@row.TeamResult · equipe @row.TeamPosition</span><h3>@row.DisplayName</h3></div></header>
+                    <header class="performance-player-header">
+                        <div><span class="eyebrow">@row.TeamResult · equipe @row.TeamPosition</span><h3>@row.DisplayName</h3></div>
+                        <label class="mvp-choice">
+                            <input type="radio" name="mvp-@row.TeamId" checked="@row.IsTeamMvp"
+                                   @onchange="() => SetTeamMvp(row.TeamId, row.PlayerProfileId)" />
+                            <span>MVP da equipe</span>
+                        </label>
+                    </header>
                     <div class="performance-fields">
                         <fieldset><legend>Militar</legend>
                             <label class="form-field"><span>Unidades eliminadas *</span><InputNumber @bind-Value="row.UnitsKilled" /></label>
@@ -79,22 +87,32 @@ else
                             <label class="form-field"><span>Tributo recebido</span><InputNumber @bind-Value="row.TributeReceived" /></label>
                             <label class="form-field"><span>Pontuação econômica *</span><InputNumber @bind-Value="row.EconomyScore" /></label>
                         </fieldset>
-                        <fieldset><legend>Tecnologia e sociedade</legend>
-                            <label class="form-field"><span>Máximo de aldeões *</span><InputNumber @bind-Value="row.PeakVillagers" /></label>
+                        <fieldset><legend>Tecnologia</legend>
                             <label class="form-field"><span>Tecnologias</span><InputNumber @bind-Value="row.ResearchCount" /></label>
+                            <label class="form-field"><span>Pesquisas concluídas (%)</span><InputNumber @bind-Value="row.ResearchPercent" step="0.01" /></label>
                             <label class="form-field"><span>Mapa explorado (%)</span><InputNumber @bind-Value="row.ExploredPercent" /></label>
                             <label class="form-field"><span>Pontuação tecnológica *</span><InputNumber @bind-Value="row.TechnologyScore" /></label>
+                            <label class="form-field"><span>EAPM</span><InputNumber @bind-Value="row.Eapm" /></label>
+                            <div class="form-field era-time-field"><span>Chegada à Era Feudal (hh:mm:ss)</span><EraTimeInputs Value="row.FeudalAge" /></div>
+                            <div class="form-field era-time-field"><span>Chegada à Era dos Castelos (hh:mm:ss)</span><EraTimeInputs Value="row.CastleAge" /></div>
+                            <div class="form-field era-time-field"><span>Chegada à Era Imperial (hh:mm:ss)</span><EraTimeInputs Value="row.ImperialAge" /></div>
+                        </fieldset>
+                        <fieldset><legend>Sociedade e placar</legend>
+                            <label class="form-field"><span>Máximo de aldeões *</span><InputNumber @bind-Value="row.PeakVillagers" /></label>
+                            <label class="form-field"><span>Maravilhas construídas</span><InputNumber @bind-Value="row.WondersBuilt" /></label>
+                            <label class="form-field"><span>Castelos construídos</span><InputNumber @bind-Value="row.CastlesBuilt" /></label>
+                            <label class="form-field"><span>Relíquias capturadas</span><InputNumber @bind-Value="row.RelicsCaptured" /></label>
                             <label class="form-field"><span>Pontuação social *</span><InputNumber @bind-Value="row.SocietyScore" /></label>
                             <label class="form-field"><span>Pontuação total *</span><InputNumber @bind-Value="row.TotalScore" /></label>
-                            <label class="form-field"><span>EAPM</span><InputNumber @bind-Value="row.Eapm" /></label>
-                            <label class="form-field"><span>Feudal (segundos)</span><InputNumber @bind-Value="row.FeudalAgeSeconds" /></label>
-                            <label class="form-field"><span>Castelos (segundos)</span><InputNumber @bind-Value="row.CastleAgeSeconds" /></label>
-                            <label class="form-field"><span>Imperial (segundos)</span><InputNumber @bind-Value="row.ImperialAgeSeconds" /></label>
                         </fieldset>
                     </div>
                 </article>
             }
 
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <div class="form-alert @(HasError ? "form-alert-error" : "form-alert-success")" role="status">@Message</div>
+            }
             <div class="performance-actions">
                 <button class="button button-secondary" type="button" @onclick="SaveAsync" disabled="@Busy">Salvar rascunho</button>
                 <button class="button button-primary" type="button" @onclick="SubmitAsync" disabled="@Busy">Salvar e enviar para confirmação</button>
@@ -118,6 +136,10 @@ else
                 }
             </div>
 
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <div class="form-alert @(HasError ? "form-alert-error" : "form-alert-success")" role="status">@Message</div>
+            }
             <div class="performance-actions">
                 @if (CanConfirm)
                 {
@@ -126,7 +148,11 @@ else
                 }
                 @if (View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed)
                 {
-                    <button class="button button-primary" type="button" @onclick="FinalizeAsync" disabled="@Busy">Calcular MVP e conceder bônus</button>
+                    <button class="button button-primary" type="button" @onclick="FinalizeAsync" disabled="@Busy">Aplicar MVPs e conceder bônus</button>
+                }
+                @if (CurrentProfile is not null)
+                {
+                    <button class="button button-secondary" type="button" @onclick="ReopenAsync" disabled="@Busy">Editar dados e MVPs</button>
                 }
             </div>
         </section>
@@ -135,6 +161,7 @@ else
 
 @code {
     [Parameter] public Guid MatchId { get; set; }
+    [SupplyParameterFromQuery(Name = "novo")] private string? NewMatch { get; set; }
     [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
 
     private AgeNexus.Application.MatchPerformance.PerformanceReportView? View { get; set; }
@@ -155,6 +182,11 @@ else
         var authentication = await AuthenticationStateTask;
         CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
         await ReloadAsync();
+        if (NewMatch == "1" && View?.ReportId is null)
+        {
+            Message = "Partida registrada. Agora transcreva as estatísticas finais de cada jogador e salve o relatório.";
+            HasError = false;
+        }
     }
 
     private async Task ReloadAsync()
@@ -207,6 +239,13 @@ else
             return;
         }
 
+        if (Rows.Any(x => !x.HasValidEraTimes))
+        {
+            Message = "Nos horários das eras, minutos e segundos devem ficar entre 00 e 59.";
+            HasError = true;
+            return;
+        }
+
         Busy = true;
         var result = await PerformanceService.SaveManualAsync(new(
             MatchId,
@@ -229,7 +268,7 @@ else
 
         Busy = true;
         var result = await PerformanceService.SubmitAsync(reportId, CurrentProfile.Id);
-        SetResult(result, "Relatório enviado para confirmação das equipes.");
+        SetResult(result, "Relatório confirmado pelo administrador e partida validada.");
         await ReloadAsync();
         Busy = false;
     }
@@ -262,9 +301,31 @@ else
 
         Busy = true;
         var result = await PerformanceService.FinalizeAsync(reportId);
-        SetResult(result, "MVP, destaques e bônus calculados.");
+        SetResult(result, "MVPs informados pelo jogo e bônus aplicados.");
         await ReloadAsync();
         Busy = false;
+    }
+
+    private async Task ReopenAsync()
+    {
+        if (View?.ReportId is not Guid reportId || CurrentProfile is null)
+        {
+            return;
+        }
+
+        Busy = true;
+        var result = await PerformanceService.ReopenAsync(reportId, CurrentProfile.Id);
+        SetResult(result, "Relatório reaberto. Corrija os dados e envie novamente.");
+        await ReloadAsync();
+        Busy = false;
+    }
+
+    private void SetTeamMvp(Guid teamId, Guid playerProfileId)
+    {
+        foreach (var player in Rows.Where(x => x.TeamId == teamId))
+        {
+            player.IsTeamMvp = player.PlayerProfileId == playerProfileId;
+        }
     }
 
     private void SetResult(AgeNexus.Application.MatchPerformance.PerformanceOperationResult result, string success)
@@ -272,12 +333,19 @@ else
         HasError = !result.Succeeded;
         Message = result.Succeeded
             ? string.Join(" ", new[] { success }.Concat(result.Warnings ?? []))
-            : $"Não foi possível concluir: {result.ErrorCode}.";
+            : result.ErrorCode switch
+            {
+                "MatchMustBeValidated" or "MatchCouldNotBeValidated" => "A partida não pôde ser validada. Revise os resultados informados para as equipes.",
+                "ReportIsIncomplete" => "Preencha todos os campos obrigatórios de todos os jogadores antes de calcular.",
+                "ReportMustBeConfirmed" => "O relatório ainda não está confirmado.",
+                "TeamMvpRequired" => "Selecione exatamente um MVP em cada equipe antes de enviar.",
+                _ => $"Não foi possível concluir: {result.ErrorCode}."
+            };
     }
 
     private static string AwardLabel(AgeNexus.Domain.MatchPerformance.PerformanceAwardType? award) => award switch
     {
-        AgeNexus.Domain.MatchPerformance.PerformanceAwardType.Mvp => "MVP",
+        AgeNexus.Domain.MatchPerformance.PerformanceAwardType.Mvp => "MVP da equipe",
         AgeNexus.Domain.MatchPerformance.PerformanceAwardType.SharedMvp => "MVP compartilhado",
         AgeNexus.Domain.MatchPerformance.PerformanceAwardType.DefeatedTeamHighlight => "Destaque da derrota",
         _ => ""
@@ -286,6 +354,7 @@ else
     private sealed class PlayerForm
     {
         public Guid PlayerProfileId { get; init; }
+        public Guid TeamId { get; init; }
         public string DisplayName { get; init; } = "";
         public AgeNexus.Domain.Matches.TeamResult TeamResult { get; init; }
         public int TeamPosition { get; init; }
@@ -312,16 +381,22 @@ else
         public int? ResearchCount { get; set; }
         public decimal? ExploredPercent { get; set; }
         public int? Eapm { get; set; }
-        public int? FeudalAgeSeconds { get; set; }
-        public int? CastleAgeSeconds { get; set; }
-        public int? ImperialAgeSeconds { get; set; }
+        public EraTimeForm FeudalAge { get; set; } = new();
+        public EraTimeForm CastleAge { get; set; } = new();
+        public EraTimeForm ImperialAge { get; set; } = new();
+        public decimal? ResearchPercent { get; set; }
+        public int? WondersBuilt { get; set; }
+        public int? CastlesBuilt { get; set; }
+        public int? RelicsCaptured { get; set; }
+        public bool IsTeamMvp { get; set; }
+        public bool HasValidEraTimes => FeudalAge.IsValid && CastleAge.IsValid && ImperialAge.IsValid;
 
         public static PlayerForm From(AgeNexus.Application.MatchPerformance.PerformancePlayerView view, int teamPosition)
         {
             var value = view.Values;
             return new PlayerForm
             {
-                PlayerProfileId = view.PlayerProfileId, DisplayName = view.DisplayName,
+                PlayerProfileId = view.PlayerProfileId, TeamId = view.TeamId, DisplayName = view.DisplayName,
                 TeamResult = view.TeamResult, TeamPosition = teamPosition,
                 UnitsKilled = value.UnitsKilled, UnitsLost = value.UnitsLost,
                 BuildingsDestroyed = value.BuildingsDestroyed, BuildingsLost = value.BuildingsLost,
@@ -334,8 +409,13 @@ else
                 TradeGold = value.TradeGold, RelicGold = value.RelicGold,
                 TributeSent = value.TributeSent, TributeReceived = value.TributeReceived,
                 ResearchCount = value.ResearchCount, ExploredPercent = value.ExploredPercent,
-                FeudalAgeSeconds = value.FeudalAgeSeconds, CastleAgeSeconds = value.CastleAgeSeconds,
-                ImperialAgeSeconds = value.ImperialAgeSeconds, Eapm = value.EffectiveActionsPerMinute
+                FeudalAge = EraTimeForm.FromTotalSeconds(value.FeudalAgeSeconds),
+                CastleAge = EraTimeForm.FromTotalSeconds(value.CastleAgeSeconds),
+                ImperialAge = EraTimeForm.FromTotalSeconds(value.ImperialAgeSeconds),
+                Eapm = value.EffectiveActionsPerMinute,
+                ResearchPercent = value.ResearchPercent, WondersBuilt = value.WondersBuilt,
+                CastlesBuilt = value.CastlesBuilt, RelicsCaptured = value.RelicsCaptured,
+                IsTeamMvp = value.IsTeamMvp
             };
         }
 
@@ -344,7 +424,33 @@ else
             FoodCollected, WoodCollected, GoldCollected, StoneCollected, MilitaryScore, EconomyScore,
             TechnologyScore, SocietyScore, TotalScore, UnitsConverted, TradeGold, RelicGold,
             TributeSent, TributeReceived, ResearchCount, ExploredPercent,
-            FeudalAgeSeconds, CastleAgeSeconds, ImperialAgeSeconds,
-            EffectiveActionsPerMinute: Eapm);
+            FeudalAge.ToTotalSeconds(), CastleAge.ToTotalSeconds(), ImperialAge.ToTotalSeconds(),
+            Eapm, ResearchPercent, WondersBuilt, CastlesBuilt, RelicsCaptured, IsTeamMvp);
+    }
+
+    public sealed class EraTimeForm
+    {
+        public int? Hours { get; set; }
+        public int? Minutes { get; set; }
+        public int? Seconds { get; set; }
+
+        public int? ToTotalSeconds() =>
+            !Hours.HasValue && !Minutes.HasValue && !Seconds.HasValue
+                ? null
+                : (Hours ?? 0) * 3600 + (Minutes ?? 0) * 60 + (Seconds ?? 0);
+
+        public bool IsValid =>
+            Hours is null or (>= 0 and <= 99) &&
+            Minutes is null or (>= 0 and <= 59) &&
+            Seconds is null or (>= 0 and <= 59);
+
+        public static EraTimeForm FromTotalSeconds(int? total) => total.HasValue
+            ? new EraTimeForm
+            {
+                Hours = total.Value / 3600,
+                Minutes = total.Value % 3600 / 60,
+                Seconds = total.Value % 60
+            }
+            : new EraTimeForm();
     }
 }

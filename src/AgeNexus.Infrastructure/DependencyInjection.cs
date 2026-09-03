@@ -7,6 +7,8 @@ using AgeNexus.Infrastructure.Queries;
 using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Infrastructure.MatchPerformance;
 using AgeNexus.Infrastructure.ReplayAnalysis;
+using AgeNexus.Application.GameCatalog;
+using AgeNexus.Infrastructure.GameCatalog;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -95,6 +97,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<AccountService>();
+        services.AddScoped<ICatalogSetupService, CatalogSetupService>();
         services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
         services.AddScoped<IPerformanceStatisticsService, PerformanceStatisticsService>();
         services.AddScoped<IReplayStatisticsExtractor, PythonReplayStatisticsExtractor>();

@@ -5,6 +5,11 @@
 
 <section class="page-heading compact-heading">
     <div><span class="eyebrow">Guerreiros do Nexus</span><h1>Jogadores</h1><p>Perfis, ratings e evolução em cada modalidade.</p></div>
+    <AuthorizeView>
+        <Authorized>
+            <a class="button button-primary" href="/jogadores/gerenciar"><span>+</span> Gerenciar participantes</a>
+        </Authorized>
+    </AuthorizeView>
 </section>
 
 @if (PlayerItems.Count == 0)

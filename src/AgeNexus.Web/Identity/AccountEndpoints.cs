@@ -45,7 +45,9 @@ public static class AccountEndpoints
             return Results.LocalRedirect(GetSafeReturnUrl(form["returnUrl"].ToString()));
         }
 
-        var error = result.ErrorCodes.Any(x => x.Contains("Duplicate", StringComparison.OrdinalIgnoreCase))
+        var error = result.ErrorCodes.Contains("RegistrationClosed")
+            ? "cadastro-fechado"
+            : result.ErrorCodes.Any(x => x.Contains("Duplicate", StringComparison.OrdinalIgnoreCase))
             ? "email-em-uso"
             : result.ErrorCodes.Any(x => x.Contains("Password", StringComparison.OrdinalIgnoreCase))
                 ? "senha-fraca"
@@ -115,7 +117,9 @@ public static class AccountEndpoints
             return Results.LocalRedirect(GetSafeReturnUrl(context.Request.Query["returnUrl"].ToString()));
         }
 
-        var error = result.ErrorCodes.Contains("LockedOut")
+        var error = result.ErrorCodes.Contains("RegistrationClosed")
+            ? "acesso-restrito"
+            : result.ErrorCodes.Contains("LockedOut")
             ? "bloqueado"
             : result.ErrorCodes.Contains("ExternalAccountLinkRequired")
                 ? "google-vinculacao"

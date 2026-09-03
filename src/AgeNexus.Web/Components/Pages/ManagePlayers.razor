@@ -1,0 +1,185 @@
+@page "/jogadores/gerenciar"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
+
+<PageTitle>Gerenciar jogadores · Age Nexus</PageTitle>
+
+<section class="page-heading compact-heading">
+    <div>
+        <span class="eyebrow">Administração local</span>
+        <h1>Participantes</h1>
+        <p>Cadastre quem joga com você. Esses perfis aparecem nas partidas, mas não possuem acesso ao sistema.</p>
+    </div>
+    <a class="button button-secondary" href="/jogadores">Ver jogadores</a>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="form-alert @(HasError ? "form-alert-error" : "form-alert-success")" role="status">@Message</div>
+}
+
+<div class="managed-players-layout">
+    <section class="panel profile-form-card">
+        <header class="panel-header">
+            <div>
+                <span class="eyebrow">@(Form.Id.HasValue ? "Editar perfil manual" : "Novo perfil manual")</span>
+                <h2>@(Form.Id.HasValue ? Form.DisplayName : "Adicionar jogador")</h2>
+            </div>
+        </header>
+
+        <EditForm Model="Form" OnValidSubmit="SaveAsync" class="account-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <label class="form-field">
+                <span>Nome do jogador *</span>
+                <InputText @bind-Value="Form.DisplayName" maxlength="100" placeholder="Ex.: Leandro, João, Player 3" />
+                <ValidationMessage For="@(() => Form.DisplayName)" />
+            </label>
+            <div class="form-grid">
+                <label class="form-field">
+                    <span>Localização</span>
+                    <InputText @bind-Value="Form.Location" maxlength="100" placeholder="Cidade ou região (opcional)" />
+                </label>
+                <label class="form-field">
+                    <span>URL do avatar</span>
+                    <InputText @bind-Value="Form.AvatarUrl" maxlength="500" placeholder="https://... (opcional)" />
+                </label>
+            </div>
+            <label class="form-field">
+                <span>Observação pública</span>
+                <InputTextArea @bind-Value="Form.Bio" maxlength="500" rows="3" placeholder="Apelido, estilo de jogo ou outra nota opcional" />
+            </label>
+            <div class="performance-actions">
+                <button class="button button-primary" type="submit" disabled="@Busy">
+                    @(Busy ? "Salvando..." : Form.Id.HasValue ? "Salvar alterações" : "Adicionar participante")
+                </button>
+                @if (Form.Id.HasValue)
+                {
+                    <button class="button button-secondary" type="button" @onclick="ResetForm" disabled="@Busy">Cancelar</button>
+                }
+            </div>
+        </EditForm>
+    </section>
+
+    <section class="panel profile-form-card">
+        <header class="panel-header">
+            <div><span class="eyebrow">Elenco disponível</span><h2>@Profiles.Count jogador(es)</h2></div>
+        </header>
+        @if (Profiles.Count == 0)
+        {
+            <p>Nenhum perfil encontrado.</p>
+        }
+        else
+        {
+            <div class="managed-player-list">
+                @foreach (var profile in Profiles)
+                {
+                    <article class="managed-player-row" @key="profile.Id">
+                        <div>
+                            @if (!string.IsNullOrWhiteSpace(profile.AvatarUrl))
+                            {
+                                <img class="avatar" src="@profile.AvatarUrl" alt="" />
+                            }
+                            else
+                            {
+                                <span class="avatar">@profile.DisplayName[..1].ToUpperInvariant()</span>
+                            }
+                        </div>
+                        <div>
+                            <strong>@profile.DisplayName</strong>
+                            <small>@(profile.HasUserAccount ? "Conta administradora · possui login" : "Participante manual · sem login")</small>
+                            @if (!string.IsNullOrWhiteSpace(profile.Location))
+                            {
+                                <small>@profile.Location</small>
+                            }
+                        </div>
+                        @if (!profile.HasUserAccount)
+                        {
+                            <button class="button button-secondary button-compact" type="button" @onclick="() => Edit(profile)">Editar</button>
+                        }
+                    </article>
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private IReadOnlyCollection<AgeNexus.Infrastructure.Identity.ManagedPlayerProfile> Profiles { get; set; } = [];
+    private PlayerForm Form { get; set; } = new();
+    private string? Message { get; set; }
+    private bool HasError { get; set; }
+    private bool Busy { get; set; }
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        var authentication = await AuthenticationStateTask;
+        Profiles = await Accounts.GetManagedProfilesAsync(authentication.User);
+    }
+
+    private async Task SaveAsync()
+    {
+        Busy = true;
+        Message = null;
+        var authentication = await AuthenticationStateTask;
+        var editing = Form.Id.HasValue;
+        var result = editing
+            ? await Accounts.UpdateManagedProfileAsync(
+                authentication.User, Form.Id!.Value, Form.DisplayName, Form.Bio, Form.Location, Form.AvatarUrl)
+            : await Accounts.CreateManagedProfileAsync(
+                authentication.User, Form.DisplayName, Form.Bio, Form.Location, Form.AvatarUrl);
+
+        HasError = !result.Succeeded;
+        Message = result.Succeeded
+            ? (editing ? "Perfil atualizado." : "Participante adicionado e pronto para entrar em partidas.")
+            : result.ErrorCodes.Contains("DuplicateDisplayName")
+                ? "Já existe um jogador com esse nome."
+                : "Não foi possível salvar. Revise o nome e a URL do avatar.";
+        if (result.Succeeded)
+        {
+            ResetForm();
+            await ReloadAsync();
+        }
+        Busy = false;
+    }
+
+    private void Edit(AgeNexus.Infrastructure.Identity.ManagedPlayerProfile profile)
+    {
+        Form = new PlayerForm
+        {
+            Id = profile.Id,
+            DisplayName = profile.DisplayName,
+            Bio = profile.Bio,
+            Location = profile.Location,
+            AvatarUrl = profile.AvatarUrl
+        };
+        Message = null;
+    }
+
+    private void ResetForm() => Form = new PlayerForm();
+
+    private sealed class PlayerForm
+    {
+        public Guid? Id { get; set; }
+
+        [Required(ErrorMessage = "Informe o nome do jogador.")]
+        [StringLength(100, ErrorMessage = "Use no máximo 100 caracteres.")]
+        public string DisplayName { get; set; } = string.Empty;
+
+        [StringLength(500, ErrorMessage = "Use no máximo 500 caracteres.")]
+        public string? Bio { get; set; }
+
+        [StringLength(100, ErrorMessage = "Use no máximo 100 caracteres.")]
+        public string? Location { get; set; }
+
+        [StringLength(500, ErrorMessage = "Use no máximo 500 caracteres.")]
+        public string? AvatarUrl { get; set; }
+    }
+}

@@ -1,0 +1,12 @@
+<div class="era-time-inputs">
+    <InputNumber @bind-Value="Value.Hours" min="0" max="99" placeholder="hh" aria-label="Horas" />
+    <span>:</span>
+    <InputNumber @bind-Value="Value.Minutes" min="0" max="59" placeholder="mm" aria-label="Minutos" />
+    <span>:</span>
+    <InputNumber @bind-Value="Value.Seconds" min="0" max="59" placeholder="ss" aria-label="Segundos" />
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public AgeNexus.Web.Components.Pages.MatchPerformance.EraTimeForm Value { get; set; } = null!;
+}

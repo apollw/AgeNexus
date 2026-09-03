@@ -24,6 +24,10 @@ public interface IPerformanceStatisticsService
     Task<PerformanceOperationResult> FinalizeAsync(
         Guid reportId,
         CancellationToken cancellationToken = default);
+    Task<PerformanceOperationResult> ReopenAsync(
+        Guid reportId,
+        Guid administratorPlayerProfileId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record SavePerformanceReportRequest(

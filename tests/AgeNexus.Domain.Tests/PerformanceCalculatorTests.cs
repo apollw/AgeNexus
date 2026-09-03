@@ -1,4 +1,5 @@
 using AgeNexus.Application.MatchPerformance;
+using AgeNexus.Domain.Common;
 using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
 
@@ -90,6 +91,63 @@ public sealed class PerformanceCalculatorTests
         statistic.Apply(new MatchStatisticValues(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
             StatisticValueOrigin.Manual);
         Assert.True(statistic.IsComplete);
+    }
+
+    [Fact]
+    public void Manual_statistics_keep_the_extra_values_from_the_final_score_screen()
+    {
+        var values = new MatchStatisticValues(
+            ResearchPercent: 87.5m,
+            WondersBuilt: 1,
+            CastlesBuilt: 4,
+            RelicsCaptured: 3);
+
+        var statistic = new PlayerMatchStatistics(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            StatisticValueOrigin.Manual, values);
+
+        Assert.Equal(values, statistic.ToValues());
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(101)]
+    public void Research_percentage_must_be_between_zero_and_one_hundred(int percentage)
+    {
+        Assert.Throws<DomainRuleException>(() => new PlayerMatchStatistics(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            StatisticValueOrigin.Manual,
+            new MatchStatisticValues(ResearchPercent: percentage)));
+    }
+
+    [Fact]
+    public void Manual_team_mvp_is_preserved_with_the_statistics()
+    {
+        var statistic = new PlayerMatchStatistics(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            StatisticValueOrigin.Manual,
+            new MatchStatisticValues(IsTeamMvp: true));
+
+        Assert.True(statistic.IsTeamMvp);
+        Assert.True(statistic.ToValues().IsTeamMvp);
+    }
+
+    [Fact]
+    public void Awarded_report_can_be_reopened_for_administrative_correction()
+    {
+        var report = new MatchStatisticsReport(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), MatchStatisticsSource.Manual,
+            DateTimeOffset.UtcNow);
+        report.Submit(DateTimeOffset.UtcNow, isComplete: true);
+        report.MarkConfirmed(DateTimeOffset.UtcNow);
+        report.MarkAwarded(DateTimeOffset.UtcNow);
+
+        report.ReopenForAdministrativeCorrection();
+
+        Assert.Equal(MatchStatisticsStatus.Draft, report.Status);
+        Assert.Null(report.SubmittedAtUtc);
+        Assert.Null(report.ConfirmedAtUtc);
+        Assert.Null(report.AwardedAtUtc);
     }
 
     private static PerformancePlayerInput Input(

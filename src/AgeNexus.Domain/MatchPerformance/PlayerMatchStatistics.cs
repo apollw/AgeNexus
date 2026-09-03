@@ -28,7 +28,12 @@ public sealed record MatchStatisticValues(
     int? FeudalAgeSeconds = null,
     int? CastleAgeSeconds = null,
     int? ImperialAgeSeconds = null,
-    int? EffectiveActionsPerMinute = null);
+    int? EffectiveActionsPerMinute = null,
+    decimal? ResearchPercent = null,
+    int? WondersBuilt = null,
+    int? CastlesBuilt = null,
+    int? RelicsCaptured = null,
+    bool IsTeamMvp = false);
 
 public sealed class PlayerMatchStatistics
 {
@@ -91,6 +96,11 @@ public sealed class PlayerMatchStatistics
     public int? CastleAgeSeconds { get; private set; }
     public int? ImperialAgeSeconds { get; private set; }
     public int? EffectiveActionsPerMinute { get; private set; }
+    public decimal? ResearchPercent { get; private set; }
+    public int? WondersBuilt { get; private set; }
+    public int? CastlesBuilt { get; private set; }
+    public int? RelicsCaptured { get; private set; }
+    public bool IsTeamMvp { get; private set; }
 
     public bool IsComplete =>
         UnitsKilled.HasValue && UnitsLost.HasValue && BuildingsDestroyed.HasValue && BuildingsLost.HasValue &&
@@ -129,6 +139,11 @@ public sealed class PlayerMatchStatistics
         CastleAgeSeconds = values.CastleAgeSeconds;
         ImperialAgeSeconds = values.ImperialAgeSeconds;
         EffectiveActionsPerMinute = values.EffectiveActionsPerMinute;
+        ResearchPercent = values.ResearchPercent;
+        WondersBuilt = values.WondersBuilt;
+        CastlesBuilt = values.CastlesBuilt;
+        RelicsCaptured = values.RelicsCaptured;
+        IsTeamMvp = values.IsTeamMvp;
     }
 
     public MatchStatisticValues ToValues() => new(
@@ -136,7 +151,8 @@ public sealed class PlayerMatchStatistics
         FoodCollected, WoodCollected, GoldCollected, StoneCollected, MilitaryScore, EconomyScore,
         TechnologyScore, SocietyScore, TotalScore, UnitsConverted, TradeGold, RelicGold, TributeSent,
         TributeReceived, ResearchCount, ExploredPercent, FeudalAgeSeconds, CastleAgeSeconds,
-        ImperialAgeSeconds, EffectiveActionsPerMinute);
+        ImperialAgeSeconds, EffectiveActionsPerMinute, ResearchPercent, WondersBuilt, CastlesBuilt,
+        RelicsCaptured, IsTeamMvp);
 
     private static void Validate(MatchStatisticValues values)
     {
@@ -146,7 +162,8 @@ public sealed class PlayerMatchStatistics
             values.LargestArmy, values.PeakVillagers, values.MilitaryScore, values.EconomyScore,
             values.TechnologyScore, values.SocietyScore, values.TotalScore, values.UnitsConverted,
             values.ResearchCount, values.FeudalAgeSeconds, values.CastleAgeSeconds,
-            values.ImperialAgeSeconds, values.EffectiveActionsPerMinute
+            values.ImperialAgeSeconds, values.EffectiveActionsPerMinute, values.WondersBuilt,
+            values.CastlesBuilt, values.RelicsCaptured
         };
         var longs = new long?[]
         {
@@ -154,7 +171,8 @@ public sealed class PlayerMatchStatistics
             values.TradeGold, values.RelicGold, values.TributeSent, values.TributeReceived
         };
         if (integers.Any(x => x < 0) || longs.Any(x => x < 0) ||
-            values.ExploredPercent is < 0m or > 100m)
+            values.ExploredPercent is < 0m or > 100m ||
+            values.ResearchPercent is < 0m or > 100m)
         {
             throw new DomainRuleException("Match statistics cannot contain negative values or invalid percentages.");
         }

@@ -3,20 +3,26 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using AgeNexus.Application.MatchPerformance;
+using AgeNexus.Application.Matches;
 using AgeNexus.Domain.Common;
 using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace AgeNexus.Infrastructure.MatchPerformance;
 
 public sealed class PerformanceStatisticsService(
     AgeNexusDbContext database,
     IPerformanceCalculator calculator,
-    IReplayStatisticsExtractor replayExtractor) : IPerformanceStatisticsService
+    IReplayStatisticsExtractor replayExtractor,
+    IMatchWorkflowService matchWorkflow,
+    IConfiguration configuration) : IPerformanceStatisticsService
 {
+    private const string ManualMvpRuleVersion = "2026.09-manual-mvp.1";
+
     public async Task<PerformanceReportView?> GetAsync(
         Guid matchId,
         CancellationToken cancellationToken = default)
@@ -91,7 +97,7 @@ public sealed class PerformanceStatisticsService(
             return PerformanceOperationResult.Failure("MatchNotFound");
         }
 
-        if (!IsHumanParticipant(match, request.SubmittedByPlayerProfileId))
+        if (!CanManageMatch(match, request.SubmittedByPlayerProfileId))
         {
             return PerformanceOperationResult.Failure("PlayerNotInMatch");
         }
@@ -167,7 +173,7 @@ public sealed class PerformanceStatisticsService(
             return PerformanceOperationResult.Failure("MatchNotFound");
         }
 
-        if (!IsHumanParticipant(match, request.SubmittedByPlayerProfileId))
+        if (!CanManageMatch(match, request.SubmittedByPlayerProfileId))
         {
             return PerformanceOperationResult.Failure("PlayerNotInMatch");
         }
@@ -227,17 +233,43 @@ public sealed class PerformanceStatisticsService(
         }
 
         var match = await LoadMatchAsync(report.MatchId, cancellationToken);
-        if (match is null || !IsHumanParticipant(match, playerProfileId))
+        if (match is null || !CanManageMatch(match, playerProfileId))
         {
             return PerformanceOperationResult.Failure("PlayerNotInMatch");
         }
 
         var humanCount = HumanParticipantTeams(match).Count;
         var statistics = await database.PlayerMatchStatistics.Where(x => x.ReportId == reportId).ToArrayAsync(cancellationToken);
+        var humanTeamIds = match.Teams.Where(x => x.HumanCount > 0).Select(x => x.Id).ToArray();
+        if (SingleAdministratorMode && humanTeamIds.Any(teamId =>
+                statistics.Count(x => x.TeamId == teamId && x.IsTeamMvp) != 1))
+        {
+            return PerformanceOperationResult.Failure("TeamMvpRequired");
+        }
+
         try
         {
-            report.Submit(DateTimeOffset.UtcNow, statistics.Length == humanCount && statistics.All(x => x.IsComplete));
+            var now = DateTimeOffset.UtcNow;
+            report.Submit(now, statistics.Length == humanCount && statistics.All(x => x.IsComplete));
+            if (SingleAdministratorMode)
+            {
+                report.MarkConfirmed(now);
+                if (match.Status == MatchStatus.AwaitingConfirmation)
+                {
+                    match.MarkConfirmed();
+                }
+            }
             await database.SaveChangesAsync(cancellationToken);
+
+            if (SingleAdministratorMode && match.Status == MatchStatus.Confirmed)
+            {
+                var validation = await matchWorkflow.ValidateAsync(match.Id, cancellationToken);
+                if (!validation.Succeeded)
+                {
+                    return PerformanceOperationResult.Failure("MatchCouldNotBeValidated");
+                }
+            }
+
             return PerformanceOperationResult.Success(reportId);
         }
         catch (DomainRuleException)
@@ -312,7 +344,6 @@ public sealed class PerformanceStatisticsService(
         Guid reportId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         var report = await database.MatchStatisticsReports.SingleOrDefaultAsync(x => x.Id == reportId, cancellationToken);
         if (report is null)
         {
@@ -325,6 +356,41 @@ public sealed class PerformanceStatisticsService(
         }
 
         var match = await LoadMatchAsync(report.MatchId, cancellationToken);
+        if (match is null)
+        {
+            return PerformanceOperationResult.Failure("MatchNotFound");
+        }
+
+        if (SingleAdministratorMode)
+        {
+            var stateChanged = false;
+            if (report.Status == MatchStatisticsStatus.Submitted)
+            {
+                report.MarkConfirmed(DateTimeOffset.UtcNow);
+                stateChanged = true;
+            }
+
+            if (match.Status == MatchStatus.AwaitingConfirmation)
+            {
+                match.MarkConfirmed();
+                stateChanged = true;
+            }
+
+            if (stateChanged)
+            {
+                await database.SaveChangesAsync(cancellationToken);
+            }
+
+            if (match.Status == MatchStatus.Confirmed)
+            {
+                var validation = await matchWorkflow.ValidateAsync(match.Id, cancellationToken);
+                if (!validation.Succeeded)
+                {
+                    return PerformanceOperationResult.Failure("MatchCouldNotBeValidated");
+                }
+            }
+        }
+
         if (match?.Status != MatchStatus.Validated)
         {
             return PerformanceOperationResult.Failure("MatchMustBeValidated");
@@ -353,25 +419,35 @@ public sealed class PerformanceStatisticsService(
                 x.EconomyScore!.Value,
                 x.TechnologyScore!.Value,
                 x.SocietyScore!.Value)).ToArray()));
+        var statisticByPlayer = statistics.ToDictionary(x => x.PlayerProfileId);
+        var mvpBonus = match.ScoringCategory switch
+        {
+            MatchScoringCategory.PurePvp => 2,
+            MatchScoringCategory.HybridPvp => 1,
+            _ => 0
+        };
         var now = DateTimeOffset.UtcNow;
         foreach (var result in calculation.Players)
         {
+            var isTeamMvp = statisticByPlayer[result.PlayerProfileId].IsTeamMvp;
+            var awardType = isTeamMvp ? PerformanceAwardType.Mvp : PerformanceAwardType.None;
+            var bonusPoints = isTeamMvp ? mvpBonus : 0;
             database.PlayerPerformanceScores.Add(new PlayerPerformanceScore(
                 Guid.NewGuid(), report.Id, match.Id, result.TeamId, result.PlayerProfileId,
                 result.Military, result.Economy, result.Technology, result.Society, result.Overall,
-                result.AwardType, result.BonusPoints, calculation.FormulaVersion, now));
-            if (result.BonusPoints > 0)
+                awardType, bonusPoints, ManualMvpRuleVersion, now));
+            if (bonusPoints > 0)
             {
                 database.PointEvents.Add(new PointEvent(
                     Guid.NewGuid(), match.Id, result.PlayerProfileId, match.SeasonId,
-                    PointScopeKind.PerformanceBonus, result.BonusPoints, calculation.FormulaVersion,
+                    PointScopeKind.PerformanceBonus, bonusPoints, ManualMvpRuleVersion,
                     JsonSerializer.Serialize(new
                     {
                         report.Id,
-                        result.AwardType,
+                        AwardType = awardType,
                         result.Overall,
                         report.Source,
-                        FormulaVersion = calculation.FormulaVersion
+                        FormulaVersion = ManualMvpRuleVersion
                     }),
                     now,
                     $"performance:{report.Id}"));
@@ -380,8 +456,47 @@ public sealed class PerformanceStatisticsService(
 
         report.MarkAwarded(now);
         await database.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
         return PerformanceOperationResult.Success(reportId);
+    }
+
+    public async Task<PerformanceOperationResult> ReopenAsync(
+        Guid reportId,
+        Guid administratorPlayerProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await database.MatchStatisticsReports.SingleOrDefaultAsync(
+            x => x.Id == reportId, cancellationToken);
+        if (report is null)
+        {
+            return PerformanceOperationResult.Failure("ReportNotFound");
+        }
+
+        var match = await LoadMatchAsync(report.MatchId, cancellationToken);
+        if (match is null || !SingleAdministratorMode || match.CreatedByPlayerProfileId != administratorPlayerProfileId)
+        {
+            return PerformanceOperationResult.Failure("NotAuthorized");
+        }
+
+        try
+        {
+            var scores = await database.PlayerPerformanceScores
+                .Where(x => x.ReportId == reportId).ToArrayAsync(cancellationToken);
+            var bonusEvents = await database.PointEvents
+                .Where(x => x.MatchId == match.Id && x.Scope == PointScopeKind.PerformanceBonus)
+                .ToArrayAsync(cancellationToken);
+            var confirmations = await database.StatisticsConfirmations
+                .Where(x => x.ReportId == reportId).ToArrayAsync(cancellationToken);
+            database.PlayerPerformanceScores.RemoveRange(scores);
+            database.PointEvents.RemoveRange(bonusEvents);
+            database.StatisticsConfirmations.RemoveRange(confirmations);
+            report.ReopenForAdministrativeCorrection();
+            await database.SaveChangesAsync(cancellationToken);
+            return PerformanceOperationResult.Success(reportId);
+        }
+        catch (DomainRuleException)
+        {
+            return PerformanceOperationResult.Failure("ReportCannotBeReopened");
+        }
     }
 
     private Task<Match?> LoadMatchAsync(Guid matchId, CancellationToken cancellationToken) =>
@@ -397,6 +512,13 @@ public sealed class PerformanceStatisticsService(
     private static bool IsHumanParticipant(Match match, Guid playerId) =>
         match.Teams.SelectMany(x => x.Participants)
             .Any(x => x.Type == ParticipantType.Human && x.PlayerProfileId == playerId);
+
+    private bool CanManageMatch(Match match, Guid playerId) =>
+        IsHumanParticipant(match, playerId) ||
+        (SingleAdministratorMode && match.CreatedByPlayerProfileId == playerId);
+
+    private bool SingleAdministratorMode =>
+        configuration.GetValue("OperatingMode:SingleAdministrator", true);
 
     private static bool IsComplete(MatchStatisticValues values) =>
         values.UnitsKilled.HasValue && values.UnitsLost.HasValue && values.BuildingsDestroyed.HasValue &&

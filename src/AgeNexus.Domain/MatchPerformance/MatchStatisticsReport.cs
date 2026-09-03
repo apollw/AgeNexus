@@ -98,6 +98,19 @@ public sealed partial class MatchStatisticsReport
         AwardedAtUtc = awardedAtUtc;
     }
 
+    public void ReopenForAdministrativeCorrection()
+    {
+        if (Status == MatchStatisticsStatus.Rejected)
+        {
+            throw new DomainRuleException("A rejected report cannot be reopened for correction.");
+        }
+
+        Status = MatchStatisticsStatus.Draft;
+        SubmittedAtUtc = null;
+        ConfirmedAtUtc = null;
+        AwardedAtUtc = null;
+    }
+
     public void Reject()
     {
         if (Status == MatchStatisticsStatus.Awarded)

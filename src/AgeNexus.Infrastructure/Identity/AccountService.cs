@@ -5,13 +5,15 @@ using AgeNexus.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace AgeNexus.Infrastructure.Identity;
 
 public sealed class AccountService(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
-    AgeNexusDbContext database)
+    AgeNexusDbContext database,
+    IConfiguration configuration)
 {
     public const string GoogleProvider = "Google";
     public const string GoogleEmailVerifiedClaim = "urn:agenexus:google:email_verified";
@@ -23,6 +25,11 @@ public sealed class AccountService(
         string displayName,
         CancellationToken cancellationToken)
     {
+        if (!await IsRegistrationOpenAsync(cancellationToken))
+        {
+            return AccountOperationResult.Failure(["RegistrationClosed"]);
+        }
+
         var normalizedEmail = email.Trim();
         var strategy = database.Database.CreateExecutionStrategy();
         ApplicationUser? createdUser = null;
@@ -129,6 +136,11 @@ public sealed class AccountService(
             await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
             var user = await userManager.FindByEmailAsync(email);
             var isNewUser = user is null;
+            if (isNewUser && !await IsRegistrationOpenAsync(cancellationToken))
+            {
+                return AccountOperationResult.Failure(["RegistrationClosed"]);
+            }
+
             var googleIsAuthoritative = email.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase) ||
                                         !string.IsNullOrWhiteSpace(
                                             info.Principal.FindFirstValue(GoogleHostedDomainClaim));
@@ -226,6 +238,110 @@ public sealed class AccountService(
         }
     }
 
+    public async Task<bool> IsRegistrationOpenAsync(CancellationToken cancellationToken = default) =>
+        !SingleAdministratorMode || !await userManager.Users.AnyAsync(cancellationToken);
+
+    public async Task<IReadOnlyCollection<ManagedPlayerProfile>> GetManagedProfilesAsync(
+        ClaimsPrincipal principal,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await IsAdministratorAsync(principal, cancellationToken))
+        {
+            return [];
+        }
+
+        return await database.PlayerProfiles.AsNoTracking()
+            .OrderBy(x => x.DisplayName)
+            .Select(x => new ManagedPlayerProfile(
+                x.Id, x.DisplayName, x.Bio, x.Location, x.AvatarUrl, x.ApplicationUserId.HasValue))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<AccountOperationResult> CreateManagedProfileAsync(
+        ClaimsPrincipal principal,
+        string displayName,
+        string? bio,
+        string? location,
+        string? avatarUrl,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await IsAdministratorAsync(principal, cancellationToken))
+        {
+            return AccountOperationResult.Failure(["NotAuthorized"]);
+        }
+
+        var normalizedName = displayName?.Trim() ?? string.Empty;
+        if (await database.PlayerProfiles.AnyAsync(
+                x => x.DisplayName.ToLower() == normalizedName.ToLower(), cancellationToken))
+        {
+            return AccountOperationResult.Failure(["DuplicateDisplayName"]);
+        }
+
+        try
+        {
+            var profile = new PlayerProfile(Guid.NewGuid(), normalizedName);
+            profile.UpdatePublicProfile(normalizedName, bio, location, avatarUrl);
+            database.PlayerProfiles.Add(profile);
+            await database.SaveChangesAsync(cancellationToken);
+            return AccountOperationResult.Success();
+        }
+        catch (DomainRuleException)
+        {
+            return AccountOperationResult.Failure(["InvalidProfile"]);
+        }
+    }
+
+    public async Task<AccountOperationResult> UpdateManagedProfileAsync(
+        ClaimsPrincipal principal,
+        Guid profileId,
+        string displayName,
+        string? bio,
+        string? location,
+        string? avatarUrl,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await IsAdministratorAsync(principal, cancellationToken))
+        {
+            return AccountOperationResult.Failure(["NotAuthorized"]);
+        }
+
+        var profile = await database.PlayerProfiles.SingleOrDefaultAsync(
+            x => x.Id == profileId && !x.ApplicationUserId.HasValue, cancellationToken);
+        if (profile is null)
+        {
+            return AccountOperationResult.Failure(["ManagedProfileNotFound"]);
+        }
+
+        var normalizedName = displayName?.Trim() ?? string.Empty;
+        if (await database.PlayerProfiles.AnyAsync(
+                x => x.Id != profileId && x.DisplayName.ToLower() == normalizedName.ToLower(), cancellationToken))
+        {
+            return AccountOperationResult.Failure(["DuplicateDisplayName"]);
+        }
+
+        try
+        {
+            profile.UpdatePublicProfile(normalizedName, bio, location, avatarUrl);
+            await database.SaveChangesAsync(cancellationToken);
+            return AccountOperationResult.Success();
+        }
+        catch (DomainRuleException)
+        {
+            return AccountOperationResult.Failure(["InvalidProfile"]);
+        }
+    }
+
+    private bool SingleAdministratorMode => configuration.GetValue("OperatingMode:SingleAdministrator", true);
+
+    private async Task<bool> IsAdministratorAsync(
+        ClaimsPrincipal principal,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetUserId(principal);
+        return userId.HasValue && await database.PlayerProfiles
+            .AnyAsync(x => x.ApplicationUserId == userId, cancellationToken);
+    }
+
     private static Guid? GetUserId(ClaimsPrincipal principal) =>
         Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ? userId : null;
 
@@ -238,6 +354,14 @@ public sealed class AccountService(
 }
 
 public sealed record PublicProfile(Guid Id, string DisplayName, string? Bio, string? Location, string? AvatarUrl);
+
+public sealed record ManagedPlayerProfile(
+    Guid Id,
+    string DisplayName,
+    string? Bio,
+    string? Location,
+    string? AvatarUrl,
+    bool HasUserAccount);
 
 public sealed record AccountOperationResult(bool Succeeded, IReadOnlyCollection<string> ErrorCodes)
 {

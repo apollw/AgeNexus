@@ -1,8 +1,10 @@
 @page "/partidas/nova"
 @attribute [Authorize]
 @rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
 @inject AgeNexus.Application.Matches.IMatchWorkflowService Workflow
 @inject AgeNexus.Application.Queries.ICatalogQueryService CatalogQueries
+@inject AgeNexus.Application.GameCatalog.ICatalogSetupService CatalogSetup
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 @inject NavigationManager Navigation
 
@@ -18,10 +20,65 @@
 }
 else if (Catalog.GameEditions.Count == 0)
 {
-    <section class="panel panel-empty page-empty"><strong>Cadastre uma edição do jogo antes de registrar partidas.</strong></section>
+    <section class="panel catalog-setup">
+        <div class="catalog-setup-copy">
+            <span class="eyebrow">Configuração inicial</span>
+            <h2>Cadastre o primeiro jogo</h2>
+            <p>O catálogo está vazio. Informe o jogo e a edição que sua comunidade realmente utiliza. Nenhum dado de demonstração será criado.</p>
+        </div>
+
+        <EditForm Model="SetupForm" OnValidSubmit="SetupCatalogAsync" class="account-form catalog-setup-form">
+            <DataAnnotationsValidator />
+            @if (!string.IsNullOrWhiteSpace(SetupError))
+            {
+                <div class="form-alert form-alert-error">@SetupError</div>
+            }
+            <label class="form-field">
+                <span>Jogo</span>
+                <InputText @bind-Value="SetupForm.GameName" placeholder="Ex.: Age of Empires II" />
+                <ValidationMessage For="() => SetupForm.GameName" />
+            </label>
+            <label class="form-field">
+                <span>Edição</span>
+                <InputText @bind-Value="SetupForm.EditionName" placeholder="Ex.: Definitive Edition" />
+                <ValidationMessage For="() => SetupForm.EditionName" />
+            </label>
+            <button class="button button-primary" type="submit" disabled="@SettingUpCatalog">
+                @(SettingUpCatalog ? "Salvando..." : "Criar catálogo e continuar")
+            </button>
+        </EditForm>
+    </section>
 }
 else
 {
+    @if (Catalog.Factions.Count < 59 || Catalog.Maps.Count < 193)
+    {
+        <section class="catalog-sync-banner">
+            <div>
+                <strong>Catálogo do Age II: DE incompleto</strong>
+                <span>Carregue as 59 civilizações jogáveis e os 193 mapas da versão atual instalada.</span>
+            </div>
+            <button class="button button-secondary" type="button" @onclick="SyncAge2CatalogAsync" disabled="@SyncingCatalog">
+                @(SyncingCatalog ? "Sincronizando..." : "Completar catálogo")
+            </button>
+        </section>
+    }
+    @if (!string.IsNullOrWhiteSpace(CatalogMessage))
+    {
+        <div class="form-alert @(CatalogSyncFailed ? "form-alert-error" : "form-alert-success")">@CatalogMessage</div>
+    }
+
+    @if (Catalog.Players.Count < 2)
+    {
+        <section class="catalog-sync-banner">
+            <div>
+                <strong>Cadastre pelo menos mais um participante</strong>
+                <span>Crie perfis manuais, sem login, para selecioná-los nas equipes.</span>
+            </div>
+            <a class="button button-secondary" href="/jogadores/gerenciar">Adicionar jogadores</a>
+        </section>
+    }
+
     <EditForm Model="Form" OnValidSubmit="SubmitAsync" class="account-form">
         <div class="panel profile-form-card">
             @if (!string.IsNullOrWhiteSpace(Error))
@@ -31,7 +88,7 @@ else
 
             <div class="form-grid">
                 <label class="form-field"><span>Edição</span>
-                    <InputSelect @bind-Value="Form.GameEditionId">
+                    <InputSelect @bind-Value="Form.GameEditionId" @bind-Value:after="EditionChangedAsync">
                         @foreach (var option in Catalog.GameEditions) { <option value="@option.Id">@option.Name</option> }
                     </InputSelect>
                 </label>
@@ -120,16 +177,33 @@ else
     private AgeNexus.Application.Queries.MatchRegistrationCatalog? Catalog { get; set; }
     private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
     private MatchForm Form { get; } = new();
+    private CatalogSetupForm SetupForm { get; } = new();
     private string? Error { get; set; }
+    private string? SetupError { get; set; }
     private bool Saving { get; set; }
+    private bool SettingUpCatalog { get; set; }
+    private bool SyncingCatalog { get; set; }
+    private bool CatalogSyncFailed { get; set; }
+    private string? CatalogMessage { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         var authentication = await AuthenticationStateTask;
         CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
         Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync();
-        var edition = Catalog.GameEditions.FirstOrDefault();
-        if (edition is null || CurrentProfile is null)
+        InitializeMatchForm();
+    }
+
+    private void InitializeMatchForm(Guid? preferredEditionId = null)
+    {
+        if (Catalog is null || CurrentProfile is null || Form.Teams.Count > 0)
+        {
+            return;
+        }
+
+        var edition = Catalog.GameEditions.FirstOrDefault(x => x.Id == preferredEditionId) ??
+                      Catalog.GameEditions.FirstOrDefault();
+        if (edition is null)
         {
             return;
         }
@@ -138,6 +212,58 @@ else
         Form.Teams.Add(CreateTeam(AgeNexus.Domain.Matches.TeamResult.Victory, CurrentProfile.Id));
         var opponent = Catalog.Players.FirstOrDefault(x => x.Id != CurrentProfile.Id)?.Id ?? CurrentProfile.Id;
         Form.Teams.Add(CreateTeam(AgeNexus.Domain.Matches.TeamResult.Defeat, opponent));
+    }
+
+    private async Task SetupCatalogAsync()
+    {
+        SettingUpCatalog = true;
+        SetupError = null;
+        var result = await CatalogSetup.InitializeAsync(SetupForm.GameName, SetupForm.EditionName);
+        SettingUpCatalog = false;
+
+        if (!result.Succeeded)
+        {
+            SetupError = result.ErrorCode switch
+            {
+                "AlreadyInitialized" or "ConcurrentSetup" => "O catálogo foi inicializado por outra sessão. Atualize a página.",
+                _ => "Informe nomes válidos, com no máximo 120 caracteres."
+            };
+            return;
+        }
+
+        Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(result.GameEditionId);
+        InitializeMatchForm(result.GameEditionId);
+    }
+
+    private async Task SyncAge2CatalogAsync()
+    {
+        SyncingCatalog = true;
+        CatalogSyncFailed = false;
+        CatalogMessage = null;
+        var result = await CatalogSetup.SyncAge2DefinitiveEditionAsync(Form.GameEditionId);
+        SyncingCatalog = false;
+        CatalogSyncFailed = !result.Succeeded;
+        CatalogMessage = result.Succeeded
+            ? $"Catálogo atualizado: {result.TotalCivilizations} civilizações e {result.TotalMaps} mapas disponíveis."
+            : "Não foi possível sincronizar o catálogo. Atualize a página e tente novamente.";
+        if (result.Succeeded)
+        {
+            Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(Form.GameEditionId);
+        }
+    }
+
+    private async Task EditionChangedAsync()
+    {
+        Form.MapDefinitionId = null;
+        Form.SeasonId = null;
+        Form.GamePatchId = null;
+        foreach (var participant in Form.Teams.SelectMany(x => x.Participants))
+        {
+            participant.FactionId = null;
+            participant.AiDifficultyId = null;
+        }
+
+        Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(Form.GameEditionId);
     }
 
     private TeamForm CreateTeam(AgeNexus.Domain.Matches.TeamResult result, Guid playerId)
@@ -195,7 +321,7 @@ else
         Saving = false;
         if (result.Succeeded)
         {
-            Navigation.NavigateTo("/partidas");
+            Navigation.NavigateTo($"/partidas/{result.MatchId}/desempenho?novo=1");
             return;
         }
 
@@ -210,6 +336,17 @@ else
         public Guid? MapDefinitionId { get; set; }
         public Guid? GamePatchId { get; set; }
         public List<TeamForm> Teams { get; } = [];
+    }
+
+    private sealed class CatalogSetupForm
+    {
+        [Required(ErrorMessage = "Informe o nome do jogo.")]
+        [StringLength(120, ErrorMessage = "Use no máximo 120 caracteres.")]
+        public string GameName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Informe o nome da edição.")]
+        [StringLength(120, ErrorMessage = "Use no máximo 120 caracteres.")]
+        public string EditionName { get; set; } = string.Empty;
     }
 
     private sealed class TeamForm
