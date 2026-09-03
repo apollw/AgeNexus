@@ -70,7 +70,7 @@ public static class DependencyInjection
                 options.ClientId = googleClientId;
                 options.ClientSecret = googleClientSecret;
                 options.SignInScheme = IdentityConstants.ExternalScheme;
-                options.ClaimActions.MapJsonKey(AccountService.GoogleEmailVerifiedClaim, "verified_email");
+                options.ClaimActions.MapJsonKey(AccountService.GoogleEmailVerifiedClaim, "email_verified");
                 options.ClaimActions.MapJsonKey(AccountService.GoogleHostedDomainClaim, "hd");
                 options.Events.OnRemoteFailure = context =>
                 {
