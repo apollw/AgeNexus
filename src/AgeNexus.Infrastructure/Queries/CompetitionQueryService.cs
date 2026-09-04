@@ -64,6 +64,7 @@ public sealed class CompetitionQueryService(AgeNexusDbContext database) :
 
         return matches.Select(match => new MatchSummary(
             match.Id,
+            match.CreatedByPlayerProfileId,
             match.PlayedAtUtc,
             match.ScoringCategory.ToString(),
             match.HumanFormatLabel ?? $"{match.Teams.Sum(x => x.HumanCount)}H x {match.Teams.Sum(x => x.AiCount)}IA",
