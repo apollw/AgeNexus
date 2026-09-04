@@ -12,6 +12,8 @@ Para alterar o schema e aplicar migrações PostgreSQL, consulte [EF Core e Post
 
 Para importar replays e entender o cálculo de MVP, consulte [Estatísticas pós-jogo e replays](docs/REPLAY-ANALYSIS.md).
 
+Para publicar a aplicação, consulte [Publicação no Render](docs/RENDER.md).
+
 ```powershell
 dotnet build AgeNexus.slnx
 dotnet test AgeNexus.slnx
