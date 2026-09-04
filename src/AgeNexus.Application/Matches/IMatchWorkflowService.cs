@@ -24,6 +24,10 @@ public interface IMatchWorkflowService
         Guid changedByApplicationUserId,
         string reason,
         CancellationToken cancellationToken = default);
+    Task<MatchWorkflowResult> DeleteAsync(
+        Guid matchId,
+        Guid requestedByPlayerProfileId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record RegisterMatchRequest(
