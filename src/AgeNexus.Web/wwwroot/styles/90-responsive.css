@@ -12,6 +12,8 @@
 }
 
 @media (max-width: 900px) {
+    .faction-podium { grid-template-columns: 1fr; }
+    .faction-podium-card { min-height: 120px; }
     .records-hero { grid-template-columns: 1fr; }
     .records-ledger { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; padding: 28px; }
     .records-ledger > .eyebrow, .records-ledger > a { grid-column: 1 / -1; }
@@ -48,6 +50,7 @@
     .icon-button, .profile-copy, .chevron, .logout-button { display: none; }.profile-chip { margin: 0; }.profile-chip .avatar { width: 33px; height: 33px; }
     .button-compact { width: 38px; min-height: 38px; padding: 0; font-size: 0; }.button-compact span { font-size: 18px; }
     .content { padding: 30px 16px 40px; }
+    .site-footer { padding: 4px 16px 24px; }
     .page-heading { align-items: flex-start; gap: 18px; }.page-heading h1 { font-size: 31px; }.page-heading p { font-size: 14px; }.season-seal { display: none; }
     .compact-heading { flex-direction: column; }.compact-heading .button { width: 100%; }
     .demo-notice { align-items: flex-start; line-height: 1.5; }
@@ -58,6 +61,7 @@
     .home-match-list { padding: 0 14px 14px; }.home-match-main { grid-template-columns: minmax(0,1fr) auto auto; }.home-match-versus { display: none; }.home-match-context { min-width: 65px; }
     .filter-bar { flex-wrap: wrap; }.search-box { flex-basis: 100%; }.filter-button { flex: 1; min-width: 90px; }
     .data-table { overflow-x: auto; }.table-head, .table-row { min-width: 720px; }
+    .faction-ranking-note { align-items: flex-start; flex-direction: column; }.faction-ranking-note span { text-align: left; }
     .ranking-tabs { width: 100%; overflow-x: auto; }.ranking-tabs button { white-space: nowrap; }
     .ranking-hero { grid-template-columns: auto 1fr; padding: 22px 18px; }.hero-rating { grid-column: 1 / -1; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.1); text-align: left; }.avatar-xxl { width: 60px; height: 60px; }
     .ranking-table-panel { overflow-x: auto; }.ranking-row { min-width: 700px; padding: 0 18px; }

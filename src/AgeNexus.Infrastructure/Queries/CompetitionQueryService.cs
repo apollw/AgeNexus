@@ -2,6 +2,7 @@ using AgeNexus.Application.Queries;
 using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.EvidenceAndModeration;
 using AgeNexus.Domain.Matches;
+using AgeNexus.Infrastructure.GameCatalog;
 using AgeNexus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -340,19 +341,23 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             {
                 var uses = group.Count();
                 var victories = group.Count(x => x.Result == TeamResult.Victory);
+                var draws = group.Count(x => x.Result == TeamResult.Draw);
                 var faction = factions[group.Key];
                 return new FactionStatistics(
                     group.Key,
                     faction.Name,
-                    faction.ImageUrl,
+                    faction.ImageUrl ?? Age2DefinitiveEditionCatalog.GetCivilizationImagePath(faction.Slug),
                     uses,
                     victories,
-                    group.Count(x => x.Result == TeamResult.Draw),
+                    draws,
                     group.Count(x => x.Result == TeamResult.Defeat),
-                    uses == 0 ? 0m : Math.Round((decimal)victories / uses * 100m, 2));
+                    uses == 0 ? 0m : Math.Round((decimal)victories / uses * 100m, 2),
+                    FactionRankingCalculator.CalculateStrengthIndex(uses, victories, draws));
             })
-            .OrderByDescending(x => x.Uses)
+            .OrderByDescending(x => x.StrengthIndex)
+            .ThenByDescending(x => x.Uses)
             .ThenByDescending(x => x.WinRate)
+            .ThenBy(x => x.Name)
             .ToArray();
     }
 

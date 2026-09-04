@@ -117,7 +117,30 @@ public sealed record FactionStatistics(
     int Victories,
     int Draws,
     int Defeats,
-    decimal WinRate);
+    decimal WinRate,
+    decimal StrengthIndex);
+
+public static class FactionRankingCalculator
+{
+    private const double ConfidenceLevel = 1.96;
+
+    public static decimal CalculateStrengthIndex(int uses, int victories, int draws)
+    {
+        if (uses <= 0 || victories < 0 || draws < 0 || victories + draws > uses)
+        {
+            return 0m;
+        }
+
+        var performance = (victories + draws * 0.5d) / uses;
+        var confidenceSquared = ConfidenceLevel * ConfidenceLevel;
+        var adjustedCenter = performance + confidenceSquared / (2d * uses);
+        var adjustedMargin = ConfidenceLevel * Math.Sqrt(
+            (performance * (1d - performance) + confidenceSquared / (4d * uses)) / uses);
+        var lowerBound = (adjustedCenter - adjustedMargin) / (1d + confidenceSquared / uses);
+
+        return Math.Round((decimal)(lowerBound * 100d), 2);
+    }
+}
 
 public sealed record PlayerFactionStatistics(
     Guid PlayerId,
