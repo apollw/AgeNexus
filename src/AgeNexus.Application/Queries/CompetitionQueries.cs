@@ -29,6 +29,7 @@ public interface IRankingQueryService
 
 public sealed record MatchSummary(
     Guid MatchId,
+    Guid CreatedByPlayerProfileId,
     DateTimeOffset PlayedAtUtc,
     string Category,
     string Format,
