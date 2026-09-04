@@ -1,5 +1,8 @@
 @page "/partidas"
+@rendermode InteractiveServer
 @inject AgeNexus.Application.Queries.IMatchHistoryQueryService History
+@inject AgeNexus.Application.Matches.IMatchWorkflowService Workflow
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
 <PageTitle>Partidas · Age Nexus</PageTitle>
 
@@ -7,6 +10,11 @@
     <div><span class="eyebrow">Histórico de batalhas</span><h1>Partidas</h1><p>Resultados, confirmações e evidências da comunidade.</p></div>
     <a class="button button-primary" href="/partidas/nova"><span>+</span> Nova partida</a>
 </section>
+
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="form-alert @(HasError ? "form-alert-error" : "form-alert-success")" role="status">@Message</div>
+}
 
 <section class="panel table-panel">
     <div class="data-table match-table">
@@ -28,7 +36,25 @@
                     <span>@match.Category</span>
                     <span>@match.Status</span>
                     <span>@match.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</span>
-                    <span><a class="table-action" href="/partidas/@match.MatchId/desempenho">Preencher estatísticas →</a></span>
+                    <span class="match-actions">
+                        <a class="table-action" href="/partidas/@match.MatchId/desempenho">Preencher estatísticas →</a>
+                        @if (CurrentProfile?.Id == match.CreatedByPlayerProfileId)
+                        {
+                            @if (PendingDeleteId == match.MatchId)
+                            {
+                                <span class="match-delete-confirm">Excluir definitivamente?</span>
+                                <button class="table-action-button table-action-danger" type="button"
+                                        @onclick="() => DeleteAsync(match.MatchId)" disabled="@(BusyMatchId.HasValue)">Sim</button>
+                                <button class="table-action-button" type="button" @onclick="CancelDelete"
+                                        disabled="@(BusyMatchId.HasValue)">Não</button>
+                            }
+                            else
+                            {
+                                <button class="table-action-button table-action-danger" type="button"
+                                        @onclick="() => RequestDelete(match.MatchId)">Excluir</button>
+                            }
+                        }
+                    </span>
                 </div>
             }
         }
@@ -36,7 +62,58 @@
 </section>
 
 @code {
-    private IReadOnlyCollection<AgeNexus.Application.Queries.MatchSummary> RecentMatches { get; set; } = [];
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
 
-    protected override async Task OnInitializedAsync() => RecentMatches = await History.GetRecentAsync();
+    private IReadOnlyCollection<AgeNexus.Application.Queries.MatchSummary> RecentMatches { get; set; } = [];
+    private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+    private Guid? PendingDeleteId { get; set; }
+    private Guid? BusyMatchId { get; set; }
+    private string? Message { get; set; }
+    private bool HasError { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authentication = await AuthenticationStateTask;
+        CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync() => RecentMatches = await History.GetRecentAsync();
+
+    private void RequestDelete(Guid matchId)
+    {
+        PendingDeleteId = matchId;
+        Message = null;
+    }
+
+    private void CancelDelete() => PendingDeleteId = null;
+
+    private async Task DeleteAsync(Guid matchId)
+    {
+        if (CurrentProfile is null)
+        {
+            return;
+        }
+
+        BusyMatchId = matchId;
+        Message = null;
+        var result = await Workflow.DeleteAsync(matchId, CurrentProfile.Id);
+        HasError = !result.Succeeded;
+        Message = result.Succeeded
+            ? "Partida excluída."
+            : result.ErrorCode switch
+            {
+                "MatchCannotBeDeleted" => "Partidas já validadas não podem ser excluídas; elas devem ser anuladas para preservar o histórico.",
+                "MatchDeletionNotAuthorized" => "Somente quem registrou a partida pode excluí-la.",
+                "MatchNotFound" => "A partida já não existe.",
+                _ => "Não foi possível excluir a partida."
+            };
+        PendingDeleteId = null;
+        BusyMatchId = null;
+        if (result.Succeeded)
+        {
+            await ReloadAsync();
+        }
+    }
 }

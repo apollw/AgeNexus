@@ -11,9 +11,15 @@
 .table-head { min-height: 37px; color: #8e877a; background: #f0ece3; font-size: var(--font-sm); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .table-row { border-top: 1px solid #e9e4da; font-size: var(--font-caption); transition: .15s; }
 .table-row:hover { background: #fbf6e9; }
-.match-table .table-head, .match-table .table-row { grid-template-columns: 2fr .55fr .75fr .7fr .7fr 1.1fr; }
+.match-table .table-head, .match-table .table-row { grid-template-columns: 2fr .55fr .75fr .7fr .7fr 1.45fr; }
 .table-action { color: var(--forest); font-size: var(--font-caption); font-weight: 800; }
 .table-action:hover { color: var(--gold); }
+.match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 11px; }
+.table-action-button { padding: 0; color: var(--forest); border: 0; background: transparent; font: inherit; font-size: var(--font-caption); font-weight: 800; cursor: pointer; }
+.table-action-button:hover { color: var(--gold); }
+.table-action-button:disabled { cursor: wait; opacity: .5; }
+.table-action-danger, .table-action-danger:hover { color: var(--red); }
+.match-delete-confirm { flex-basis: 100%; color: var(--ink); font-size: var(--font-sm); font-weight: 700; }
 
 .player-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .player-card { position: relative; padding: 25px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255,253,248,.86); box-shadow: var(--shadow); overflow: hidden; }

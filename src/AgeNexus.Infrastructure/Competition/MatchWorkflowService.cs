@@ -294,6 +294,34 @@ public sealed class MatchWorkflowService(
         }
     }
 
+    public async Task<MatchWorkflowResult> DeleteAsync(
+        Guid matchId,
+        Guid requestedByPlayerProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        var match = await database.Matches.SingleOrDefaultAsync(x => x.Id == matchId, cancellationToken);
+        if (match is null)
+        {
+            return MatchWorkflowResult.Failure(matchId, "MatchNotFound");
+        }
+
+        if (match.CreatedByPlayerProfileId != requestedByPlayerProfileId)
+        {
+            return MatchWorkflowResult.Failure(matchId, "MatchDeletionNotAuthorized");
+        }
+
+        if (!match.CanBeDeleted ||
+            await database.RatingEvents.AnyAsync(x => x.MatchId == matchId, cancellationToken) ||
+            await database.PointEvents.AnyAsync(x => x.MatchId == matchId, cancellationToken))
+        {
+            return MatchWorkflowResult.Failure(matchId, "MatchCannotBeDeleted");
+        }
+
+        database.Matches.Remove(match);
+        await database.SaveChangesAsync(cancellationToken);
+        return MatchWorkflowResult.Success(matchId);
+    }
+
     private async Task AddPvpEventsAsync(Match match, CancellationToken cancellationToken)
     {
         var teams = match.Teams.ToArray();
