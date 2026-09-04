@@ -1,5 +1,5 @@
 @page "/partidas"
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Application.Queries.IMatchHistoryQueryService History
 @inject AgeNexus.Application.Matches.IMatchWorkflowService Workflow
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts

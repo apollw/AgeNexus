@@ -1,6 +1,6 @@
 @page "/partidas/{MatchId:guid}/desempenho"
 @attribute [Authorize]
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService PerformanceService
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 

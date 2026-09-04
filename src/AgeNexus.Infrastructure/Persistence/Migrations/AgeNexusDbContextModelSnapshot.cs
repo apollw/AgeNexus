@@ -181,6 +181,12 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                     b.HasIndex("BeneficiaryId", "SeasonId", "SourceKey")
                         .HasDatabaseName("ix_point_events_repetition");
 
+                    b.HasIndex("Scope", "EvidenceLevel", "SeasonId", "BeneficiaryId")
+                        .HasDatabaseName("ix_point_events_verified_ranking");
+
+                    b.HasIndex("Scope", "SeasonId", "BeneficiaryId")
+                        .HasDatabaseName("ix_point_events_ranking");
+
                     b.HasIndex("MatchId", "BeneficiaryId", "SeasonId", "Scope", "RuleVersion", "Kind")
                         .IsUnique()
                         .HasDatabaseName("ux_point_events_idempotency");
@@ -253,6 +259,9 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                     b.HasIndex("MatchId", "BeneficiaryId", "SeasonId", "Scope", "RuleVersion", "Kind")
                         .IsUnique()
                         .HasDatabaseName("ux_rating_events_idempotency");
+
+                    b.HasIndex("Scope", "SeasonId", "BeneficiaryId")
+                        .HasDatabaseName("ix_rating_events_ranking");
 
                     b.ToTable("rating_events", "public");
                 });
@@ -779,6 +788,9 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ux_match_statistics_reports_replay_hash")
                         .HasFilter("replay_sha256 IS NOT NULL");
 
+                    b.HasIndex("Status", "MatchId")
+                        .HasDatabaseName("ix_match_statistics_reports_status_match");
+
                     b.HasIndex("SubmittedByPlayerProfileId");
 
                     b.ToTable("match_statistics_reports", "public");
@@ -1149,6 +1161,9 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SeasonId")
                         .HasDatabaseName("ix_matches_season");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_matches_status");
 
                     b.HasIndex("GameEditionId", "Status")
                         .HasDatabaseName("ix_matches_edition_status");

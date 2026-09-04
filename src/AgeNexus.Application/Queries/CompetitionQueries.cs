@@ -25,7 +25,19 @@ public interface IRankingQueryService
         Guid? seasonId = null,
         int limit = 100,
         CancellationToken cancellationToken = default);
+
+    Task<RankingDashboard> GetDashboardAsync(
+        Guid? seasonId = null,
+        int limit = 100,
+        CancellationToken cancellationToken = default);
 }
+
+public sealed record RankingDashboard(
+    IReadOnlyCollection<RankingEntry> GeneralCompetitive,
+    IReadOnlyCollection<RankingEntry> Career,
+    IReadOnlyCollection<RankingEntry> Pve,
+    IReadOnlyCollection<RankingEntry> TeamLineup,
+    IReadOnlyCollection<RankingEntry> ClanCompetitive);
 
 public sealed record MatchSummary(
     Guid MatchId,

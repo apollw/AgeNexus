@@ -1,6 +1,6 @@
 @page "/partidas/nova"
 @attribute [Authorize]
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using System.ComponentModel.DataAnnotations
 @inject AgeNexus.Application.Matches.IMatchWorkflowService Workflow
 @inject AgeNexus.Application.Queries.ICatalogQueryService CatalogQueries

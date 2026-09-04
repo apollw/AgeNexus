@@ -1,14 +1,10 @@
 # Supabase no Age Nexus
 
-## Projeto hospedado
+## Ambiente hospedado
 
-- Nome: `Age Nexus`
-- Organização: `Apollo Works`
-- Região: São Paulo (`sa-east-1`)
-- Project ref: `cpmjooclufwhgnfyysqx`
-- Dashboard: <https://supabase.com/dashboard/project/cpmjooclufwhgnfyysqx>
+Nome da organização, identificador do projeto, região, endereço do banco e credenciais devem permanecer apenas no painel do provedor e nos cofres de segredos de cada ambiente. O repositório não registra esses dados.
 
-O repositório local está vinculado ao projeto hospedado. A senha do banco e a connection string ficam no .NET User Secrets e não devem ser adicionadas aos arquivos versionados.
+A senha e a connection string ficam no .NET User Secrets durante o desenvolvimento e nas variáveis secretas da hospedagem em produção.
 
 ## Configuração local
 
@@ -71,4 +67,3 @@ Nesta fase, Supabase fornece PostgreSQL gerenciado e poderá fornecer armazename
 O schema da aplicação é controlado exclusivamente pelas [migrações do EF Core](EF-CORE.md). Não use `supabase db push` para alterar essas tabelas, pois isso criaria um segundo histórico de migrações concorrente.
 
 Referências oficiais: [CLI e desenvolvimento local](https://supabase.com/docs/guides/local-development/cli/getting-started), [fluxo de migrações](https://supabase.com/docs/guides/local-development/cli-workflows) e [conexões PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres).
-

@@ -118,6 +118,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 app.MapGet("/health/database", async (AgeNexusDbContext database, CancellationToken cancellationToken) =>
     await database.Database.CanConnectAsync(cancellationToken)
         ? Results.Ok(new { status = "healthy", database = "postgresql" })

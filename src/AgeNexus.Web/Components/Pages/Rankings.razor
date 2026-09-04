@@ -36,11 +36,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Boards["Geral competitivo"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive);
-        Boards["Carreira"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.Career);
-        Boards["Domínio contra IA"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.Pve);
-        Boards["Equipes fixas"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.TeamLineup);
-        Boards["Clãs"] = await RankingQueries.GetAsync(AgeNexus.Application.Queries.RankingBoard.ClanCompetitive);
+        var dashboard = await RankingQueries.GetDashboardAsync();
+        Boards["Geral competitivo"] = dashboard.GeneralCompetitive;
+        Boards["Carreira"] = dashboard.Career;
+        Boards["Domínio contra IA"] = dashboard.Pve;
+        Boards["Equipes fixas"] = dashboard.TeamLineup;
+        Boards["Clãs"] = dashboard.ClanCompetitive;
     }
 
     private static string GetDescription(string board) => board switch

@@ -33,13 +33,16 @@ public static class DependencyInjection
                 "Connection string 'AgeNexus' is missing. Configure it with .NET User Secrets or an environment variable.");
         }
 
-        services.AddDbContext<AgeNexusDbContext>(options =>
+        services.AddMemoryCache(options => options.SizeLimit = 512);
+        services.AddSingleton<CompetitionQueryCache>();
+        services.AddSingleton<CompetitionCacheInvalidationInterceptor>();
+        services.AddDbContext<AgeNexusDbContext>((serviceProvider, options) =>
             options.UseNpgsql(connectionString, npgsql =>
             {
                 npgsql.MigrationsAssembly(typeof(AgeNexusDbContext).Assembly.FullName);
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", "public");
                 npgsql.EnableRetryOnFailure(3);
-            }));
+            }).AddInterceptors(serviceProvider.GetRequiredService<CompetitionCacheInvalidationInterceptor>()));
 
         services
             .AddIdentityCore<ApplicationUser>(options =>
@@ -102,10 +105,11 @@ public static class DependencyInjection
         services.AddScoped<IPerformanceStatisticsService, PerformanceStatisticsService>();
         services.AddScoped<IReplayStatisticsExtractor, PythonReplayStatisticsExtractor>();
         services.AddScoped<CompetitionQueryService>();
+        services.AddScoped<GeneralStatisticsQueryService>();
         services.AddScoped<IRankingQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IMatchHistoryQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IPlayerDirectoryQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
-        services.AddScoped<IGeneralStatisticsQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
+        services.AddScoped<IGeneralStatisticsQueryService>(x => x.GetRequiredService<GeneralStatisticsQueryService>());
         services.AddScoped<IStatisticsQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IClanQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<ICatalogQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
