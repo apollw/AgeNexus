@@ -129,7 +129,7 @@ internal sealed class GeneralStatisticsQueryService(
             Board("buildings-lost", "Combate", "O Sem-Teto", "Maior total de edifícios próprios perdidos.", GeneralStatisticValueKind.Integer, x => x.BuildingsLost, x => x.BuildingsLostMatches),
             Board("conversions", "Combate", "O Inquisidor", "Maior total de unidades convertidas por monges.", GeneralStatisticValueKind.Integer, x => x.UnitsConverted, x => x.UnitsConvertedMatches),
             Board("largest-army", "Combate", "O Senhor das Hostes", "Maior exército registrado em uma única partida.", GeneralStatisticValueKind.Integer, x => x.LargestArmy, x => x.LargestArmyMatches),
-            Board("food", "Economia", "O Celeiro Sem Fundo", "Maior soma de comida coletada.", GeneralStatisticValueKind.Integer, x => x.FoodCollected, x => x.FoodCollectedMatches),
+            Board("food", "Economia", "O Mestre das Provisões", "Maior soma de comida coletada.", GeneralStatisticValueKind.Integer, x => x.FoodCollected, x => x.FoodCollectedMatches),
             Board("wood", "Economia", "O Lenhador-Mor", "Maior soma de madeira coletada.", GeneralStatisticValueKind.Integer, x => x.WoodCollected, x => x.WoodCollectedMatches),
             Board("gold", "Economia", "O Toque de Midas", "Maior soma de ouro coletado.", GeneralStatisticValueKind.Integer, x => x.GoldCollected, x => x.GoldCollectedMatches),
             Board("stone", "Economia", "O Mestre da Pedreira", "Maior soma de pedra coletada.", GeneralStatisticValueKind.Integer, x => x.StoneCollected, x => x.StoneCollectedMatches),
