@@ -92,12 +92,14 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             .ToArray();
         var participantNameRows = await database.PlayerProfiles.AsNoTracking()
             .Where(x => humanIds.Contains(x.Id))
-            .Select(x => new ParticipantName(ParticipantType.Human, x.Id, x.DisplayName))
+            .Select(x => new { Type = 0, x.Id, Name = x.DisplayName })
             .Concat(database.AiDifficulties.AsNoTracking()
                 .Where(x => aiIds.Contains(x.Id))
-                .Select(x => new ParticipantName(ParticipantType.ArtificialIntelligence, x.Id, x.Name)))
+                .Select(x => new { Type = 1, x.Id, x.Name }))
             .ToListAsync(cancellationToken);
-        var participantNames = participantNameRows.ToDictionary(x => (x.Type, x.Id), x => x.Name);
+        var participantNames = participantNameRows.ToDictionary(
+            x => (x.Type == 0 ? ParticipantType.Human : ParticipantType.ArtificialIntelligence, x.Id),
+            x => x.Name);
 
         return matches.Select(match => new MatchSummary(
             match.Id,
@@ -689,8 +691,6 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
     }
 
     private sealed record RankingAggregate(Guid Id, decimal Score, int Matches);
-
-    private sealed record ParticipantName(ParticipantType Type, Guid Id, string Name);
 
     private sealed record ClanName(Guid Id, string Tag, string Name);
 
