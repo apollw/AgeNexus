@@ -46,7 +46,10 @@ public sealed record MatchSummary(
     string Category,
     string Format,
     string Status,
-    IReadOnlyCollection<string> Teams);
+    IReadOnlyCollection<string> Teams)
+{
+    public Guid? CreatedByApplicationUserId { get; init; }
+}
 
 public interface IMatchHistoryQueryService
 {
