@@ -74,45 +74,92 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         int limit,
         CancellationToken cancellationToken)
     {
-        var matches = await database.Matches.AsNoTracking()
-            .Include(x => x.Teams)
-            .ThenInclude(x => x.Participants)
+        var recentMatches = database.Matches.AsNoTracking()
             .OrderByDescending(x => x.PlayedAtUtc)
-            .Take(limit)
-            .ToListAsync(cancellationToken);
-        var humanIds = matches.SelectMany(x => x.Teams).SelectMany(x => x.Participants)
-            .Where(x => x.PlayerProfileId.HasValue)
-            .Select(x => x.PlayerProfileId!.Value)
-            .Distinct()
-            .ToArray();
-        var aiIds = matches.SelectMany(x => x.Teams).SelectMany(x => x.Participants)
-            .Where(x => x.AiDifficultyId.HasValue)
-            .Select(x => x.AiDifficultyId!.Value)
-            .Distinct()
-            .ToArray();
-        var participantNameRows = await database.PlayerProfiles.AsNoTracking()
-            .Where(x => humanIds.Contains(x.Id))
-            .Select(x => new { Type = 0, x.Id, Name = x.DisplayName })
-            .Concat(database.AiDifficulties.AsNoTracking()
-                .Where(x => aiIds.Contains(x.Id))
-                .Select(x => new { Type = 1, x.Id, x.Name }))
-            .ToListAsync(cancellationToken);
-        var participantNames = participantNameRows.ToDictionary(
-            x => (x.Type == 0 ? ParticipantType.Human : ParticipantType.ArtificialIntelligence, x.Id),
-            x => x.Name);
+            .Take(limit);
 
-        return matches.Select(match => new MatchSummary(
-            match.Id,
-            match.CreatedByPlayerProfileId,
-            match.PlayedAtUtc,
-            match.ScoringCategory.ToString(),
-            match.HumanFormatLabel ?? $"{match.Teams.Sum(x => x.HumanCount)}H x {match.Teams.Sum(x => x.AiCount)}IA",
-            match.Status.ToString(),
-            match.Teams.OrderBy(x => x.Position).Select(team =>
-                $"{string.Join(" + ", team.Participants.Select(participant => participant.Type == ParticipantType.Human
-                    ? participantNames.GetValueOrDefault((ParticipantType.Human, participant.PlayerProfileId!.Value), "Jogador")
-                    : $"IA {participantNames.GetValueOrDefault((ParticipantType.ArtificialIntelligence, participant.AiDifficultyId!.Value), "configurada")}"))} ({team.Result})")
-                .ToArray())).ToArray();
+        var rows = await (
+            from match in recentMatches
+            join creator in database.PlayerProfiles.AsNoTracking()
+                on match.CreatedByPlayerProfileId equals creator.Id
+            from team in match.Teams
+            from participant in team.Participants
+            join human in database.PlayerProfiles.AsNoTracking()
+                on participant.PlayerProfileId equals (Guid?)human.Id into humans
+            from human in humans.DefaultIfEmpty()
+            join ai in database.AiDifficulties.AsNoTracking()
+                on participant.AiDifficultyId equals (Guid?)ai.Id into difficulties
+            from ai in difficulties.DefaultIfEmpty()
+            select new
+            {
+                MatchId = match.Id,
+                match.CreatedByPlayerProfileId,
+                creator.ApplicationUserId,
+                match.PlayedAtUtc,
+                match.Status,
+                TeamId = team.Id,
+                team.Position,
+                team.Result,
+                ParticipantId = participant.Id,
+                participant.Type,
+                ParticipantName = participant.Type == ParticipantType.Human
+                    ? human.DisplayName
+                    : ai.Name
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows.GroupBy(x => new
+            {
+                x.MatchId,
+                x.CreatedByPlayerProfileId,
+                CreatedByApplicationUserId = x.ApplicationUserId,
+                x.PlayedAtUtc,
+                x.Status
+            })
+            .OrderByDescending(x => x.Key.PlayedAtUtc)
+            .Select(match =>
+            {
+                var teams = match.GroupBy(x => new { x.TeamId, x.Position, x.Result })
+                    .OrderBy(x => x.Key.Position)
+                    .ToArray();
+                var humanCounts = teams
+                    .Select(team => team.Count(x => x.Type == ParticipantType.Human))
+                    .Where(x => x > 0)
+                    .OrderDescending()
+                    .ToArray();
+                var totalHumans = humanCounts.Sum();
+                var totalAi = teams.Sum(team => team.Count(x => x.Type == ParticipantType.ArtificialIntelligence));
+                var teamsWithAi = teams.Count(team => team.Any(x => x.Type == ParticipantType.ArtificialIntelligence));
+                var category = humanCounts.Length >= 2
+                    ? totalAi == 0 ? MatchScoringCategory.PurePvp : MatchScoringCategory.HybridPvp
+                    : teams.Length == 2 && humanCounts.Length == 1 && teamsWithAi == 1 &&
+                      teams.All(team => team.All(x => x.Type == ParticipantType.Human) ||
+                                                team.All(x => x.Type == ParticipantType.ArtificialIntelligence))
+                        ? MatchScoringCategory.PurePve
+                        : MatchScoringCategory.Ineligible;
+                var format = humanCounts.Length >= 2
+                    ? string.Join('x', humanCounts)
+                    : $"{totalHumans}H x {totalAi}IA";
+                var teamLabels = teams.Select(team =>
+                    $"{string.Join(" + ", team.OrderBy(x => x.ParticipantId).Select(participant =>
+                        participant.Type == ParticipantType.Human
+                            ? participant.ParticipantName ?? "Jogador"
+                            : $"IA {participant.ParticipantName ?? "configurada"}"))} ({team.Key.Result})")
+                    .ToArray();
+
+                return new MatchSummary(
+                    match.Key.MatchId,
+                    match.Key.CreatedByPlayerProfileId,
+                    match.Key.PlayedAtUtc,
+                    category.ToString(),
+                    format,
+                    match.Key.Status.ToString(),
+                    teamLabels)
+                {
+                    CreatedByApplicationUserId = match.Key.CreatedByApplicationUserId
+                };
+            })
+            .ToArray();
     }
 
     public Task<IReadOnlyCollection<PlayerSummary>> GetAsync(

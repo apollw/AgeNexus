@@ -5,6 +5,7 @@ using AgeNexus.Infrastructure;
 using AgeNexus.Application;
 using AgeNexus.Infrastructure.Persistence;
 using AgeNexus.Web.Components;
+using AgeNexus.Web.Competition;
 using AgeNexus.Web.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -131,6 +132,7 @@ app.MapGet("/health/database", async (AgeNexusDbContext database, CancellationTo
         ? Results.Ok(new { status = "healthy", database = "postgresql" })
         : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
 app.MapAgeNexusAccountEndpoints();
+app.MapAgeNexusMatchEndpoints();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.Run();
