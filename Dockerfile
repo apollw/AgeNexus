@@ -4,7 +4,7 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0-bookworm-slim AS build
 WORKDIR /src
 
 COPY . .
-RUN dotnet restore AgeNexus.slnx
+RUN dotnet restore src/AgeNexus.Web/AgeNexus.Web.csproj
 RUN dotnet publish src/AgeNexus.Web/AgeNexus.Web.csproj \
     --configuration Release \
     --output /app/publish \
