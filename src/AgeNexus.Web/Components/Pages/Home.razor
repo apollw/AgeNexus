@@ -79,7 +79,7 @@
                         <span class="rank">@player.Position</span>
                         <span class="avatar @(player.Position == 1 ? "avatar-gold" : "avatar-dark")">@Initials(player.DisplayName)</span>
                         <div><strong>@player.DisplayName</strong><small>@player.ValidatedMatches partida(s) validada(s)</small></div>
-                        <span class="rating"><strong>@player.Score.ToString("N0")</strong><small>Elo</small></span>
+                        <span class="rating"><small> Elo </small><strong>@player.Score.ToString("N0")</strong></span>
                     </div>
                 }
             </div>

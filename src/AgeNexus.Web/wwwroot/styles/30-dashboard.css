@@ -1,0 +1,84 @@
+/* Home dashboard, recent matches, rankings and quick actions. */
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+.stat-card { display: flex; align-items: center; gap: 16px; min-height: 118px; padding: 21px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255,253,248,.75); box-shadow: 0 8px 30px rgba(40,34,24,.035); }
+.stat-card-featured { color: #f7f1e4; border-color: var(--forest); background: var(--forest); }
+.stat-icon { display: grid; place-items: center; width: 43px; height: 43px; flex: 0 0 auto; color: var(--gold); border: 1px solid rgba(189,135,53,.28); border-radius: 50%; font-size: 20px; }
+.stat-card div:last-child { display: flex; flex-direction: column; }
+.stat-card span { color: var(--muted); font-size: var(--font-caption); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.stat-card-featured span, .stat-card-featured small { color: #aebfb8; }
+.stat-card strong { margin: 4px 0 1px; font: 700 28px "Unbounded"; }
+.stat-card strong.stat-word { font-size: 17px; }
+.stat-card small { color: #928b7e; font-size: var(--font-caption); }
+.stat-card small b { color: #7fc19e; }
+
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(330px, .85fr); gap: 18px; }
+.panel { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,248,.88); box-shadow: var(--shadow); overflow: hidden; }
+.panel-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 230px; padding: 36px 24px; color: var(--muted); text-align: center; }
+.panel-empty-compact { min-height: 285px; }
+.panel-empty strong { margin-top: 13px; color: var(--ink); font: 700 var(--font-control) "Unbounded"; letter-spacing: -.02em; }
+.panel-empty p { max-width: 380px; margin: 8px 0 0; font-size: var(--font-caption); line-height: 1.6; }
+.empty-icon { display: grid; place-items: center; width: 48px; height: 48px; color: var(--gold); border: 1px solid var(--gold-light); border-radius: 50%; font-size: 21px; background: #fbf5e7; }
+.page-empty { min-height: 360px; }
+.table-empty { min-height: 260px; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 24px 26px 18px; }
+.panel-header h2 { margin: 4px 0 0; font: 700 18px "Unbounded"; letter-spacing: -.035em; }
+.panel-header > a { color: var(--forest); font-size: var(--font-caption); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.panel-header > a span { margin-left: 6px; color: var(--gold); }
+.match-row { padding: 17px 26px; border-top: 1px solid #e8e3d9; }
+.match-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.match-meta time { color: #9c9588; font-size: var(--font-caption); }
+.status-badge { display: inline-flex; width: fit-content; padding: 4px 7px; border-radius: 3px; font-style: normal; font-size: var(--font-sm); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.status-badge.validated { color: #245b49; background: #dcebe4; }
+.status-badge.pending { color: #8c641f; background: #f4e8c9; }
+.status-badge.confirmed { color: #465e8a; background: #e1e7f2; }
+.match-sides { display: grid; grid-template-columns: minmax(0, 1fr) 68px minmax(0, 1fr); align-items: center; gap: 12px; }
+.player-side, .team-stack { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.player-side div, .team-stack div { display: flex; flex-direction: column; min-width: 0; }
+.player-side strong, .team-stack strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--font-copy); }
+.player-side small, .team-stack small { margin-top: 2px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--font-sm); }
+.player-side > b { margin-left: auto; color: #999186; font: 700 var(--font-control) "Unbounded"; }
+.player-side.winner > b { color: var(--gold); }
+.player-side-right, .team-stack-right { justify-content: flex-end; text-align: right; }
+.player-side-right > b { order: -1; margin: 0 auto 0 0; }
+.team-stack .avatar + .avatar { margin-left: -15px; }
+.versus { text-align: center; }
+.versus span { display: block; font: 700 var(--font-copy) "Unbounded"; }
+.versus small { color: var(--muted); font-size: var(--font-sm); }
+
+.avatar { display: inline-grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; color: #fff; border: 2px solid var(--surface); border-radius: 50%; background: #5b5c56; font-size: var(--font-caption); font-weight: 800; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+.avatar-gold { background: #9a7135; }.avatar-blue { background: #42677d; }.avatar-purple { background: #6b567b; }.avatar-red { background: #91473e; }.avatar-green { background: #47715e; }.avatar-orange { background: #a2663e; }.avatar-dark { background: #343632; }
+.avatar-xl { width: 64px; height: 64px; font-size: var(--font-lead); border-width: 3px; }
+.avatar-xxl { width: 82px; height: 82px; font: 700 18px "Unbounded"; border-width: 4px; }
+
+.leaderboard { padding: 0 22px 10px; }
+.leader { display: grid; grid-template-columns: 22px 38px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 14px 4px; border-top: 1px solid #e8e3d9; }
+.leader-first { margin-bottom: 4px; padding: 15px 10px; border: 1px solid #ead9b4; border-radius: 6px; background: #fbf3df; }
+.leader .rank { color: #918a7c; font: 700 var(--font-copy) "Unbounded"; text-align: center; }
+.leader div { display: flex; flex-direction: column; }
+.leader div strong { font-size: var(--font-copy); }.leader div small { color: var(--muted); font-size: var(--font-sm); }
+.leader .rating { text-align: right; }.leader .rating strong { font: 700 var(--font-control) "Unbounded"; }.leader .rating small { color: #438061; }.leader .rating small.negative { color: var(--red); }
+.provisional-note { display: flex; gap: 8px; margin: 0 22px 20px; padding: 11px; color: #787165; background: #f1ede4; font-size: var(--font-sm); line-height: 1.5; }
+.provisional-note span { display: grid; place-items: center; width: 15px; height: 15px; flex: 0 0 auto; border: 1px solid #aaa294; border-radius: 50%; font-weight: 800; }
+
+.quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+.quick-card { display: flex; align-items: center; gap: 16px; padding: 20px; border-bottom: 2px solid var(--line); background: rgba(255,253,248,.4); transition: .18s ease; }
+.quick-card:hover { border-color: var(--gold); background: rgba(255,253,248,.8); transform: translateY(-2px); }
+.quick-number { color: var(--gold); font: 700 var(--font-caption) "Unbounded"; }
+.quick-card div { display: flex; flex-direction: column; flex: 1; }
+.quick-card strong { font-size: var(--font-copy); }.quick-card small { margin-top: 3px; color: var(--muted); font-size: var(--font-sm); }
+.quick-card > b { color: var(--gold); }
+
+.home-match-list { padding: 0 26px 18px; }
+.home-match-row { display: block; margin-bottom: 9px; padding: 15px 16px; border: 1px solid #e7e0d3; border-radius: 7px; background: linear-gradient(105deg, #fffdf8, #faf5e9); transition: .18s ease; }
+.home-match-row:hover { border-color: #d3b978; box-shadow: 0 10px 24px rgba(63,47,21,.08); transform: translateY(-2px); }
+.home-match-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; }
+.home-match-meta time { color: var(--muted); font-size: var(--font-sm); font-weight: 700; text-transform: uppercase; }
+.home-match-main { display: grid; grid-template-columns: minmax(0,1fr) auto auto auto; gap: 13px; align-items: center; }
+.home-match-teams { display: grid; gap: 5px; min-width: 0; }
+.home-match-teams strong { overflow: hidden; font: 700 var(--font-caption) "Unbounded"; text-overflow: ellipsis; white-space: nowrap; }
+.home-match-teams strong span { margin-right: 7px; color: #aaa294; }.home-match-teams strong.winner { color: #8b692a; }.home-match-teams strong.winner span { color: var(--gold); }
+.home-match-versus { color: #b9ad97; font: 700 var(--font-sm) "Unbounded"; }
+.home-match-context { display: grid; min-width: 82px; gap: 2px; padding-left: 13px; border-left: 1px solid #ded6c8; }
+.home-match-context b { font: 700 var(--font-caption) "Unbounded"; }.home-match-context small { color: var(--muted); font-size: var(--font-xs); }
+.home-match-arrow { color: var(--gold); font-size: 17px; transition: .18s; }.home-match-row:hover .home-match-arrow { transform: translateX(3px); }
+.home-leaderboard { padding-bottom: 17px; }
