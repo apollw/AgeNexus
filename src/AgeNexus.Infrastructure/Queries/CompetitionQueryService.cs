@@ -95,7 +95,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             .Select(x => new ParticipantName(ParticipantType.Human, x.Id, x.DisplayName))
             .Concat(database.AiDifficulties.AsNoTracking()
                 .Where(x => aiIds.Contains(x.Id))
-                .Select(x => new ParticipantName(ParticipantType.Ai, x.Id, x.Name)))
+                .Select(x => new ParticipantName(ParticipantType.ArtificialIntelligence, x.Id, x.Name)))
             .ToListAsync(cancellationToken);
         var participantNames = participantNameRows.ToDictionary(x => (x.Type, x.Id), x => x.Name);
 
@@ -109,7 +109,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             match.Teams.OrderBy(x => x.Position).Select(team =>
                 $"{string.Join(" + ", team.Participants.Select(participant => participant.Type == ParticipantType.Human
                     ? participantNames.GetValueOrDefault((ParticipantType.Human, participant.PlayerProfileId!.Value), "Jogador")
-                    : $"IA {participantNames.GetValueOrDefault((ParticipantType.Ai, participant.AiDifficultyId!.Value), "configurada")}"))} ({team.Result})")
+                    : $"IA {participantNames.GetValueOrDefault((ParticipantType.ArtificialIntelligence, participant.AiDifficultyId!.Value), "configurada")}"))} ({team.Result})")
                 .ToArray())).ToArray();
     }
 
