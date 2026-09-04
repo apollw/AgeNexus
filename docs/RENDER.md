@@ -12,11 +12,13 @@ Converta os dados para o formato aceito pelo Npgsql:
 Host=HOST_DO_SESSION_POOLER;Port=5432;Database=postgres;Username=postgres.PROJECT_REF;Password=SUA_SENHA;SSL Mode=Require;Trust Server Certificate=true
 ```
 
-O schema já deve estar atualizado pelas migrations aplicadas localmente antes da publicação:
+Em desenvolvimento, o schema pode ser atualizado manualmente:
 
 ```powershell
 dotnet ef database update --project src/AgeNexus.Infrastructure --startup-project src/AgeNexus.Web
 ```
+
+Em produção, a aplicação executa somente as migrations pendentes uma vez durante a inicialização. Isso mantém o banco compatível com a versão publicada sem criar consultas periódicas.
 
 ## Criar pelo Blueprint
 
