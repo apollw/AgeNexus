@@ -145,6 +145,27 @@ public sealed class MatchTests
         Assert.Throws<DomainRuleException>(match.Validate);
     }
 
+    [Fact]
+    public void Allows_deletion_only_before_the_match_is_validated()
+    {
+        var match = CreateMatch(MatchType.PlayerVersusPlayer);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 1);
+        AddHumans(match, secondTeam.Id, 1);
+        match.SetTeamResult(firstTeam.Id, TeamResult.Victory);
+        match.SetTeamResult(secondTeam.Id, TeamResult.Defeat);
+        match.Submit();
+        match.RequestConfirmation();
+
+        Assert.True(match.CanBeDeleted);
+
+        match.MarkConfirmed();
+        match.Validate();
+
+        Assert.False(match.CanBeDeleted);
+    }
+
     private static Match CreateMatch(MatchType type) => new(
         Guid.NewGuid(),
         Guid.NewGuid(),
