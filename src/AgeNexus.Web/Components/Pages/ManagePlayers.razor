@@ -1,6 +1,6 @@
 @page "/jogadores/gerenciar"
 @attribute [Authorize]
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using System.ComponentModel.DataAnnotations
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 

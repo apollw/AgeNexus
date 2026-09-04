@@ -36,6 +36,8 @@ internal sealed class RatingEventConfiguration : IEntityTypeConfiguration<Rating
             .IsUnique().HasDatabaseName("ux_rating_events_idempotency");
         builder.HasIndex(x => x.ReversesEventId).IsUnique().HasFilter("reverses_event_id IS NOT NULL")
             .HasDatabaseName("ux_rating_events_reversal");
+        builder.HasIndex(x => new { x.Scope, x.SeasonId, x.BeneficiaryId })
+            .HasDatabaseName("ix_rating_events_ranking");
     }
 
     private static void ConfigureCommon(EntityTypeBuilder<RatingEvent> builder)
@@ -76,5 +78,9 @@ internal sealed class PointEventConfiguration : IEntityTypeConfiguration<PointEv
             .HasDatabaseName("ux_point_events_reversal");
         builder.HasIndex(x => new { x.BeneficiaryId, x.SeasonId, x.SourceKey })
             .HasDatabaseName("ix_point_events_repetition");
+        builder.HasIndex(x => new { x.Scope, x.SeasonId, x.BeneficiaryId })
+            .HasDatabaseName("ix_point_events_ranking");
+        builder.HasIndex(x => new { x.Scope, x.EvidenceLevel, x.SeasonId, x.BeneficiaryId })
+            .HasDatabaseName("ix_point_events_verified_ranking");
     }
 }

@@ -70,6 +70,7 @@ internal sealed class MatchConfiguration : IEntityTypeConfiguration<Match>
             .HasDatabaseName("ix_matches_created_by_player_profile");
         builder.HasIndex(x => x.PlayedAtUtc).HasDatabaseName("ix_matches_played_at_utc");
         builder.HasIndex(x => new { x.GameEditionId, x.Status }).HasDatabaseName("ix_matches_edition_status");
+        builder.HasIndex(x => x.Status).HasDatabaseName("ix_matches_status");
         builder.HasIndex(x => x.SeasonId).HasDatabaseName("ix_matches_season");
         builder.HasIndex(x => x.MapDefinitionId).HasDatabaseName("ix_matches_map");
         builder.HasIndex(x => x.GamePatchId).HasDatabaseName("ix_matches_patch");

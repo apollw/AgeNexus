@@ -32,6 +32,8 @@ internal sealed class MatchStatisticsReportConfiguration : IEntityTypeConfigurat
         builder.HasIndex(x => x.MatchId).IsUnique().HasDatabaseName("ux_match_statistics_reports_match");
         builder.HasIndex(x => x.ReplaySha256).IsUnique().HasFilter("replay_sha256 IS NOT NULL")
             .HasDatabaseName("ux_match_statistics_reports_replay_hash");
+        builder.HasIndex(x => new { x.Status, x.MatchId })
+            .HasDatabaseName("ix_match_statistics_reports_status_match");
     }
 }
 

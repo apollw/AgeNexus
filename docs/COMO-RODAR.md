@@ -17,7 +17,7 @@ O comando deve mostrar `9.0.203` ou outra versão aceita pelo arquivo `global.js
 No PowerShell:
 
 ```powershell
-cd C:\Users\Leanderson\devtools\AgeNexus
+cd C:\caminho\para\AgeNexus
 ```
 
 Em outro computador, substitua o caminho pela pasta onde o repositório foi clonado.
@@ -38,7 +38,7 @@ O Age Nexus usa PostgreSQL no Supabase. Configure a connection string em User Se
 dotnet user-secrets set "ConnectionStrings:AgeNexus" "Host=SEU_HOST;Port=5432;Database=postgres;Username=postgres;Password=SUA_SENHA;SSL Mode=Require;Trust Server Certificate=true" --project src/AgeNexus.Web
 ```
 
-Neste computador a conexão do projeto já está configurada. Para preparar outro ambiente, consulte [SUPABASE.md](SUPABASE.md).
+Para preparar cada ambiente, consulte [SUPABASE.md](SUPABASE.md).
 
 Aplique as migrations:
 

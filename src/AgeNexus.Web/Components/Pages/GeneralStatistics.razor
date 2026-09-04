@@ -71,7 +71,7 @@ else
         @foreach (var board in FeaturedBoards)
         {
             var champion = board.Entries.First();
-            <a href="#@CategoryId(board.Category)" class="records-feature">
+            <a href="/estatisticas/gerais#@CategoryId(board.Category)" class="records-feature">
                 <span class="records-feature-mark">@ShortMark(board.Key)</span>
                 <div><small>@board.Title</small><strong>@champion.DisplayName</strong></div>
                 <b>@FormatValue(champion.Value, board.ValueKind)</b>
@@ -83,7 +83,7 @@ else
         <span>Ir para</span>
         @foreach (var category in Categories)
         {
-            <a href="#@CategoryId(category)"><b>@CategoryNumber(category)</b>@category</a>
+            <a href="/estatisticas/gerais#@CategoryId(category)"><b>@CategoryNumber(category)</b>@category</a>
         }
     </nav>
 

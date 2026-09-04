@@ -82,3 +82,4 @@ http://localhost:5186/health/database
 
 Uma conexão funcional responde com HTTP 200 e `{"status":"healthy","database":"postgresql"}`.
 
+O endpoint `/health` verifica somente se o processo web está respondendo e deve ser usado pela hospedagem. Assim, as verificações periódicas não abrem conexões desnecessárias com o banco.
