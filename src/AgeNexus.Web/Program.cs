@@ -105,6 +105,13 @@ if (args.Contains("--sync-aoe2-catalog", StringComparer.OrdinalIgnoreCase))
 
 if (!app.Environment.IsDevelopment())
 {
+    await using var migrationScope = app.Services.CreateAsyncScope();
+    var database = migrationScope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+    await database.Database.MigrateAsync();
+}
+
+if (!app.Environment.IsDevelopment())
+{
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
