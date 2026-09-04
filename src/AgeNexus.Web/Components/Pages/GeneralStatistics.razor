@@ -105,7 +105,7 @@ else
                 @foreach (var indexed in categoryBoards.Select((board, index) => new { Board = board, Index = index + 1 }))
                 {
                     var board = indexed.Board;
-                    <article class="record-board">
+                    <article class="record-board @(IsNegativeRecord(board.Key) ? "record-board-negative" : null)">
                         <header class="record-board-heading">
                             <span>@indexed.Index.ToString("00")</span>
                             <div><h3>@board.Title</h3><p>@board.Description</p></div>
@@ -122,7 +122,7 @@ else
                                 <span class="record-crown">♛</span>
                                 <span class="record-avatar">@Initials(champion.DisplayName)</span>
                                 <div>
-                                    <small>Recordista atual</small>
+                                    <small>@(IsNegativeRecord(board.Key) ? "Marca inglória" : "Recordista atual")</small>
                                     <strong>@champion.DisplayName</strong>
                                     <span>@champion.Matches partida(s) contabilizada(s)</span>
                                 </div>
@@ -227,6 +227,8 @@ else
         "total-score" => "Σ",
         _ => "•"
     };
+
+    private static bool IsNegativeRecord(string key) => key is "units-lost" or "buildings-lost";
 
     private static string Roman(int value) => value switch { 1 => "I", 2 => "II", _ => "III" };
 
