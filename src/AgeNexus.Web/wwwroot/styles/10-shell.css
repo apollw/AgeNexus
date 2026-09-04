@@ -51,6 +51,8 @@
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #6eb08e; box-shadow: 0 0 0 4px rgba(110,176,142,.1); }
 
 .main-column { grid-column: 2; min-width: 0; }
+.site-footer { padding: 4px clamp(24px, 4vw, 64px) 28px; color: var(--muted); font-size: 10px; line-height: 1.6; text-align: center; }
+.site-footer a { color: var(--forest); font-weight: 700; }
 .topbar { height: 78px; display: flex; justify-content: flex-end; align-items: center; padding: 0 clamp(24px, 4vw, 64px); border-bottom: 1px solid rgba(126,113,91,.16); background: rgba(245,241,232,.77); backdrop-filter: blur(14px); }
 .topbar-actions { display: flex; align-items: center; gap: 12px; }
 .mobile-brand { display: none; }

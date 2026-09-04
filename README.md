@@ -14,6 +14,8 @@ Para importar replays e entender o cálculo de MVP, consulte [Estatísticas pós
 
 Para publicar a aplicação, consulte [Publicação no Render](docs/RENDER.md).
 
+Os emblemas de civilizações têm origem no projeto comunitário [AoE2 Tech Tree](https://github.com/SiegeEngineers/aoe2techtree) e são utilizados conforme as [Game Content Usage Rules da Microsoft](https://www.xbox.com/en-US/developers/rules). Age of Empires II © Microsoft Corporation. O AgeNexus não é endossado nem afiliado à Microsoft.
+
 ```powershell
 dotnet build AgeNexus.slnx
 dotnet test AgeNexus.slnx

@@ -67,6 +67,21 @@ internal static class Age2DefinitiveEditionCatalog
         new("wu", "Wu"),
     ];
 
+    public static string? GetCivilizationImagePath(string slug)
+    {
+        var catalogItem = Civilizations.FirstOrDefault(x =>
+            string.Equals(x.Slug, slug, StringComparison.OrdinalIgnoreCase));
+        if (catalogItem is null)
+        {
+            return null;
+        }
+
+        var imageSlug = string.Equals(slug, "indians", StringComparison.OrdinalIgnoreCase)
+            ? "hindustanis"
+            : catalogItem.Slug;
+        return $"/images/civilizations/{imageSlug}.png";
+    }
+
     public static readonly IReadOnlyCollection<CatalogItem> Maps =
     [
         new("aoe2-map-185", "A Passagem"),
@@ -266,4 +281,3 @@ internal static class Age2DefinitiveEditionCatalog
 
     internal sealed record CatalogItem(string Slug, string Name);
 }
-

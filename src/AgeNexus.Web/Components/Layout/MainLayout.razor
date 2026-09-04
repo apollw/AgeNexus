@@ -48,6 +48,12 @@
         <main class="content">
             @Body
         </main>
+
+        <footer class="site-footer">
+            Age of Empires II © Microsoft Corporation. AgeNexus was created under Microsoft's
+            <a href="https://www.xbox.com/en-US/developers/rules" target="_blank" rel="noopener noreferrer">Game Content Usage Rules</a>
+            using assets from Age of Empires II and is not endorsed by or affiliated with Microsoft.
+        </footer>
     </div>
 </div>
 
@@ -55,4 +61,3 @@
     private static string GetInitial(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "?" : value[..1].ToUpperInvariant();
 }
-

@@ -4,28 +4,63 @@
 <PageTitle>Civilizações · Age Nexus</PageTitle>
 
 <section class="page-heading compact-heading">
-    <div><span class="eyebrow">Metagame da comunidade</span><h1>Civilizações</h1><p>Uso, vitórias e aproveitamento calculados somente em partidas validadas.</p></div>
+    <div><span class="eyebrow">Metagame da comunidade</span><h1>Civilizações</h1><p>Ranking, uso e aproveitamento calculados somente em partidas validadas.</p></div>
 </section>
 
-<section class="panel table-panel">
-    @if (Factions.Count == 0)
-    {
+@if (Factions.Count == 0)
+{
+    <section class="panel table-panel">
         <div class="panel-empty page-empty"><strong>Ainda não há amostra suficiente</strong></div>
-    }
-    else
-    {
+    </section>
+}
+else
+{
+    <section class="faction-podium" aria-label="Civilizações mais bem colocadas">
+        @foreach (var rankedFaction in Factions.Take(3).Select((faction, index) => new { Faction = faction, Rank = index + 1 }))
+        {
+            <article class="panel faction-podium-card faction-rank-@rankedFaction.Rank">
+                <span class="faction-rank-badge">#@rankedFaction.Rank</span>
+                @if (rankedFaction.Faction.ImageUrl is not null)
+                {
+                    <img src="@rankedFaction.Faction.ImageUrl" alt="" width="104" height="104" />
+                }
+                <div>
+                    <span class="eyebrow">Índice @rankedFaction.Faction.StrengthIndex.ToString("0.##")</span>
+                    <h2>@rankedFaction.Faction.Name</h2>
+                    <p>@rankedFaction.Faction.Victories vitória(s) em @rankedFaction.Faction.Uses partida(s)</p>
+                </div>
+            </article>
+        }
+    </section>
+
+    <section class="panel table-panel faction-table-panel">
+        <div class="faction-ranking-note">
+            <strong>Ranking de força</strong>
+            <span>O índice considera vitórias, empates e a confiança da amostra. Quanto mais partidas, mais confiável é a colocação.</span>
+        </div>
         <div class="data-table">
-            <div class="table-head"><span>Civilização</span><span>Usos</span><span>Vitórias</span><span>Derrotas</span><span>Aproveitamento</span></div>
-            @foreach (var faction in Factions)
+            <div class="table-head faction-table-row"><span>Pos.</span><span>Civilização</span><span>Usos</span><span>Vitórias</span><span>Derrotas</span><span>Aproveitamento</span><span>Índice</span></div>
+            @foreach (var rankedFaction in Factions.Select((faction, index) => new { Faction = faction, Rank = index + 1 }))
             {
-                <div class="table-row">
-                    <span>@faction.Name</span><span>@faction.Uses</span><span>@faction.Victories</span>
-                    <span>@faction.Defeats</span><span>@faction.WinRate.ToString("0.##")%</span>
+                <div class="table-row faction-table-row">
+                    <strong class="faction-position">#@rankedFaction.Rank</strong>
+                    <span class="faction-name-cell">
+                        @if (rankedFaction.Faction.ImageUrl is not null)
+                        {
+                            <img src="@rankedFaction.Faction.ImageUrl" alt="" width="104" height="104" loading="lazy" />
+                        }
+                        <strong>@rankedFaction.Faction.Name</strong>
+                    </span>
+                    <span>@rankedFaction.Faction.Uses</span>
+                    <span>@rankedFaction.Faction.Victories</span>
+                    <span>@rankedFaction.Faction.Defeats</span>
+                    <span>@rankedFaction.Faction.WinRate.ToString("0.##")%</span>
+                    <strong class="faction-strength">@rankedFaction.Faction.StrengthIndex.ToString("0.##")</strong>
                 </div>
             }
         </div>
-    }
-</section>
+    </section>
+}
 
 @code {
     private IReadOnlyCollection<AgeNexus.Application.Queries.FactionStatistics> Factions { get; set; } = [];
