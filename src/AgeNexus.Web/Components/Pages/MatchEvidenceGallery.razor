@@ -1,0 +1,82 @@
+@page "/partidas/{MatchId:guid}/evidencias"
+@inject AgeNexus.Application.Evidence.IMatchEvidenceService EvidenceService
+
+<PageTitle>Evidências da partida · Age Nexus</PageTitle>
+
+<section class="page-heading compact-heading">
+    <div>
+        <span class="eyebrow">Provas da batalha</span>
+        <h1>Evidências da partida</h1>
+        @if (Gallery is not null)
+        {
+            <p>Vídeo e telas finais de @Gallery.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy").</p>
+        }
+    </div>
+    <a class="button button-secondary" href="/partidas">Voltar às partidas</a>
+</section>
+
+@if (Gallery is null)
+{
+    <section class="panel panel-empty page-empty">
+        <strong>Partida não encontrada</strong>
+    </section>
+}
+else if (Gallery.Items.Count == 0)
+{
+    <section class="panel panel-empty page-empty">
+        <span class="empty-icon">▧</span>
+        <strong>Nenhuma evidência publicada</strong>
+        <p>Esta partida ainda não possui vídeo ou capturas das telas finais.</p>
+    </section>
+}
+else
+{
+    @if (Video is not null)
+    {
+        <section class="panel evidence-video-card">
+            <header class="panel-header">
+                <div><span class="eyebrow">Transmissão</span><h2>Vídeo da partida</h2></div>
+                <a class="button button-secondary" href="@Video.Url" target="_blank" rel="noopener noreferrer">Abrir no YouTube ↗</a>
+            </header>
+            <div class="evidence-video-frame">
+                <iframe src="@Video.EmbedUrl" title="Vídeo da partida no YouTube"
+                        loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            </div>
+        </section>
+    }
+
+    @if (Screenshots.Count > 0)
+    {
+        <section class="panel evidence-gallery-card">
+            <header class="panel-header">
+                <div><span class="eyebrow">Telas finais</span><h2>Capturas de estatísticas</h2></div>
+                <span class="evidence-count">@Screenshots.Count imagem(ns)</span>
+            </header>
+            <div class="evidence-gallery-grid">
+                @foreach (var screenshot in Screenshots)
+                {
+                    <a href="@screenshot.Url" target="_blank" rel="noopener noreferrer">
+                        <img src="@screenshot.Url" alt="Captura das estatísticas da partida" loading="lazy" decoding="async" />
+                    </a>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    [Parameter] public Guid MatchId { get; set; }
+
+    private AgeNexus.Application.Evidence.MatchEvidenceGallery? Gallery { get; set; }
+    private AgeNexus.Application.Evidence.MatchEvidenceItem? Video => Gallery?.Items
+        .FirstOrDefault(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.VideoLink);
+    private IReadOnlyCollection<AgeNexus.Application.Evidence.MatchEvidenceItem> Screenshots => Gallery?.Items
+        .Where(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.ResultScreenshot)
+        .ToArray() ?? [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Gallery = await EvidenceService.GetAsync(MatchId);
+    }
+}

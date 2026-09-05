@@ -2,6 +2,7 @@ using AgeNexus.Domain.Clans;
 using AgeNexus.Domain.Common;
 using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.EvidenceAndModeration;
+using AgeNexus.Application.Evidence;
 
 namespace AgeNexus.Domain.Tests;
 
@@ -36,6 +37,29 @@ public sealed class EvidenceAndClanTests
             EvidenceKind.Replay,
             DateTimeOffset.UtcNow,
             objectKey: "replays/match.aoe2record"));
+    }
+
+    [Theory]
+    [InlineData("https://www.youtube.com/watch?v=M7lc1UVf-VE")]
+    [InlineData("https://youtu.be/M7lc1UVf-VE?t=12")]
+    [InlineData("https://www.youtube.com/live/M7lc1UVf-VE")]
+    [InlineData("https://www.youtube.com/shorts/M7lc1UVf-VE")]
+    public void YouTube_links_are_normalized_for_safe_embedding(string url)
+    {
+        Assert.True(YouTubeVideoUrl.TryParse(url, out var video));
+        Assert.NotNull(video);
+        Assert.Equal("M7lc1UVf-VE", video.VideoId);
+        Assert.Equal("https://www.youtube.com/watch?v=M7lc1UVf-VE", video.WatchUrl);
+        Assert.Equal("https://www.youtube-nocookie.com/embed/M7lc1UVf-VE", video.EmbedUrl);
+    }
+
+    [Theory]
+    [InlineData("http://www.youtube.com/watch?v=M7lc1UVf-VE")]
+    [InlineData("https://example.com/watch?v=M7lc1UVf-VE")]
+    [InlineData("https://www.youtube.com/watch?v=invalid")]
+    public void Non_youtube_or_malformed_links_are_rejected(string url)
+    {
+        Assert.False(YouTubeVideoUrl.TryParse(url, out _));
     }
 
     [Theory]

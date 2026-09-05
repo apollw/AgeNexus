@@ -62,7 +62,29 @@ dotnet user-secrets set "ConnectionStrings:AgeNexus" "NOVA_CONNECTION_STRING" --
 
 ## Decisão de arquitetura
 
-Nesta fase, Supabase fornece PostgreSQL gerenciado e poderá fornecer armazenamento de evidências. O domínio e os casos de uso continuam em ASP.NET Core; nenhuma regra competitiva será colocada em triggers ou componentes Blazor. A decisão entre ASP.NET Core Identity e Supabase Auth será registrada antes da implementação de autenticação.
+O Supabase fornece PostgreSQL gerenciado e Storage para as capturas usadas como evidência. O domínio e os casos de uso continuam em ASP.NET Core; nenhuma regra competitiva é colocada em triggers ou componentes Blazor.
+
+## Capturas de partidas no Storage
+
+O backend cria o bucket público `match-evidence` no primeiro envio, caso ele ainda não exista. O bucket aceita somente JPEG, PNG e WebP de até 4 MB. A leitura é pública para permitir a galeria das partidas; criação e remoção são feitas exclusivamente pelo backend autenticado usando a chave de serviço.
+
+No Render, configure:
+
+| Variável | Valor |
+| --- | --- |
+| `Supabase__Url` | URL HTTPS do projeto exibida nas configurações de API |
+| `Supabase__ServiceRoleKey` | chave `service_role`, armazenada como segredo |
+| `Supabase__EvidenceBucket` | `match-evidence` |
+
+Para desenvolvimento local, use User Secrets:
+
+```powershell
+dotnet user-secrets set "Supabase:Url" "https://SEU_PROJETO.supabase.co" --project src/AgeNexus.Web
+dotnet user-secrets set "Supabase:ServiceRoleKey" "SUA_CHAVE_DE_SERVICO" --project src/AgeNexus.Web
+dotnet user-secrets set "Supabase:EvidenceBucket" "match-evidence" --project src/AgeNexus.Web
+```
+
+A chave `service_role` ignora RLS e nunca deve ser exposta no navegador, enviada em conversa, registrada em logs ou adicionada ao Git. A aplicação envia as imagens ao Storage pelo servidor e grava apenas o caminho, hash e vínculo com a partida no PostgreSQL.
 
 O schema da aplicação é controlado exclusivamente pelas [migrações do EF Core](EF-CORE.md). Não use `supabase db push` para alterar essas tabelas, pois isso criaria um segundo histórico de migrações concorrente.
 

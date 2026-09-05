@@ -109,6 +109,14 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             })
             .ToListAsync(cancellationToken);
 
+        var matchIds = rows.Select(row => row.MatchId).Distinct().ToArray();
+        var evidenceRows = await database.MatchEvidence.AsNoTracking()
+            .Where(item => matchIds.Contains(item.MatchId) &&
+                           (item.Kind == EvidenceKind.VideoLink || item.Kind == EvidenceKind.ResultScreenshot))
+            .Select(item => new { item.MatchId, item.Kind, item.ExternalUrl })
+            .ToListAsync(cancellationToken);
+        var evidenceByMatch = evidenceRows.GroupBy(item => item.MatchId).ToDictionary(group => group.Key);
+
         return rows.GroupBy(x => new
             {
                 x.MatchId,
@@ -148,6 +156,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                             : $"IA {participant.ParticipantName ?? "configurada"}"))} ({team.Key.Result})")
                     .ToArray();
 
+                evidenceByMatch.TryGetValue(match.Key.MatchId, out var matchEvidence);
                 return new MatchSummary(
                     match.Key.MatchId,
                     match.Key.CreatedByPlayerProfileId,
@@ -157,7 +166,10 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     match.Key.Status.ToString(),
                     teamLabels)
                 {
-                    CreatedByApplicationUserId = match.Key.CreatedByApplicationUserId
+                    CreatedByApplicationUserId = match.Key.CreatedByApplicationUserId,
+                    YouTubeVideoUrl = matchEvidence?
+                        .FirstOrDefault(item => item.Kind == EvidenceKind.VideoLink)?.ExternalUrl,
+                    ScreenshotCount = matchEvidence?.Count(item => item.Kind == EvidenceKind.ResultScreenshot) ?? 0
                 };
             })
             .ToArray();

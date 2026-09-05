@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService PerformanceService
+@inject AgeNexus.Application.Evidence.IMatchEvidenceService EvidenceService
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
 <PageTitle>Desempenho da partida · Age Nexus</PageTitle>
@@ -156,6 +157,53 @@ else
             </div>
         </section>
     }
+
+    <section class="panel profile-form-card evidence-manager">
+        <header class="panel-header">
+            <div><span class="eyebrow">Comprovação</span><h2>Vídeo e capturas</h2></div>
+            @if (EvidenceGallery?.Items.Count > 0)
+            {
+                <a class="button button-secondary" href="/partidas/@MatchId/evidencias">Visualizar página pública</a>
+            }
+        </header>
+        <p>Adicione uma transmissão do YouTube ou até 5 capturas das telas finais. As imagens podem ser JPEG, PNG ou WebP, com no máximo 4 MB cada.</p>
+
+        <div class="evidence-video-form">
+            <label class="form-field">
+                <span>Link do YouTube</span>
+                <InputText @bind-Value="YouTubeUrl" placeholder="https://www.youtube.com/watch?v=..." />
+            </label>
+            <button class="button button-secondary" type="button" @onclick="SaveYouTubeAsync" disabled="@Busy">Salvar vídeo</button>
+        </div>
+
+        @if (EvidenceVideo is not null)
+        {
+            <div class="evidence-managed-item">
+                <a href="@EvidenceVideo.Url" target="_blank" rel="noopener noreferrer">▶ Vídeo vinculado no YouTube</a>
+                <button class="table-action-button table-action-danger" type="button" @onclick="() => DeleteEvidenceAsync(EvidenceVideo.EvidenceId)" disabled="@Busy">Remover</button>
+            </div>
+        }
+
+        <div class="evidence-upload-row">
+            <InputFile OnChange="UploadScreenshotsAsync" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple disabled="@Busy" />
+            <small>Os arquivos são enviados ao Supabase Storage e não ocupam o banco PostgreSQL.</small>
+        </div>
+
+        @if (EvidenceScreenshots.Count > 0)
+        {
+            <div class="evidence-manager-grid">
+                @foreach (var screenshot in EvidenceScreenshots)
+                {
+                    <article>
+                        <a href="@screenshot.Url" target="_blank" rel="noopener noreferrer">
+                            <img src="@screenshot.Url" alt="Captura das estatísticas" loading="lazy" decoding="async" />
+                        </a>
+                        <button class="table-action-button table-action-danger" type="button" @onclick="() => DeleteEvidenceAsync(screenshot.EvidenceId)" disabled="@Busy">Remover</button>
+                    </article>
+                }
+            </div>
+        }
+    </section>
 }
 
 @code {
@@ -165,11 +213,19 @@ else
 
     private AgeNexus.Application.MatchPerformance.PerformanceReportView? View { get; set; }
     private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+    private AgeNexus.Application.Evidence.MatchEvidenceGallery? EvidenceGallery { get; set; }
     private List<PlayerForm> Rows { get; } = [];
     private AgeNexus.Domain.MatchPerformance.MatchStatisticsSource Source { get; set; } = AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Manual;
     private string? Message { get; set; }
     private bool HasError { get; set; }
     private bool Busy { get; set; }
+    private string YouTubeUrl { get; set; } = string.Empty;
+
+    private AgeNexus.Application.Evidence.MatchEvidenceItem? EvidenceVideo => EvidenceGallery?.Items
+        .FirstOrDefault(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.VideoLink);
+    private IReadOnlyCollection<AgeNexus.Application.Evidence.MatchEvidenceItem> EvidenceScreenshots =>
+        EvidenceGallery?.Items.Where(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.ResultScreenshot)
+            .ToArray() ?? [];
 
     private bool CanConfirm => View?.ReportId.HasValue == true &&
         View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted &&
@@ -190,7 +246,12 @@ else
 
     private async Task ReloadAsync()
     {
-        View = await PerformanceService.GetAsync(MatchId);
+        var performanceTask = PerformanceService.GetAsync(MatchId);
+        var evidenceTask = EvidenceService.GetAsync(MatchId);
+        await Task.WhenAll(performanceTask, evidenceTask);
+        View = await performanceTask;
+        EvidenceGallery = await evidenceTask;
+        YouTubeUrl = EvidenceVideo?.Url ?? string.Empty;
         Rows.Clear();
         if (View is null)
         {
@@ -200,6 +261,106 @@ else
         Source = View.Source ?? AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Manual;
         var positions = View.Players.Select(x => x.TeamId).Distinct().Select((id, index) => (id, index: index + 1)).ToDictionary(x => x.id, x => x.index);
         Rows.AddRange(View.Players.Select(x => PlayerForm.From(x, positions[x.TeamId])));
+    }
+
+    private async Task SaveYouTubeAsync()
+    {
+        if (CurrentProfile is null)
+        {
+            return;
+        }
+
+        Busy = true;
+        var result = await EvidenceService.AddYouTubeVideoAsync(MatchId, CurrentProfile.Id, YouTubeUrl);
+        SetEvidenceResult(result, "Vídeo do YouTube vinculado à partida.");
+        EvidenceGallery = await EvidenceService.GetAsync(MatchId);
+        Busy = false;
+    }
+
+    private async Task UploadScreenshotsAsync(InputFileChangeEventArgs args)
+    {
+        if (CurrentProfile is null)
+        {
+            return;
+        }
+
+        Busy = true;
+        HasError = false;
+        Message = null;
+        var uploaded = 0;
+        try
+        {
+            foreach (var file in args.GetMultipleFiles(5))
+            {
+                await using var input = file.OpenReadStream(4 * 1024 * 1024);
+                using var memory = new MemoryStream();
+                await input.CopyToAsync(memory);
+                var result = await EvidenceService.AddScreenshotAsync(
+                    MatchId, CurrentProfile.Id, file.Name, file.ContentType, memory.ToArray());
+                if (!result.Succeeded)
+                {
+                    SetEvidenceResult(result, string.Empty);
+                    break;
+                }
+
+                uploaded++;
+            }
+
+            if (uploaded > 0 && !HasError)
+            {
+                Message = uploaded == 1 ? "Captura adicionada." : $"{uploaded} capturas adicionadas.";
+                HasError = false;
+            }
+        }
+        catch (IOException)
+        {
+            Message = "Uma das imagens ultrapassa o limite de 4 MB.";
+            HasError = true;
+        }
+        catch (InvalidOperationException)
+        {
+            Message = "Selecione no máximo 5 imagens por vez.";
+            HasError = true;
+        }
+        finally
+        {
+            EvidenceGallery = await EvidenceService.GetAsync(MatchId);
+            Busy = false;
+        }
+    }
+
+    private async Task DeleteEvidenceAsync(Guid evidenceId)
+    {
+        if (CurrentProfile is null)
+        {
+            return;
+        }
+
+        Busy = true;
+        var result = await EvidenceService.DeleteAsync(evidenceId, CurrentProfile.Id);
+        SetEvidenceResult(result, "Evidência removida.");
+        EvidenceGallery = await EvidenceService.GetAsync(MatchId);
+        YouTubeUrl = EvidenceVideo?.Url ?? string.Empty;
+        Busy = false;
+    }
+
+    private void SetEvidenceResult(
+        AgeNexus.Application.Evidence.MatchEvidenceOperationResult result,
+        string success)
+    {
+        HasError = !result.Succeeded;
+        Message = result.Succeeded ? success : result.ErrorCode switch
+        {
+            "InvalidYouTubeUrl" => "Informe um link válido de vídeo do YouTube.",
+            "InvalidScreenshot" => "Use uma imagem JPEG, PNG ou WebP válida, com até 4 MB.",
+            "ScreenshotLimitReached" => "Esta partida já possui o limite de 5 capturas.",
+            "DuplicateScreenshot" => "Esta captura já foi enviada.",
+            "EvidenceStorageNotConfigured" => "O Supabase Storage ainda não foi configurado no servidor.",
+            "EvidenceNotAuthorized" => "Você não pode alterar as evidências desta partida.",
+            "EvidenceNotFound" => "A evidência já não existe.",
+            "MatchNotFound" => "A partida não foi encontrada.",
+            _ => "Não foi possível salvar a evidência."
+        };
     }
 
     private async Task ImportReplayAsync(InputFileChangeEventArgs args)

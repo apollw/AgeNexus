@@ -35,6 +35,14 @@
                     <span>@match.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</span>
                     <div class="match-actions">
                         <a class="table-action" href="/partidas/@match.MatchId/desempenho">Preencher estatísticas →</a>
+                        @if (!string.IsNullOrWhiteSpace(match.YouTubeVideoUrl))
+                        {
+                            <a class="table-action table-action-media" href="@match.YouTubeVideoUrl" target="_blank" rel="noopener noreferrer">▶ YouTube</a>
+                        }
+                        @if (match.ScreenshotCount > 0)
+                        {
+                            <a class="table-action table-action-media" href="/partidas/@match.MatchId/evidencias">▧ @match.ScreenshotCount captura(s)</a>
+                        }
                         @if (CurrentApplicationUserId.HasValue &&
                              CurrentApplicationUserId == match.CreatedByApplicationUserId)
                         {

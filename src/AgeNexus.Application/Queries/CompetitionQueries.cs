@@ -49,6 +49,8 @@ public sealed record MatchSummary(
     IReadOnlyCollection<string> Teams)
 {
     public Guid? CreatedByApplicationUserId { get; init; }
+    public string? YouTubeVideoUrl { get; init; }
+    public int ScreenshotCount { get; init; }
 }
 
 public interface IMatchHistoryQueryService
