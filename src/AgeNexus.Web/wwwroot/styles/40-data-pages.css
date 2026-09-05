@@ -32,6 +32,7 @@
 .match-table .table-head, .match-table .table-row { grid-template-columns: 2fr .55fr .75fr .7fr .7fr 1.45fr; }
 .table-action { color: var(--forest); font-size: var(--font-caption); font-weight: 800; }
 .table-action:hover { color: var(--gold); }
+.table-action-media { color: #8a641f; }
 .match-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 11px; }
 .match-delete-form { display: inline-flex; margin: 0; }
 .table-action-button { padding: 0; color: var(--forest); border: 0; background: transparent; font: inherit; font-size: var(--font-caption); font-weight: 800; cursor: pointer; }

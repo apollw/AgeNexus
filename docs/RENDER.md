@@ -25,13 +25,17 @@ Em produção, a aplicação executa somente as migrations pendentes uma vez dur
 1. Entre em <https://dashboard.render.com> usando o GitHub.
 2. Escolha **New > Blueprint**.
 3. Selecione o repositório do Age Nexus.
-4. O Render encontrará o arquivo `render.yaml` e solicitará os três valores secretos.
+4. O Render encontrará o arquivo `render.yaml` e solicitará os valores secretos.
 
 | Variável | Valor |
 | --- | --- |
 | `ConnectionStrings__AgeNexus` | Connection string Npgsql do Session pooler |
 | `Authentication__Google__ClientId` | Client ID OAuth atual |
 | `Authentication__Google__ClientSecret` | Client secret OAuth armazenado somente como segredo |
+| `Supabase__Url` | URL HTTPS do projeto Supabase |
+| `Supabase__ServiceRoleKey` | chave de serviço do Supabase, armazenada somente como segredo |
+
+`Supabase__EvidenceBucket=match-evidence` já possui valor no Blueprint. Essas três configurações habilitam o envio de capturas JPEG, PNG ou WebP; sem elas, o restante do site e os links do YouTube continuam funcionando normalmente.
 
 Confirme a criação. O primeiro build instala .NET 8, Python e `mgz`, publica o Blazor e inicia a aplicação na porta fornecida pelo Render. O Render verifica a disponibilidade do processo em `/health`, sem abrir conexões periódicas com o banco.
 

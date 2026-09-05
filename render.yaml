@@ -20,3 +20,9 @@ services:
         sync: false
       - key: Authentication__Google__ClientSecret
         sync: false
+      - key: Supabase__Url
+        sync: false
+      - key: Supabase__ServiceRoleKey
+        sync: false
+      - key: Supabase__EvidenceBucket
+        value: match-evidence

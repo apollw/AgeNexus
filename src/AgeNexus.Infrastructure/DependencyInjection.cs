@@ -9,6 +9,8 @@ using AgeNexus.Infrastructure.MatchPerformance;
 using AgeNexus.Infrastructure.ReplayAnalysis;
 using AgeNexus.Application.GameCatalog;
 using AgeNexus.Infrastructure.GameCatalog;
+using AgeNexus.Application.Evidence;
+using AgeNexus.Infrastructure.Evidence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -34,8 +36,11 @@ public static class DependencyInjection
         }
 
         services.AddMemoryCache(options => options.SizeLimit = 512);
+        services.AddHttpClient(nameof(SupabaseEvidenceObjectStorage), client =>
+            client.Timeout = TimeSpan.FromSeconds(30));
         services.AddSingleton<CompetitionQueryCache>();
         services.AddSingleton<CompetitionCacheInvalidationInterceptor>();
+        services.AddSingleton<IEvidenceObjectStorage, SupabaseEvidenceObjectStorage>();
         services.AddDbContext<AgeNexusDbContext>((serviceProvider, options) =>
             options.UseNpgsql(connectionString, npgsql =>
             {
@@ -103,6 +108,7 @@ public static class DependencyInjection
         services.AddScoped<ICatalogSetupService, CatalogSetupService>();
         services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
         services.AddScoped<IPerformanceStatisticsService, PerformanceStatisticsService>();
+        services.AddScoped<IMatchEvidenceService, MatchEvidenceService>();
         services.AddScoped<IReplayStatisticsExtractor, PythonReplayStatisticsExtractor>();
         services.AddScoped<CompetitionQueryService>();
         services.AddScoped<GeneralStatisticsQueryService>();

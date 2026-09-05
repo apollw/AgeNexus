@@ -56,6 +56,22 @@
 .performance-result { display: grid; grid-template-columns: 1fr auto minmax(150px, auto); gap: 15px; align-items: center; padding: 13px; border: 1px solid var(--line); background: #faf8f2; }
 .performance-result div { display: grid; }.performance-result small { color: var(--muted); font-size: var(--font-sm); }.performance-result > span { font: 700 var(--font-control) "Unbounded"; }.performance-result > b { color: var(--gold); text-align: right; }
 
+.evidence-manager { margin-top: 18px; }
+.evidence-manager > p, .evidence-upload-row small { color: var(--muted); font-size: var(--font-caption); line-height: 1.6; }
+.evidence-video-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; margin-top: 18px; }
+.evidence-managed-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 12px 14px; border: 1px solid #dfd4bc; border-radius: 6px; background: #faf4e6; }
+.evidence-managed-item a { color: var(--forest); font-size: var(--font-caption); font-weight: 800; }
+.evidence-upload-row { display: grid; gap: 8px; margin-top: 20px; padding: 16px; border: 1px dashed #cec3ad; border-radius: 6px; background: #faf8f2; }
+.evidence-manager-grid, .evidence-gallery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+.evidence-manager-grid article { display: grid; gap: 8px; }
+.evidence-manager-grid a, .evidence-gallery-grid a { display: block; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: #e8e3d8; }
+.evidence-manager-grid img, .evidence-gallery-grid img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; transition: transform .2s ease; }
+.evidence-manager-grid a:hover img, .evidence-gallery-grid a:hover img { transform: scale(1.02); }
+.evidence-video-card, .evidence-gallery-card { margin-bottom: 18px; padding: 24px; }
+.evidence-video-frame { position: relative; width: 100%; margin-top: 18px; overflow: hidden; border-radius: 7px; background: #111; aspect-ratio: 16 / 9; }
+.evidence-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.evidence-count { color: var(--muted); font-size: var(--font-caption); font-weight: 800; }
+
 .managed-players-layout { display: grid; grid-template-columns: minmax(280px, .85fr) minmax(360px, 1.15fr); gap: 20px; align-items: start; }
 .managed-player-list { display: grid; gap: 8px; }
 .managed-player-row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 13px; border: 1px solid var(--line); border-radius: 6px; background: #faf8f2; }
