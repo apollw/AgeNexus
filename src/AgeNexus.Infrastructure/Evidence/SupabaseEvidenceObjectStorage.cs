@@ -63,6 +63,12 @@ internal sealed class SupabaseEvidenceObjectStorage : IEvidenceObjectStorage
         return new Uri(baseUri!, $"storage/v1/object/public/{Escape(bucket)}/{EscapePath(objectKey)}").AbsoluteUri;
     }
 
+    public string GetPublicDownloadUrl(string objectKey, string fileName)
+    {
+        var publicUrl = GetPublicUrl(objectKey);
+        return $"{publicUrl}?download={Uri.EscapeDataString(fileName)}";
+    }
+
     private async Task EnsureBucketAsync(CancellationToken cancellationToken)
     {
         if (bucketReady)
@@ -82,6 +88,7 @@ internal sealed class SupabaseEvidenceObjectStorage : IEvidenceObjectStorage
             using var lookupResponse = await client.SendAsync(lookup, cancellationToken);
             if (lookupResponse.IsSuccessStatusCode)
             {
+                await UpdateBucketAsync(cancellationToken);
                 bucketReady = true;
                 return;
             }
@@ -97,8 +104,8 @@ internal sealed class SupabaseEvidenceObjectStorage : IEvidenceObjectStorage
                 id = bucket,
                 name = bucket,
                 @public = true,
-                file_size_limit = 4 * 1024 * 1024,
-                allowed_mime_types = new[] { "image/jpeg", "image/png", "image/webp" }
+                file_size_limit = 50 * 1024 * 1024,
+                allowed_mime_types = new[] { "image/jpeg", "image/png", "image/webp", "application/octet-stream" }
             });
             using var createResponse = await client.SendAsync(create, cancellationToken);
             if (!createResponse.IsSuccessStatusCode && createResponse.StatusCode != HttpStatusCode.Conflict)
@@ -112,6 +119,19 @@ internal sealed class SupabaseEvidenceObjectStorage : IEvidenceObjectStorage
         {
             setupGate.Release();
         }
+    }
+
+    private async Task UpdateBucketAsync(CancellationToken cancellationToken)
+    {
+        using var update = CreateRequest(HttpMethod.Put, $"storage/v1/bucket/{Escape(bucket)}");
+        update.Content = JsonContent.Create(new
+        {
+            @public = true,
+            file_size_limit = 50 * 1024 * 1024,
+            allowed_mime_types = new[] { "image/jpeg", "image/png", "image/webp", "application/octet-stream" }
+        });
+        using var updateResponse = await client.SendAsync(update, cancellationToken);
+        updateResponse.EnsureSuccessStatusCode();
     }
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string relativePath)

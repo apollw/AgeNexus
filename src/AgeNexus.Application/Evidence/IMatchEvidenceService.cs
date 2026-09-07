@@ -7,7 +7,8 @@ public sealed record MatchEvidenceItem(
     EvidenceKind Kind,
     string Url,
     string? EmbedUrl,
-    DateTimeOffset SubmittedAtUtc);
+    DateTimeOffset SubmittedAtUtc,
+    string? FileName = null);
 
 public sealed record MatchEvidenceGallery(
     Guid MatchId,
@@ -46,6 +47,13 @@ public interface IMatchEvidenceService
         byte[] content,
         CancellationToken cancellationToken = default);
 
+    Task<MatchEvidenceOperationResult> AddReplayAsync(
+        Guid matchId,
+        Guid submittedByPlayerProfileId,
+        string fileName,
+        byte[] content,
+        CancellationToken cancellationToken = default);
+
     Task<MatchEvidenceOperationResult> DeleteAsync(
         Guid evidenceId,
         Guid requestedByPlayerProfileId,
@@ -67,4 +75,6 @@ public interface IEvidenceObjectStorage
         CancellationToken cancellationToken = default);
 
     string GetPublicUrl(string objectKey);
+
+    string GetPublicDownloadUrl(string objectKey, string fileName);
 }

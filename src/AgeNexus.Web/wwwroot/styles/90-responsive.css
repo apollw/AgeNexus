@@ -73,8 +73,9 @@
     .json-import-inputs { grid-template-columns: 1fr; }.json-import-or { min-height: 20px; }.json-file-picker { min-height: 145px; }.json-player-mapping { grid-template-columns: 1fr; }
     .json-import-highlights { grid-template-columns: 1fr; }
     .evidence-video-form, .evidence-manager-grid, .evidence-gallery-grid { grid-template-columns: 1fr; }
-    .evidence-video-form .button, .evidence-video-card .button { width: 100%; }
+    .evidence-video-form .button, .evidence-video-card .button, .evidence-replay-card .button { width: 100%; }
     .evidence-video-card, .evidence-gallery-card { padding: 18px; }
+    .evidence-replay-card { grid-template-columns: 1fr; padding: 18px; }
     .catalog-setup { grid-template-columns: 1fr; padding: 25px 18px; }.catalog-setup-form { padding: 18px 14px; }
     .catalog-sync-banner { align-items: flex-start; flex-direction: column; }.catalog-sync-banner .button { width: 100%; }
 }

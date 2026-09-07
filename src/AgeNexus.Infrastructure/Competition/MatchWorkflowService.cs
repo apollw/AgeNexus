@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using AgeNexus.Application.Evidence;
 using AgeNexus.Application.Matches;
 using AgeNexus.Application.Ratings;
 using AgeNexus.Domain.Common;
@@ -9,6 +10,8 @@ using AgeNexus.Domain.EvidenceAndModeration;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using DomainMatchType = AgeNexus.Domain.Matches.MatchType;
 
 namespace AgeNexus.Infrastructure.Competition;
@@ -18,7 +21,10 @@ public sealed class MatchWorkflowService(
     IRatingCalculator ratingCalculator,
     ICareerPointCalculator careerPointCalculator,
     IPvePointCalculator pvePointCalculator,
-    ScoringRuleSet rules) : IMatchWorkflowService
+    ScoringRuleSet rules,
+    IEvidenceObjectStorage evidenceStorage,
+    IConfiguration configuration,
+    ILogger<MatchWorkflowService> logger) : IMatchWorkflowService
 {
     public async Task<MatchWorkflowResult> RegisterAsync(
         RegisterMatchRequest request,
@@ -305,17 +311,40 @@ public sealed class MatchWorkflowService(
             return MatchWorkflowResult.Failure(matchId, "MatchNotFound");
         }
 
-        if (match.CreatedByPlayerProfileId != requestedByPlayerProfileId)
+        var isSingleAdministrator = configuration.GetValue("OperatingMode:SingleAdministrator", true);
+        if (!isSingleAdministrator && match.CreatedByPlayerProfileId != requestedByPlayerProfileId)
         {
             return MatchWorkflowResult.Failure(matchId, "MatchDeletionNotAuthorized");
         }
 
+        var evidenceObjects = await database.MatchEvidence.AsNoTracking()
+            .Where(x => x.MatchId == matchId && x.ObjectKey != null)
+            .Select(x => new { x.Id, ObjectKey = x.ObjectKey! })
+            .ToArrayAsync(cancellationToken);
         var ratingEvents = await database.RatingEvents.Where(x => x.MatchId == matchId).ToArrayAsync(cancellationToken);
         var pointEvents = await database.PointEvents.Where(x => x.MatchId == matchId).ToArrayAsync(cancellationToken);
         database.RatingEvents.RemoveRange(ratingEvents);
         database.PointEvents.RemoveRange(pointEvents);
         database.Matches.Remove(match);
         await database.SaveChangesAsync(cancellationToken);
+
+        if (evidenceStorage.IsConfigured)
+        {
+            foreach (var evidence in evidenceObjects)
+            {
+                try
+                {
+                    await evidenceStorage.DeleteAsync(evidence.ObjectKey, cancellationToken);
+                }
+                catch (HttpRequestException exception)
+                {
+                    logger.LogWarning(exception,
+                        "A partida {MatchId} foi excluída, mas o arquivo da evidência {EvidenceId} permaneceu no storage.",
+                        matchId, evidence.Id);
+                }
+            }
+        }
+
         return MatchWorkflowResult.Success(matchId);
     }
 

@@ -6,7 +6,6 @@ using AgeNexus.Application.Queries;
 using AgeNexus.Infrastructure.Queries;
 using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Infrastructure.MatchPerformance;
-using AgeNexus.Infrastructure.ReplayAnalysis;
 using AgeNexus.Application.GameCatalog;
 using AgeNexus.Infrastructure.GameCatalog;
 using AgeNexus.Application.Evidence;
@@ -110,7 +109,6 @@ public static class DependencyInjection
         services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
         services.AddScoped<IPerformanceStatisticsService, PerformanceStatisticsService>();
         services.AddScoped<IMatchEvidenceService, MatchEvidenceService>();
-        services.AddScoped<IReplayStatisticsExtractor, PythonReplayStatisticsExtractor>();
         services.AddScoped<CompetitionQueryService>();
         services.AddScoped<GeneralStatisticsQueryService>();
         services.AddScoped<IRankingQueryService>(x => x.GetRequiredService<CompetitionQueryService>());

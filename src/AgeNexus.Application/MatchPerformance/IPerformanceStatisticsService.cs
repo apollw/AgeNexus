@@ -9,9 +9,6 @@ public interface IPerformanceStatisticsService
     Task<PerformanceOperationResult> SaveManualAsync(
         SavePerformanceReportRequest request,
         CancellationToken cancellationToken = default);
-    Task<PerformanceOperationResult> ImportReplayAsync(
-        ImportReplayRequest request,
-        CancellationToken cancellationToken = default);
     Task<PerformanceOperationResult> SubmitAsync(
         Guid reportId,
         Guid playerProfileId,
@@ -41,12 +38,6 @@ public sealed record SavePlayerStatistics(
     Guid PlayerProfileId,
     MatchStatisticValues Values,
     StatisticValueOrigin Origin = StatisticValueOrigin.Manual);
-
-public sealed record ImportReplayRequest(
-    Guid MatchId,
-    Guid SubmittedByPlayerProfileId,
-    string FileName,
-    byte[] Content);
 
 public sealed record PerformanceOperationResult(
     bool Succeeded,

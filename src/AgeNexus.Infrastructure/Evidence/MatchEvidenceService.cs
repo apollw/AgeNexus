@@ -17,6 +17,7 @@ internal sealed class MatchEvidenceService(
 {
     private const int MaximumScreenshots = 5;
     private const int MaximumScreenshotBytes = 4 * 1024 * 1024;
+    private const int MaximumReplayBytes = 50 * 1024 * 1024;
 
     public async Task<MatchEvidenceGallery?> GetAsync(
         Guid matchId,
@@ -33,7 +34,8 @@ internal sealed class MatchEvidenceService(
 
         var evidence = await database.MatchEvidence.AsNoTracking()
             .Where(item => item.MatchId == matchId &&
-                           (item.Kind == EvidenceKind.VideoLink || item.Kind == EvidenceKind.ResultScreenshot))
+                           (item.Kind == EvidenceKind.VideoLink || item.Kind == EvidenceKind.ResultScreenshot ||
+                            item.Kind == EvidenceKind.Replay))
             .OrderBy(item => item.SubmittedAtUtc)
             .ToArrayAsync(cancellationToken);
         var items = evidence.Select(item =>
@@ -44,6 +46,14 @@ internal sealed class MatchEvidenceService(
                 return new MatchEvidenceItem(item.Id, item.Kind, video.WatchUrl, video.EmbedUrl, item.SubmittedAtUtc);
             }
 
+            if (item.Kind == EvidenceKind.Replay && item.ObjectKey is not null &&
+                item.FileName is not null && storage.IsConfigured)
+            {
+                return new MatchEvidenceItem(item.Id, item.Kind,
+                    storage.GetPublicDownloadUrl(item.ObjectKey, item.FileName), null,
+                    item.SubmittedAtUtc, item.FileName);
+            }
+
             var url = item.ObjectKey is not null && storage.IsConfigured
                 ? storage.GetPublicUrl(item.ObjectKey)
                 : item.ExternalUrl ?? string.Empty;
@@ -51,6 +61,82 @@ internal sealed class MatchEvidenceService(
         }).Where(item => !string.IsNullOrWhiteSpace(item.Url)).ToArray();
 
         return new MatchEvidenceGallery(matchId, playedAtUtc.Value, items);
+    }
+
+    public async Task<MatchEvidenceOperationResult> AddReplayAsync(
+        Guid matchId,
+        Guid submittedByPlayerProfileId,
+        string fileName,
+        byte[] content,
+        CancellationToken cancellationToken = default)
+    {
+        var match = await LoadMatchAsync(matchId, cancellationToken);
+        if (match is null)
+        {
+            return MatchEvidenceOperationResult.Failure("MatchNotFound");
+        }
+
+        if (!CanManageMatch(match, submittedByPlayerProfileId))
+        {
+            return MatchEvidenceOperationResult.Failure("EvidenceNotAuthorized");
+        }
+
+        if (!storage.IsConfigured)
+        {
+            return MatchEvidenceOperationResult.Failure("EvidenceStorageNotConfigured");
+        }
+
+        var safeFileName = Path.GetFileName(fileName.Trim()) ?? string.Empty;
+        var extension = Path.GetExtension(safeFileName).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(safeFileName) || safeFileName.Length > 260 ||
+            extension is not (".aoe2record" or ".mgz" or ".mgx") ||
+            content.Length == 0 || content.Length > MaximumReplayBytes)
+        {
+            return MatchEvidenceOperationResult.Failure("InvalidReplay");
+        }
+
+        var hash = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+        var existing = await database.MatchEvidence.SingleOrDefaultAsync(
+            item => item.MatchId == matchId && item.Kind == EvidenceKind.Replay, cancellationToken);
+        if (existing?.Sha256 == hash)
+        {
+            return MatchEvidenceOperationResult.Success(existing.Id);
+        }
+
+        if (await database.MatchEvidence.AsNoTracking()
+            .AnyAsync(item => item.Sha256 == hash && item.Id != (existing == null ? Guid.Empty : existing.Id), cancellationToken))
+        {
+            return MatchEvidenceOperationResult.Failure("DuplicateReplay");
+        }
+
+        var evidenceId = Guid.NewGuid();
+        var objectKey = $"{matchId:N}/replay/{evidenceId:N}{extension}";
+        const string contentType = "application/octet-stream";
+        try
+        {
+            await storage.UploadAsync(objectKey, contentType, content, cancellationToken);
+            if (existing is not null)
+            {
+                database.MatchEvidence.Remove(existing);
+            }
+            database.MatchEvidence.Add(new MatchEvidence(
+                evidenceId, matchId, submittedByPlayerProfileId, EvidenceKind.Replay,
+                DateTimeOffset.UtcNow, objectKey: objectKey, sha256: hash,
+                fileName: safeFileName, contentType: contentType));
+            await database.SaveChangesAsync(cancellationToken);
+
+            if (existing?.ObjectKey is not null)
+            {
+                await TryDeleteObjectAsync(existing.ObjectKey, existing.Id, cancellationToken);
+            }
+            return MatchEvidenceOperationResult.Success(evidenceId);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or DbUpdateException)
+        {
+            logger.LogError(exception, "Falha ao armazenar replay da partida {MatchId}.", matchId);
+            await TryDeleteObjectAsync(objectKey, evidenceId, CancellationToken.None);
+            return MatchEvidenceOperationResult.Failure("ReplayUploadFailed");
+        }
     }
 
     public async Task<MatchEvidenceOperationResult> AddYouTubeVideoAsync(
@@ -203,6 +289,19 @@ internal sealed class MatchEvidenceService(
         return MatchEvidenceOperationResult.Success(evidenceId);
     }
 
+    private async Task TryDeleteObjectAsync(string objectKey, Guid evidenceId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await storage.DeleteAsync(objectKey, cancellationToken);
+        }
+        catch (HttpRequestException exception)
+        {
+            logger.LogWarning(exception, "A evidência {EvidenceId} foi removida, mas o objeto {ObjectKey} permaneceu no storage.",
+                evidenceId, objectKey);
+        }
+    }
+
     private Task<Match?> LoadMatchAsync(Guid matchId, CancellationToken cancellationToken) =>
         database.Matches.Include(match => match.Teams).ThenInclude(team => team.Participants)
             .SingleOrDefaultAsync(match => match.Id == matchId, cancellationToken);
@@ -210,8 +309,7 @@ internal sealed class MatchEvidenceService(
     private bool CanManageMatch(Match match, Guid playerId) =>
         match.Teams.SelectMany(team => team.Participants)
             .Any(participant => participant.Type == ParticipantType.Human && participant.PlayerProfileId == playerId) ||
-        (configuration.GetValue("OperatingMode:SingleAdministrator", true) &&
-         match.CreatedByPlayerProfileId == playerId);
+        configuration.GetValue("OperatingMode:SingleAdministrator", true);
 
     private sealed record ScreenshotFile(string Extension, string ContentType)
     {

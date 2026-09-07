@@ -43,8 +43,11 @@
                         {
                             <a class="table-action table-action-media" href="/partidas/@match.MatchId/evidencias">▧ @match.ScreenshotCount captura(s)</a>
                         }
-                        @if (CurrentApplicationUserId.HasValue &&
-                             CurrentApplicationUserId == match.CreatedByApplicationUserId)
+                        @if (match.HasReplay)
+                        {
+                            <a class="table-action table-action-media" href="/partidas/@match.MatchId/evidencias">↓ Replay</a>
+                        }
+                        @if (CurrentApplicationUserId.HasValue)
                         {
                             <form method="post" action="/matches/delete" class="match-delete-form"
                                   onsubmit="return confirm('Excluir definitivamente esta partida?');">
@@ -73,7 +76,7 @@
     private string? DeleteMessage => DeleteStatus switch
     {
         "ok" => "Partida excluída.",
-        "MatchDeletionNotAuthorized" => "Somente quem registrou a partida pode excluí-la.",
+        "MatchDeletionNotAuthorized" => "Sua conta não possui permissão para excluir esta partida.",
         "MatchNotFound" => "A partida já não existe.",
         "invalid" => "A partida informada é inválida.",
         "profile" => "Não foi possível identificar seu perfil.",

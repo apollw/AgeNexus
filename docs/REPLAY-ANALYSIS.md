@@ -1,50 +1,28 @@
 # Estatísticas pós-jogo e replays
 
-O Age Nexus aceita relatórios pós-jogo por replay ou por preenchimento manual. O replay é uma fonte de dados, não uma garantia de que todas as estatísticas finais estejam presentes: versões diferentes do Age II gravam conjuntos diferentes de informações.
+O relatório pós-jogo e o replay são recursos independentes. As estatísticas são preenchidas manualmente ou importadas do JSON do AgeExtractor. O replay é somente o arquivo original da partida disponibilizado para download.
 
-## Formatos e dependência
+## Formatos e armazenamento
 
-O importador aceita `.aoe2record`, `.mgz` e `.mgx`, com limite de 50 MB. A aplicação chama um processo Python isolado que usa `aoc-mgz` (`mgz`) para interpretar o arquivo.
-
-Instale a dependência no mesmo ambiente em que a aplicação será executada:
-
-```bash
-python3 -m pip install -r src/AgeNexus.Infrastructure/ReplayAnalysis/requirements.txt
-```
-
-O executável padrão é `python3`. Em ambientes nos quais o comando é outro, configure:
-
-```json
-{
-  "ReplayExtractor": {
-    "PythonExecutable": "python"
-  }
-}
-```
-
-`ReplayExtractor:ScriptPath` pode apontar para uma cópia externa de `extract_replay.py`. Sem essa configuração, o script copiado para a saída da aplicação é usado.
+O upload aceita `.aoe2record`, `.mgz` e `.mgx`, com limite de 50 MB. O arquivo é armazenado no bucket público de evidências do Supabase Storage e não é interpretado pela aplicação.
 
 ## Fluxo
 
-1. O servidor valida extensão e tamanho e calcula o SHA-256 do replay.
-2. O extrator devolve somente valores que encontrou diretamente no arquivo.
-3. Campos ausentes ficam nulos; o sistema não inventa valores.
-4. Um participante completa manualmente os dados ausentes usando as telas finais ou capturas.
-5. O relatório completo é enviado e exige uma decisão por equipe humana.
-6. Depois que a partida e o relatório estão validados, a fórmula versionada calcula o desempenho e registra os bônus no livro de pontos.
-
-O arquivo bruto não é persistido por esta fatia: apenas nome, SHA-256, versão do extrator, cobertura e estatísticas normalizadas. Se o armazenamento definitivo do replay for desejado, ele deve ser integrado ao armazenamento de objetos já previsto para evidências.
+1. O administrador seleciona o replay na tela de desempenho.
+2. O servidor valida extensão e tamanho, calcula o SHA-256 e envia o arquivo ao Supabase Storage.
+3. Um novo upload substitui o replay anterior da mesma partida.
+4. A página pública de evidências e o histórico de partidas disponibilizam o download.
+5. As estatísticas continuam sendo preenchidas manualmente ou pelo JSON, sem qualquer alteração causada pelo replay.
 
 ## Integridade e limitações
 
 - O SHA-256 impede reutilização silenciosa do mesmo replay em mais de uma partida.
-- Um replay pode exigir preenchimento manual, sobretudo para `maior exército` e versões sem o bloco final de conquistas.
+- O nome original é preservado para o download.
+- Excluir uma evidência ou a própria partida também solicita a remoção do arquivo no Storage.
 - Dados manuais e transcritos de capturas seguem o mesmo fluxo de confirmação das equipes.
 - Relatórios contestados não geram bônus.
 - O bônus nunca altera rating competitivo.
 - Em PvE, o resultado de desempenho gera somente distintivo, sem pontos de carreira.
-
-O parser deve ser exercitado com arquivos reais das versões usadas pelo grupo sempre que `mgz` ou o Age II forem atualizados. A versão do extrator fica gravada em cada relatório para permitir auditoria e recálculo.
 
 ## Fórmula de desempenho
 
