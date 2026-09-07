@@ -47,8 +47,6 @@ public sealed class Match
     public Guid? MapDefinitionId { get; private set; }
     public Guid? GamePatchId { get; private set; }
     public IReadOnlyCollection<MatchTeam> Teams => _teams.AsReadOnly();
-    public bool CanBeDeleted => Status is not MatchStatus.Validated and not MatchStatus.Voided;
-
     public MatchScoringCategory ScoringCategory => ClassifyScoringCategory();
 
     public string? HumanFormatLabel

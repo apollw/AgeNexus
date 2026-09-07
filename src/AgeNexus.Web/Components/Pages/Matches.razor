@@ -73,7 +73,6 @@
     private string? DeleteMessage => DeleteStatus switch
     {
         "ok" => "Partida excluída.",
-        "MatchCannotBeDeleted" => "Partidas já validadas não podem ser excluídas; elas devem ser anuladas para preservar o histórico.",
         "MatchDeletionNotAuthorized" => "Somente quem registrou a partida pode excluí-la.",
         "MatchNotFound" => "A partida já não existe.",
         "invalid" => "A partida informada é inválida.",

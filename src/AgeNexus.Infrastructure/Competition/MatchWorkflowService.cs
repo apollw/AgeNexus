@@ -310,13 +310,10 @@ public sealed class MatchWorkflowService(
             return MatchWorkflowResult.Failure(matchId, "MatchDeletionNotAuthorized");
         }
 
-        if (!match.CanBeDeleted ||
-            await database.RatingEvents.AnyAsync(x => x.MatchId == matchId, cancellationToken) ||
-            await database.PointEvents.AnyAsync(x => x.MatchId == matchId, cancellationToken))
-        {
-            return MatchWorkflowResult.Failure(matchId, "MatchCannotBeDeleted");
-        }
-
+        var ratingEvents = await database.RatingEvents.Where(x => x.MatchId == matchId).ToArrayAsync(cancellationToken);
+        var pointEvents = await database.PointEvents.Where(x => x.MatchId == matchId).ToArrayAsync(cancellationToken);
+        database.RatingEvents.RemoveRange(ratingEvents);
+        database.PointEvents.RemoveRange(pointEvents);
         database.Matches.Remove(match);
         await database.SaveChangesAsync(cancellationToken);
         return MatchWorkflowResult.Success(matchId);
