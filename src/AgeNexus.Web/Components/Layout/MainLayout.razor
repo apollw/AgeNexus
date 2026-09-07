@@ -25,9 +25,6 @@
                 </button>
                 <AuthorizeView>
                     <Authorized Context="session">
-                        <a class="button button-primary button-compact" href="/partidas">
-                            <span>+</span> Registrar partida
-                        </a>
                         <a class="profile-chip" href="/perfil">
                             <span class="avatar">@GetInitial(session.User.Identity?.Name)</span>
                             <span class="profile-copy"><strong>@session.User.Identity?.Name</strong><small>Minha conta</small></span>
