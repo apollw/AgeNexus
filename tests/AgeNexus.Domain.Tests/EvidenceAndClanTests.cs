@@ -39,6 +39,24 @@ public sealed class EvidenceAndClanTests
             objectKey: "replays/match.aoe2record"));
     }
 
+    [Fact]
+    public void Replay_keeps_download_file_metadata()
+    {
+        var evidence = new MatchEvidence(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            EvidenceKind.Replay,
+            DateTimeOffset.UtcNow,
+            objectKey: "matches/replay/example.aoe2record",
+            sha256: new string('a', 64),
+            fileName: "partida.aoe2record",
+            contentType: "application/octet-stream");
+
+        Assert.Equal("partida.aoe2record", evidence.FileName);
+        Assert.Equal("application/octet-stream", evidence.ContentType);
+    }
+
     [Theory]
     [InlineData("https://www.youtube.com/watch?v=M7lc1UVf-VE")]
     [InlineData("https://youtu.be/M7lc1UVf-VE?t=12")]

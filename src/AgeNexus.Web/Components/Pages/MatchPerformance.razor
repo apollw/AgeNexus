@@ -12,7 +12,7 @@
     <div>
         <span class="eyebrow">Relatório pós-jogo</span>
         <h1>Desempenho e MVP</h1>
-        <p>Importe o replay ou transcreva as telas finais. No modo administrador, seu envio valida os dados sem depender do login dos participantes.</p>
+        <p>Preencha as estatísticas manualmente ou importe o JSON do AgeExtractor. O replay é armazenado separadamente para download e não altera os dados do relatório.</p>
     </div>
     <a class="button button-secondary" href="/partidas">Voltar</a>
 </section>
@@ -34,18 +34,30 @@ else
         <div><span class="eyebrow">Completude</span><strong>@(View.IsComplete ? "Completo" : "Pendente")</strong><small>@View.ConfirmedTeamIds.Count equipe(s) confirmaram</small></div>
     </section>
 
+    <section class="panel profile-form-card replay-import replay-file-upload">
+        <header class="panel-header">
+            <div><span class="eyebrow">Arquivo da partida</span><h2>Replay para download</h2></div>
+            @if (EvidenceReplay is not null)
+            {
+                <a class="button button-secondary" href="/partidas/@MatchId/evidencias">Abrir página pública</a>
+            }
+        </header>
+        <p>Envie o replay original para que outros jogadores possam baixá-lo depois. Este arquivo não preenche, corrige ou valida nenhuma estatística.</p>
+        <div class="evidence-upload-row">
+            <InputFile OnChange="UploadReplayAsync" accept=".aoe2record,.mgz,.mgx" disabled="@Busy" />
+            <small>Formatos aceitos: <code>.aoe2record</code>, <code>.mgz</code> e <code>.mgx</code>, com até 50 MB. Um novo envio substitui o replay anterior.</small>
+        </div>
+        @if (EvidenceReplay is not null)
+        {
+            <div class="evidence-managed-item replay-managed-item">
+                <a href="@EvidenceReplay.Url" download="@EvidenceReplay.FileName">↓ @(EvidenceReplay.FileName ?? "Baixar replay")</a>
+                <button class="table-action-button table-action-danger" type="button" @onclick="() => DeleteEvidenceAsync(EvidenceReplay.EvidenceId)" disabled="@Busy">Remover</button>
+            </div>
+        }
+    </section>
+
     @if (View.Status is null or AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft)
     {
-        <section class="panel profile-form-card replay-import">
-            <header class="panel-header"><div><span class="eyebrow">Automação</span><h2>Importar replay</h2></div></header>
-            <p>Arquivos <code>.aoe2record</code>, <code>.mgz</code> ou <code>.mgx</code> de até 50 MB. Os campos que o parser não encontrar permanecerão disponíveis para preenchimento manual.</p>
-            <InputFile OnChange="ImportReplayAsync" accept=".aoe2record,.mgz,.mgx" disabled="@(View.ReportId.HasValue || Busy)" />
-            @if (!string.IsNullOrWhiteSpace(View.ReplayFileName))
-            {
-                <small>@View.ReplayFileName · @View.ExtractorVersion</small>
-            }
-        </section>
-
         <section class="panel profile-form-card json-import">
             <header class="panel-header">
                 <div><span class="eyebrow">AgeExtractor</span><h2>Importar resultado JSON</h2></div>
@@ -349,6 +361,8 @@ else
 
     private AgeNexus.Application.Evidence.MatchEvidenceItem? EvidenceVideo => EvidenceGallery?.Items
         .FirstOrDefault(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.VideoLink);
+    private AgeNexus.Application.Evidence.MatchEvidenceItem? EvidenceReplay => EvidenceGallery?.Items
+        .FirstOrDefault(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.Replay);
     private IReadOnlyCollection<AgeNexus.Application.Evidence.MatchEvidenceItem> EvidenceScreenshots =>
         EvidenceGallery?.Items.Where(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.ResultScreenshot)
             .ToArray() ?? [];
@@ -506,6 +520,9 @@ else
             "InvalidScreenshot" => "Use uma imagem JPEG, PNG ou WebP válida, com até 4 MB.",
             "ScreenshotLimitReached" => "Esta partida já possui o limite de 5 capturas.",
             "DuplicateScreenshot" => "Esta captura já foi enviada.",
+            "InvalidReplay" => "Use um replay .aoe2record, .mgz ou .mgx válido, com até 50 MB.",
+            "DuplicateReplay" => "Este mesmo replay já está armazenado em outra partida.",
+            "ReplayUploadFailed" => "Não foi possível enviar o replay ao Supabase Storage.",
             "EvidenceStorageNotConfigured" => "O Supabase Storage ainda não foi configurado no servidor.",
             "EvidenceNotAuthorized" => "Você não pode alterar as evidências desta partida.",
             "EvidenceNotFound" => "A evidência já não existe.",
@@ -514,7 +531,7 @@ else
         };
     }
 
-    private async Task ImportReplayAsync(InputFileChangeEventArgs args)
+    private async Task UploadReplayAsync(InputFileChangeEventArgs args)
     {
         if (CurrentProfile is null)
         {
@@ -527,10 +544,10 @@ else
             await using var input = args.File.OpenReadStream(50 * 1024 * 1024);
             using var memory = new MemoryStream();
             await input.CopyToAsync(memory);
-            var result = await PerformanceService.ImportReplayAsync(new(
-                MatchId, CurrentProfile.Id, args.File.Name, memory.ToArray()));
-            SetResult(result, "Replay importado. Complete os campos que permaneceram vazios.");
-            await ReloadAsync();
+            var result = await EvidenceService.AddReplayAsync(
+                MatchId, CurrentProfile.Id, args.File.Name, memory.ToArray());
+            SetEvidenceResult(result, "Replay enviado e disponível para download.");
+            EvidenceGallery = await EvidenceService.GetAsync(MatchId);
         }
         catch (IOException)
         {

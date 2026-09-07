@@ -35,9 +35,9 @@ Em produção, a aplicação executa somente as migrations pendentes uma vez dur
 | `Supabase__Url` | URL HTTPS do projeto Supabase |
 | `Supabase__ServiceRoleKey` | chave de serviço do Supabase, armazenada somente como segredo |
 
-`Supabase__EvidenceBucket=match-evidence` já possui valor no Blueprint. Essas três configurações habilitam o envio de capturas JPEG, PNG ou WebP; sem elas, o restante do site e os links do YouTube continuam funcionando normalmente.
+`Supabase__EvidenceBucket=match-evidence` já possui valor no Blueprint. Essas três configurações habilitam o envio de capturas e replays; sem elas, o restante do site e os links do YouTube continuam funcionando normalmente.
 
-Confirme a criação. O primeiro build instala .NET 8, Python e `mgz`, publica o Blazor e inicia a aplicação na porta fornecida pelo Render. O Render verifica a disponibilidade do processo em `/health`, sem abrir conexões periódicas com o banco.
+Confirme a criação. O primeiro build publica o Blazor em .NET 8 e inicia a aplicação na porta fornecida pelo Render. O Render verifica a disponibilidade do processo em `/health`, sem abrir conexões periódicas com o banco.
 
 O diagnóstico manual `/health/database` continua disponível para confirmar a conexão com o PostgreSQL quando necessário.
 

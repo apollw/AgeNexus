@@ -44,6 +44,8 @@ internal sealed class MatchEvidenceConfiguration : IEntityTypeConfiguration<Matc
         builder.Property(x => x.ObjectKey).HasColumnName("object_key").HasMaxLength(500);
         builder.Property(x => x.ExternalUrl).HasColumnName("external_url").HasMaxLength(1000);
         builder.Property(x => x.Sha256).HasColumnName("sha256").HasMaxLength(64);
+        builder.Property(x => x.FileName).HasColumnName("file_name").HasMaxLength(260);
+        builder.Property(x => x.ContentType).HasColumnName("content_type").HasMaxLength(100);
         builder.HasOne<Match>().WithMany().HasForeignKey(x => x.MatchId).OnDelete(DeleteBehavior.Cascade)
             .HasConstraintName("fk_match_evidence_match");
         builder.HasOne<PlayerProfile>().WithMany().HasForeignKey(x => x.SubmittedByPlayerProfileId).OnDelete(DeleteBehavior.Restrict)

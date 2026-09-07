@@ -16,7 +16,9 @@ public sealed class MatchEvidence
         DateTimeOffset submittedAtUtc,
         string? objectKey = null,
         string? externalUrl = null,
-        string? sha256 = null)
+        string? sha256 = null,
+        string? fileName = null,
+        string? contentType = null)
     {
         if (id == Guid.Empty || matchId == Guid.Empty || submittedByPlayerProfileId == Guid.Empty)
         {
@@ -53,6 +55,18 @@ public sealed class MatchEvidence
             throw new DomainRuleException("Replay evidence requires a SHA-256 fingerprint.");
         }
 
+        var normalizedFileName = NormalizeOptional(fileName);
+        var normalizedContentType = NormalizeOptional(contentType);
+        if (normalizedFileName?.Length > 260 || normalizedContentType?.Length > 100)
+        {
+            throw new DomainRuleException("Evidence file metadata is too long.");
+        }
+
+        if (kind == EvidenceKind.Replay && (normalizedObjectKey is null || normalizedFileName is null))
+        {
+            throw new DomainRuleException("Replay evidence requires an object and its original file name.");
+        }
+
         Id = id;
         MatchId = matchId;
         SubmittedByPlayerProfileId = submittedByPlayerProfileId;
@@ -61,6 +75,8 @@ public sealed class MatchEvidence
         ObjectKey = normalizedObjectKey;
         ExternalUrl = normalizedUrl;
         Sha256 = normalizedHash;
+        FileName = normalizedFileName;
+        ContentType = normalizedContentType;
     }
 
     public Guid Id { get; private set; }
@@ -71,6 +87,8 @@ public sealed class MatchEvidence
     public string? ObjectKey { get; private set; }
     public string? ExternalUrl { get; private set; }
     public string? Sha256 { get; private set; }
+    public string? FileName { get; private set; }
+    public string? ContentType { get; private set; }
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

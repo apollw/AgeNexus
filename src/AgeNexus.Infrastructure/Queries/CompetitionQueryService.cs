@@ -112,7 +112,8 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         var matchIds = rows.Select(row => row.MatchId).Distinct().ToArray();
         var evidenceRows = await database.MatchEvidence.AsNoTracking()
             .Where(item => matchIds.Contains(item.MatchId) &&
-                           (item.Kind == EvidenceKind.VideoLink || item.Kind == EvidenceKind.ResultScreenshot))
+                           (item.Kind == EvidenceKind.VideoLink || item.Kind == EvidenceKind.ResultScreenshot ||
+                            item.Kind == EvidenceKind.Replay))
             .Select(item => new { item.MatchId, item.Kind, item.ExternalUrl })
             .ToListAsync(cancellationToken);
         var evidenceByMatch = evidenceRows.GroupBy(item => item.MatchId).ToDictionary(group => group.Key);
@@ -169,7 +170,8 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     CreatedByApplicationUserId = match.Key.CreatedByApplicationUserId,
                     YouTubeVideoUrl = matchEvidence?
                         .FirstOrDefault(item => item.Kind == EvidenceKind.VideoLink)?.ExternalUrl,
-                    ScreenshotCount = matchEvidence?.Count(item => item.Kind == EvidenceKind.ResultScreenshot) ?? 0
+                    ScreenshotCount = matchEvidence?.Count(item => item.Kind == EvidenceKind.ResultScreenshot) ?? 0,
+                    HasReplay = matchEvidence?.Any(item => item.Kind == EvidenceKind.Replay) == true
                 };
             })
             .ToArray();

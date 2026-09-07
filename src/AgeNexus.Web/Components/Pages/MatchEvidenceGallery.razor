@@ -9,7 +9,7 @@
         <h1>Evidências da partida</h1>
         @if (Gallery is not null)
         {
-            <p>Vídeo e telas finais de @Gallery.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy").</p>
+            <p>Replay, vídeo e telas finais de @Gallery.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy").</p>
         }
     </div>
     <a class="button button-secondary" href="/partidas">Voltar às partidas</a>
@@ -26,11 +26,24 @@ else if (Gallery.Items.Count == 0)
     <section class="panel panel-empty page-empty">
         <span class="empty-icon">▧</span>
         <strong>Nenhuma evidência publicada</strong>
-        <p>Esta partida ainda não possui vídeo ou capturas das telas finais.</p>
+        <p>Esta partida ainda não possui replay, vídeo ou capturas das telas finais.</p>
     </section>
 }
 else
 {
+    @if (Replay is not null)
+    {
+        <section class="panel evidence-replay-card">
+            <div class="evidence-replay-icon" aria-hidden="true">↓</div>
+            <div>
+                <span class="eyebrow">Arquivo da partida</span>
+                <h2>Replay disponível</h2>
+                <p>Baixe o arquivo original para assistir à partida no jogo.</p>
+            </div>
+            <a class="button button-primary" href="@Replay.Url" download="@Replay.FileName">Baixar @(Replay.FileName ?? "replay")</a>
+        </section>
+    }
+
     @if (Video is not null)
     {
         <section class="panel evidence-video-card">
@@ -71,6 +84,8 @@ else
     private AgeNexus.Application.Evidence.MatchEvidenceGallery? Gallery { get; set; }
     private AgeNexus.Application.Evidence.MatchEvidenceItem? Video => Gallery?.Items
         .FirstOrDefault(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.VideoLink);
+    private AgeNexus.Application.Evidence.MatchEvidenceItem? Replay => Gallery?.Items
+        .FirstOrDefault(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.Replay);
     private IReadOnlyCollection<AgeNexus.Application.Evidence.MatchEvidenceItem> Screenshots => Gallery?.Items
         .Where(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.ResultScreenshot)
         .ToArray() ?? [];

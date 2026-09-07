@@ -51,6 +51,7 @@ public sealed record MatchSummary(
     public Guid? CreatedByApplicationUserId { get; init; }
     public string? YouTubeVideoUrl { get; init; }
     public int ScreenshotCount { get; init; }
+    public bool HasReplay { get; init; }
 }
 
 public interface IMatchHistoryQueryService

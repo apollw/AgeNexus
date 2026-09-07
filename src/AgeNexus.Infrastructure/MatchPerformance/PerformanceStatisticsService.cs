@@ -1,6 +1,3 @@
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Application.Matches;
@@ -18,7 +15,6 @@ public sealed class PerformanceStatisticsService(
     AgeNexusDbContext database,
     AgeNexusDbContextFactory databaseFactory,
     IPerformanceCalculator calculator,
-    IReplayStatisticsExtractor replayExtractor,
     IMatchWorkflowService matchWorkflow,
     IConfiguration configuration) : IPerformanceStatisticsService
 {
@@ -184,60 +180,6 @@ public sealed class PerformanceStatisticsService(
         {
             return PerformanceOperationResult.Failure("InvalidStatistics");
         }
-    }
-
-    public async Task<PerformanceOperationResult> ImportReplayAsync(
-        ImportReplayRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        var match = await LoadMatchAsync(request.MatchId, cancellationToken);
-        if (match is null)
-        {
-            return PerformanceOperationResult.Failure("MatchNotFound");
-        }
-
-        if (!CanManageMatch(match, request.SubmittedByPlayerProfileId))
-        {
-            return PerformanceOperationResult.Failure("PlayerNotInMatch");
-        }
-
-        if (await database.MatchStatisticsReports.AnyAsync(x => x.MatchId == request.MatchId, cancellationToken))
-        {
-            return PerformanceOperationResult.Failure("ReportAlreadyExists");
-        }
-
-        var extraction = await replayExtractor.ExtractAsync(request.FileName, request.Content, cancellationToken);
-        if (!extraction.Succeeded)
-        {
-            return PerformanceOperationResult.Failure(extraction.ErrorCode ?? "ReplayParseFailed");
-        }
-
-        var sha256 = Convert.ToHexString(SHA256.HashData(request.Content)).ToLowerInvariant();
-        var report = new MatchStatisticsReport(
-            Guid.NewGuid(), match.Id, request.SubmittedByPlayerProfileId, MatchStatisticsSource.Replay,
-            DateTimeOffset.UtcNow, request.FileName, sha256, extraction.ExtractorVersion, extraction.CoverageDetails);
-        database.MatchStatisticsReports.Add(report);
-        var participantTeams = HumanParticipantTeams(match);
-        var playerIds = participantTeams.Keys.ToArray();
-        var playerNames = await database.PlayerProfiles.AsNoTracking().Where(x => playerIds.Contains(x.Id))
-            .ToDictionaryAsync(x => NormalizeName(x.DisplayName), x => x.Id, cancellationToken);
-        var warnings = new List<string>(extraction.Warnings ?? []);
-        foreach (var extracted in extraction.Players.Where(x => x.IsHuman))
-        {
-            if (!playerNames.TryGetValue(NormalizeName(extracted.Name), out var playerId))
-            {
-                warnings.Add($"O jogador '{extracted.Name}' do replay não corresponde a um perfil da partida.");
-                continue;
-            }
-
-            database.PlayerMatchStatistics.Add(new PlayerMatchStatistics(
-                Guid.NewGuid(), report.Id, match.Id, participantTeams[playerId], playerId,
-                StatisticValueOrigin.Extracted, extracted.Values));
-        }
-
-        await database.SaveChangesAsync(cancellationToken);
-        return PerformanceOperationResult.Success(report.Id, warnings: warnings);
     }
 
     public async Task<PerformanceOperationResult> SubmitAsync(
@@ -558,10 +500,4 @@ public sealed class PerformanceStatisticsService(
         values.StoneCollected.HasValue && values.MilitaryScore.HasValue && values.EconomyScore.HasValue &&
         values.TechnologyScore.HasValue && values.SocietyScore.HasValue && values.TotalScore.HasValue;
 
-    private static string NormalizeName(string value)
-    {
-        var decomposed = value.Trim().Normalize(NormalizationForm.FormD);
-        return string.Concat(decomposed.Where(x => CharUnicodeInfo.GetUnicodeCategory(x) != UnicodeCategory.NonSpacingMark))
-            .Normalize(NormalizationForm.FormC).ToUpperInvariant();
-    }
 }
