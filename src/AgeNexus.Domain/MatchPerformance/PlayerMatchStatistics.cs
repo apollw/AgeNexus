@@ -33,7 +33,8 @@ public sealed record MatchStatisticValues(
     int? WondersBuilt = null,
     int? CastlesBuilt = null,
     int? RelicsCaptured = null,
-    bool IsTeamMvp = false);
+    bool IsTeamMvp = false,
+    bool? Survived = null);
 
 public sealed class PlayerMatchStatistics
 {
@@ -101,6 +102,7 @@ public sealed class PlayerMatchStatistics
     public int? CastlesBuilt { get; private set; }
     public int? RelicsCaptured { get; private set; }
     public bool IsTeamMvp { get; private set; }
+    public bool? Survived { get; private set; }
 
     public bool IsComplete =>
         UnitsKilled.HasValue && UnitsLost.HasValue && BuildingsDestroyed.HasValue && BuildingsLost.HasValue &&
@@ -144,6 +146,7 @@ public sealed class PlayerMatchStatistics
         CastlesBuilt = values.CastlesBuilt;
         RelicsCaptured = values.RelicsCaptured;
         IsTeamMvp = values.IsTeamMvp;
+        Survived = values.Survived;
     }
 
     public MatchStatisticValues ToValues() => new(
@@ -152,7 +155,7 @@ public sealed class PlayerMatchStatistics
         TechnologyScore, SocietyScore, TotalScore, UnitsConverted, TradeGold, RelicGold, TributeSent,
         TributeReceived, ResearchCount, ExploredPercent, FeudalAgeSeconds, CastleAgeSeconds,
         ImperialAgeSeconds, EffectiveActionsPerMinute, ResearchPercent, WondersBuilt, CastlesBuilt,
-        RelicsCaptured, IsTeamMvp);
+        RelicsCaptured, IsTeamMvp, Survived);
 
     private static void Validate(MatchStatisticValues values)
     {

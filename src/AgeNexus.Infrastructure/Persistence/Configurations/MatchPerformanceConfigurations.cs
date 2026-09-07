@@ -99,6 +99,7 @@ internal sealed class PlayerMatchStatisticsConfiguration : IEntityTypeConfigurat
         builder.Property(x => x.CastlesBuilt).HasColumnName("castles_built");
         builder.Property(x => x.RelicsCaptured).HasColumnName("relics_captured");
         builder.Property(x => x.IsTeamMvp).HasColumnName("is_team_mvp").HasDefaultValue(false);
+        builder.Property(x => x.Survived).HasColumnName("survived");
     }
 }
 

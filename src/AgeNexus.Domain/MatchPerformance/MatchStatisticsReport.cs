@@ -64,6 +64,14 @@ public sealed partial class MatchStatisticsReport
         }
     }
 
+    public void ApplyJsonImport(string importDetails)
+    {
+        EnsureDraft();
+        ValidateJson(importDetails);
+        Source = MatchStatisticsSource.JsonImport;
+        CoverageDetails = importDetails.Trim();
+    }
+
     public void Submit(DateTimeOffset submittedAtUtc, bool isComplete)
     {
         EnsureDraft();

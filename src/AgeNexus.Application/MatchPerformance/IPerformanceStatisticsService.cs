@@ -34,7 +34,8 @@ public sealed record SavePerformanceReportRequest(
     Guid MatchId,
     Guid SubmittedByPlayerProfileId,
     MatchStatisticsSource Source,
-    IReadOnlyCollection<SavePlayerStatistics> Players);
+    IReadOnlyCollection<SavePlayerStatistics> Players,
+    string? ImportDetails = null);
 
 public sealed record SavePlayerStatistics(
     Guid PlayerProfileId,
