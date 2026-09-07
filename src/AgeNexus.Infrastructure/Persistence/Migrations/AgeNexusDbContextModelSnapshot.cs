@@ -853,6 +853,10 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_team_mvp");
 
+                    b.Property<bool?>("Survived")
+                        .HasColumnType("boolean")
+                        .HasColumnName("survived");
+
                     b.Property<int?>("LargestArmy")
                         .HasColumnType("integer")
                         .HasColumnName("largest_army");
