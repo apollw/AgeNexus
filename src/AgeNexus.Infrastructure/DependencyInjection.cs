@@ -48,6 +48,7 @@ public static class DependencyInjection
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", "public");
                 npgsql.EnableRetryOnFailure(3);
             }).AddInterceptors(serviceProvider.GetRequiredService<CompetitionCacheInvalidationInterceptor>()));
+        services.AddScoped<AgeNexusDbContextFactory>();
 
         services
             .AddIdentityCore<ApplicationUser>(options =>

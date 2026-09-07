@@ -16,6 +16,7 @@ namespace AgeNexus.Infrastructure.MatchPerformance;
 
 public sealed class PerformanceStatisticsService(
     AgeNexusDbContext database,
+    AgeNexusDbContextFactory databaseFactory,
     IPerformanceCalculator calculator,
     IReplayStatisticsExtractor replayExtractor,
     IMatchWorkflowService matchWorkflow,
@@ -27,7 +28,13 @@ public sealed class PerformanceStatisticsService(
         Guid matchId,
         CancellationToken cancellationToken = default)
     {
-        var match = await LoadMatchAsync(matchId, cancellationToken);
+        await using var matchDatabase = databaseFactory.CreateDbContext();
+        await using var reportDatabase = databaseFactory.CreateDbContext();
+        var matchTask = LoadMatchForReadAsync(matchDatabase, matchId, cancellationToken);
+        var reportTask = reportDatabase.MatchStatisticsReports.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.MatchId == matchId, cancellationToken);
+        await Task.WhenAll(matchTask, reportTask);
+        var match = await matchTask;
         if (match is null)
         {
             return null;
@@ -37,23 +44,32 @@ public sealed class PerformanceStatisticsService(
             .Where(x => x.Type == ParticipantType.Human)
             .Select(x => new { Team = team, PlayerId = x.PlayerProfileId!.Value })).ToArray();
         var playerIds = humans.Select(x => x.PlayerId).ToArray();
-        var names = await database.PlayerProfiles.AsNoTracking().Where(x => playerIds.Contains(x.Id))
+        var report = await reportTask;
+
+        await using var namesDatabase = databaseFactory.CreateDbContext();
+        await using var statisticsDatabase = databaseFactory.CreateDbContext();
+        await using var scoresDatabase = databaseFactory.CreateDbContext();
+        await using var confirmationsDatabase = databaseFactory.CreateDbContext();
+        var namesTask = namesDatabase.PlayerProfiles.AsNoTracking().Where(x => playerIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
-        var report = await database.MatchStatisticsReports.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.MatchId == matchId, cancellationToken);
-        PlayerMatchStatistics[] statistics = report is null
-            ? []
-            : await database.PlayerMatchStatistics.AsNoTracking()
+        var statisticsTask = report is null
+            ? Task.FromResult(Array.Empty<PlayerMatchStatistics>())
+            : statisticsDatabase.PlayerMatchStatistics.AsNoTracking()
                 .Where(x => x.ReportId == report.Id).ToArrayAsync(cancellationToken);
-        PlayerPerformanceScore[] scores = report?.Status != MatchStatisticsStatus.Awarded
-            ? []
-            : await database.PlayerPerformanceScores.AsNoTracking()
+        var scoresTask = report?.Status != MatchStatisticsStatus.Awarded
+            ? Task.FromResult(Array.Empty<PlayerPerformanceScore>())
+            : scoresDatabase.PlayerPerformanceScores.AsNoTracking()
                 .Where(x => x.ReportId == report.Id).ToArrayAsync(cancellationToken);
-        Guid[] confirmedTeams = report?.Status is not (MatchStatisticsStatus.Submitted or MatchStatisticsStatus.Confirmed or MatchStatisticsStatus.Awarded)
-            ? []
-            : await database.StatisticsConfirmations.AsNoTracking()
+        var confirmedTeamsTask = report?.Status is not (MatchStatisticsStatus.Submitted or MatchStatisticsStatus.Confirmed or MatchStatisticsStatus.Awarded)
+            ? Task.FromResult(Array.Empty<Guid>())
+            : confirmationsDatabase.StatisticsConfirmations.AsNoTracking()
                 .Where(x => x.ReportId == report.Id && x.Decision == StatisticsConfirmationDecision.Confirmed)
                 .Select(x => x.TeamId).ToArrayAsync(cancellationToken);
+        await Task.WhenAll(namesTask, statisticsTask, scoresTask, confirmedTeamsTask);
+        var names = await namesTask;
+        var statistics = await statisticsTask;
+        var scores = await scoresTask;
+        var confirmedTeams = await confirmedTeamsTask;
         var statisticLookup = statistics.ToDictionary(x => x.PlayerProfileId);
         var scoreLookup = scores.ToDictionary(x => x.PlayerProfileId);
         var players = humans.Select(x =>
@@ -509,6 +525,13 @@ public sealed class PerformanceStatisticsService(
 
     private Task<Match?> LoadMatchAsync(Guid matchId, CancellationToken cancellationToken) =>
         database.Matches.Include(x => x.Teams).ThenInclude(x => x.Participants)
+            .SingleOrDefaultAsync(x => x.Id == matchId, cancellationToken);
+
+    private static Task<Match?> LoadMatchForReadAsync(
+        AgeNexusDbContext context,
+        Guid matchId,
+        CancellationToken cancellationToken) =>
+        context.Matches.AsNoTracking().Include(x => x.Teams).ThenInclude(x => x.Participants)
             .SingleOrDefaultAsync(x => x.Id == matchId, cancellationToken);
 
     private static Dictionary<Guid, Guid> HumanParticipantTeams(Match match) =>

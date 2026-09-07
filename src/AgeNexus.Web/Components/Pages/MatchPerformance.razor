@@ -361,10 +361,13 @@ else
     protected override async Task OnParametersSetAsync()
     {
         var authentication = await AuthenticationStateTask;
-        CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
         EvidenceGallery = null;
         LoadEvidenceAfterRender = true;
-        await ReloadAsync();
+        var profileTask = Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+        var performanceTask = PerformanceService.GetAsync(MatchId);
+        await Task.WhenAll(profileTask, performanceTask);
+        CurrentProfile = await profileTask;
+        ApplyPerformanceView(await performanceTask);
         if (NewMatch == "1" && View?.ReportId is null)
         {
             Message = "Partida registrada. Agora transcreva as estatísticas finais de cada jogador e salve o relatório.";
@@ -374,7 +377,12 @@ else
 
     private async Task ReloadAsync()
     {
-        View = await PerformanceService.GetAsync(MatchId);
+        ApplyPerformanceView(await PerformanceService.GetAsync(MatchId));
+    }
+
+    private void ApplyPerformanceView(AgeNexus.Application.MatchPerformance.PerformanceReportView? view)
+    {
+        View = view;
         Rows.Clear();
         if (View is null)
         {
