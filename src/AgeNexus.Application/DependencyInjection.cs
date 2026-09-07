@@ -14,6 +14,7 @@ public static class DependencyInjection
         services.AddSingleton<ICareerPointCalculator, CareerPointCalculator>();
         services.AddSingleton<IPvePointCalculator, PvePointCalculator>();
         services.AddSingleton<IPerformanceCalculator, PerformanceCalculator>();
+        services.AddSingleton<AgeExtractorJsonImporter>();
         return services;
     }
 }

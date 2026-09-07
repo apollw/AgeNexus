@@ -124,12 +124,17 @@ public sealed class PerformanceStatisticsService(
 
                 report = new MatchStatisticsReport(
                     Guid.NewGuid(), request.MatchId, request.SubmittedByPlayerProfileId,
-                    request.Source, DateTimeOffset.UtcNow);
+                    request.Source, DateTimeOffset.UtcNow,
+                    coverageDetails: request.Source == MatchStatisticsSource.JsonImport ? request.ImportDetails : null);
                 database.MatchStatisticsReports.Add(report);
             }
             else if (report.Status != MatchStatisticsStatus.Draft)
             {
                 return PerformanceOperationResult.Failure("ReportIsLocked");
+            }
+            else if (request.Source == MatchStatisticsSource.JsonImport && request.ImportDetails is not null)
+            {
+                report.ApplyJsonImport(request.ImportDetails);
             }
 
             var existing = await database.PlayerMatchStatistics
@@ -137,9 +142,12 @@ public sealed class PerformanceStatisticsService(
                 .ToDictionaryAsync(x => x.PlayerProfileId, cancellationToken);
             foreach (var submitted in request.Players)
             {
-                var origin = request.Source == MatchStatisticsSource.ScreenshotTranscription
-                    ? StatisticValueOrigin.Screenshot
-                    : submitted.Origin;
+                var origin = request.Source switch
+                {
+                    MatchStatisticsSource.ScreenshotTranscription => StatisticValueOrigin.Screenshot,
+                    MatchStatisticsSource.JsonImport => StatisticValueOrigin.JsonImport,
+                    _ => submitted.Origin
+                };
                 if (existing.TryGetValue(submitted.PlayerProfileId, out var statistic))
                 {
                     statistic.Apply(submitted.Values, origin);

@@ -5,7 +5,8 @@ public enum MatchStatisticsSource
     Replay,
     ReplayWithManualCompletion,
     ScreenshotTranscription,
-    Manual
+    Manual,
+    JsonImport
 }
 
 public enum MatchStatisticsStatus
@@ -23,7 +24,8 @@ public enum StatisticValueOrigin
     Calculated,
     Estimated,
     Manual,
-    Screenshot
+    Screenshot,
+    JsonImport
 }
 
 public enum StatisticsConfirmationDecision
