@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService PerformanceService
+@inject AgeNexus.Application.MatchPerformance.AgeExtractorJsonImporter JsonImporter
 @inject AgeNexus.Application.Evidence.IMatchEvidenceService EvidenceService
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
@@ -45,6 +46,112 @@ else
             }
         </section>
 
+        <section class="panel profile-form-card json-import">
+            <header class="panel-header">
+                <div><span class="eyebrow">AgeExtractor</span><h2>Importar resultado JSON</h2></div>
+                @if (JsonImportResult is not null)
+                {
+                    <button class="table-action-button" type="button" @onclick="ClearJsonImport">Limpar</button>
+                }
+            </header>
+            <p>Envie o arquivo <code>resultado.json</code> gerado pelo AgeExtractor ou cole abaixo seu conteúdo completo. O arquivo pode ter outro nome.</p>
+            <div class="json-import-inputs">
+                <label class="json-file-picker">
+                    <span>Selecionar arquivo JSON</span>
+                    <InputFile OnChange="ReadJsonFileAsync" accept=".json,application/json" disabled="@Busy" />
+                    <small>@(JsonFileName ?? "Nenhum arquivo selecionado")</small>
+                </label>
+                <span class="json-import-or">ou</span>
+                <label class="form-field json-paste-field">
+                    <span>Colar JSON</span>
+                    <InputTextArea @bind-Value="JsonText" placeholder="Cole aqui o conteúdo completo, incluindo quantidade_jogadores e jogadores." disabled="@Busy" />
+                </label>
+            </div>
+            <div class="performance-actions json-import-actions">
+                <button class="button button-secondary" type="button" @onclick="AnalyzeJsonImport" disabled="@Busy">Validar JSON</button>
+            </div>
+
+            @if (JsonImportResult is not null)
+            {
+                <div class="json-import-summary json-import-@JsonImportResult.Status.ToString().ToLowerInvariant()">
+                    <strong>@JsonImportSummary</strong>
+                    <span>@JsonImportResult.Players.Count jogador(es) identificado(s) · @JsonImportResult.Issues.Count problema(s) · @JsonImportResult.Normalizations.Count normalização(ões)</span>
+                </div>
+
+                @if (JsonImportResult.CanApply)
+                {
+                    var totalLeader = JsonImportResult.Players.Where(x => x.Values.TotalScore.HasValue).OrderByDescending(x => x.Values.TotalScore).FirstOrDefault();
+                    var militaryLeader = JsonImportResult.Players.Where(x => x.Values.UnitsKilled.HasValue).OrderByDescending(x => x.Values.UnitsKilled).FirstOrDefault();
+                    var economyLeader = JsonImportResult.Players.Where(x => ResourceTotal(x.Values).HasValue).OrderByDescending(x => ResourceTotal(x.Values)).FirstOrDefault();
+                    <div class="json-import-highlights">
+                        <div><small>Maior pontuação</small><strong>@PlayerMetric(totalLeader, x => x.TotalScore)</strong></div>
+                        <div><small>Mais eliminações</small><strong>@PlayerMetric(militaryLeader, x => x.UnitsKilled)</strong></div>
+                        <div><small>Mais recursos</small><strong>@ResourceMetric(economyLeader)</strong></div>
+                    </div>
+                    <div class="json-comparison-wrap">
+                        <table class="json-comparison">
+                            <thead><tr><th>Posição</th><th>Pontuação</th><th>Eliminações</th><th>Perdas</th><th>Saldo</th><th>4 recursos</th><th>Feudal</th></tr></thead>
+                            <tbody>
+                                @foreach (var player in JsonImportResult.Players.OrderBy(x => x.PlayerNumber))
+                                {
+                                    <tr>
+                                        <th>Jogador @player.PlayerNumber</th>
+                                        <td>@FormatNumber(player.Values.TotalScore)</td>
+                                        <td>@FormatNumber(player.Values.UnitsKilled)</td>
+                                        <td>@FormatNumber(player.Values.UnitsLost)</td>
+                                        <td>@UnitBalance(player.Values)</td>
+                                        <td>@FormatNumber(ResourceTotal(player.Values))</td>
+                                        <td>@FormatEra(player.Values.FeudalAgeSeconds)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                @if (JsonImportResult.CanApply)
+                {
+                    <div class="json-player-mapping">
+                        <header><strong>Associe as posições aos participantes</strong><small>Confira a ordem exibida pelo AgeExtractor antes de preencher o formulário.</small></header>
+                        @foreach (var mapping in JsonMappings.OrderBy(x => x.PlayerNumber))
+                        {
+                            <label class="form-field">
+                                <span>Jogador @mapping.PlayerNumber</span>
+                                <InputSelect @bind-Value="mapping.PlayerProfileId">
+                                    <option value="">Selecione um participante</option>
+                                    @foreach (var row in Rows)
+                                    {
+                                        <option value="@row.PlayerProfileId">@row.DisplayName · equipe @row.TeamPosition</option>
+                                    }
+                                </InputSelect>
+                            </label>
+                        }
+                    </div>
+                    <button class="button button-primary" type="button" @onclick="ApplyJsonImport" disabled="@Busy">Preencher estatísticas</button>
+                }
+
+                @if (JsonImportResult.Issues.Count > 0)
+                {
+                    <details class="json-import-issues" open="@(JsonImportResult.Status == AgeNexus.Application.MatchPerformance.JsonImportStatus.Invalid)">
+                        <summary>Revisar problemas encontrados</summary>
+                        <div class="json-issue-list">
+                            @foreach (var issue in JsonImportResult.Issues)
+                            {
+                                <article class="json-issue json-issue-@issue.Severity.ToString().ToLowerInvariant()">
+                                    <strong>@(issue.PlayerNumber.HasValue ? $"Jogador {issue.PlayerNumber}" : "Documento") · @issue.Path</strong>
+                                    <span>@issue.Reason @issue.Effect</span>
+                                    @if (!string.IsNullOrWhiteSpace(issue.OriginalValue))
+                                    {
+                                        <code>@issue.OriginalValue</code>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    </details>
+                }
+            }
+        </section>
+
         <EditForm Model="Rows">
         <section class="panel profile-form-card">
             <header class="panel-header">
@@ -52,6 +159,10 @@ else
                 <InputSelect @bind-Value="Source" disabled="@(View.Source is AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Replay or AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.ReplayWithManualCompletion)">
                     <option value="@AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Manual">Manual confirmada</option>
                     <option value="@AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.ScreenshotTranscription">Transcrição de capturas</option>
+                    @if (Source == AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.JsonImport)
+                    {
+                        <option value="@AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.JsonImport">JSON do AgeExtractor</option>
+                    }
                 </InputSelect>
             </header>
             <p class="performance-guidance">Marque exatamente um MVP por equipe, conforme indicado pelo jogo. O Age Nexus usa essa escolha manual ao conceder os bônus.</p>
@@ -102,6 +213,7 @@ else
                             <label class="form-field"><span>Maravilhas construídas</span><InputNumber @bind-Value="row.WondersBuilt" /></label>
                             <label class="form-field"><span>Castelos construídos</span><InputNumber @bind-Value="row.CastlesBuilt" /></label>
                             <label class="form-field"><span>Relíquias capturadas</span><InputNumber @bind-Value="row.RelicsCaptured" /></label>
+                            <label class="form-field"><span>Sobreviveu até o fim</span><InputSelect @bind-Value="row.Survived"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></InputSelect></label>
                             <label class="form-field"><span>Pontuação social *</span><InputNumber @bind-Value="row.SocietyScore" /></label>
                             <label class="form-field"><span>Pontuação total *</span><InputNumber @bind-Value="row.TotalScore" /></label>
                         </fieldset>
@@ -220,6 +332,19 @@ else
     private bool HasError { get; set; }
     private bool Busy { get; set; }
     private string YouTubeUrl { get; set; } = string.Empty;
+    private string JsonText { get; set; } = string.Empty;
+    private string? JsonFileName { get; set; }
+    private string? JsonFileContent { get; set; }
+    private string? JsonImportDetails { get; set; }
+    private AgeNexus.Application.MatchPerformance.AgeExtractorJsonImportResult? JsonImportResult { get; set; }
+    private List<JsonPlayerMapping> JsonMappings { get; } = [];
+
+    private string JsonImportSummary => JsonImportResult?.Status switch
+    {
+        AgeNexus.Application.MatchPerformance.JsonImportStatus.Valid => "JSON válido e pronto para revisão.",
+        AgeNexus.Application.MatchPerformance.JsonImportStatus.Partial => "JSON carregado parcialmente. Revise os campos indisponíveis.",
+        _ => "O JSON não pode ser importado."
+    };
 
     private AgeNexus.Application.Evidence.MatchEvidenceItem? EvidenceVideo => EvidenceGallery?.Items
         .FirstOrDefault(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.VideoLink);
@@ -392,6 +517,135 @@ else
         }
     }
 
+    private async Task ReadJsonFileAsync(InputFileChangeEventArgs args)
+    {
+        Busy = true;
+        try
+        {
+            await using var input = args.File.OpenReadStream(1024 * 1024);
+            using var reader = new StreamReader(input, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            JsonFileContent = await reader.ReadToEndAsync();
+            JsonFileName = args.File.Name;
+            JsonImportResult = null;
+            JsonMappings.Clear();
+            Message = $"Arquivo {args.File.Name} carregado. Clique em Validar JSON.";
+            HasError = false;
+        }
+        catch (IOException)
+        {
+            JsonFileContent = null;
+            JsonFileName = null;
+            Message = "O JSON excede o limite de 1 MB ou não pôde ser lido.";
+            HasError = true;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private void AnalyzeJsonImport()
+    {
+        var hasFile = !string.IsNullOrWhiteSpace(JsonFileContent);
+        var hasText = !string.IsNullOrWhiteSpace(JsonText);
+        if (hasFile == hasText)
+        {
+            Message = hasFile
+                ? "Escolha somente uma entrada: remova o arquivo ou apague o JSON colado."
+                : "Selecione um arquivo JSON ou cole seu conteúdo completo.";
+            HasError = true;
+            return;
+        }
+
+        JsonImportResult = JsonImporter.Import(hasFile ? JsonFileContent! : JsonText);
+        JsonMappings.Clear();
+        if (JsonImportResult.CanApply)
+        {
+            JsonMappings.AddRange(JsonImportResult.Players.OrderBy(x => x.PlayerNumber).Select((player, index) =>
+                new JsonPlayerMapping
+                {
+                    PlayerNumber = player.PlayerNumber,
+                    PlayerProfileId = index < Rows.Count ? Rows[index].PlayerProfileId : null
+                }));
+        }
+        HasError = JsonImportResult.Status == AgeNexus.Application.MatchPerformance.JsonImportStatus.Invalid;
+        Message = JsonImportSummary;
+    }
+
+    private void ApplyJsonImport()
+    {
+        if (JsonImportResult?.CanApply != true)
+        {
+            return;
+        }
+        if (JsonImportResult.PlayerCount != Rows.Count)
+        {
+            Message = $"O JSON contém {JsonImportResult.PlayerCount} jogadores, mas a partida possui {Rows.Count} participantes humanos.";
+            HasError = true;
+            return;
+        }
+        if (JsonMappings.Any(x => !x.PlayerProfileId.HasValue) ||
+            JsonMappings.Select(x => x.PlayerProfileId).Distinct().Count() != JsonMappings.Count)
+        {
+            Message = "Associe cada posição a um participante diferente da partida.";
+            HasError = true;
+            return;
+        }
+
+        foreach (var imported in JsonImportResult.Players)
+        {
+            var mapping = JsonMappings.Single(x => x.PlayerNumber == imported.PlayerNumber);
+            Rows.Single(x => x.PlayerProfileId == mapping.PlayerProfileId).Apply(imported.Values);
+        }
+
+        Source = AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.JsonImport;
+        JsonImportDetails = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            format = "AgeExtractor",
+            importedAtUtc = DateTimeOffset.UtcNow,
+            originalJson = JsonImportResult.OriginalJson,
+            issues = JsonImportResult.Issues,
+            normalizations = JsonImportResult.Normalizations
+        });
+        HasError = false;
+        Message = JsonImportResult.Status == AgeNexus.Application.MatchPerformance.JsonImportStatus.Partial
+            ? "Estatísticas disponíveis preenchidas. Revise os campos vazios indicados antes de salvar."
+            : "Todas as estatísticas do JSON foram preenchidas. Confira os participantes e informe o MVP de cada equipe.";
+    }
+
+    private void ClearJsonImport()
+    {
+        JsonText = string.Empty;
+        JsonFileName = null;
+        JsonFileContent = null;
+        JsonImportResult = null;
+        JsonMappings.Clear();
+    }
+
+    private static decimal? ResourceTotal(AgeNexus.Domain.MatchPerformance.MatchStatisticValues values) =>
+        values.FoodCollected.HasValue && values.WoodCollected.HasValue && values.GoldCollected.HasValue && values.StoneCollected.HasValue
+            ? (decimal)values.FoodCollected.Value + values.WoodCollected.Value + values.GoldCollected.Value + values.StoneCollected.Value
+            : null;
+
+    private static string UnitBalance(AgeNexus.Domain.MatchPerformance.MatchStatisticValues values) =>
+        values.UnitsKilled.HasValue && values.UnitsLost.HasValue
+            ? (values.UnitsKilled.Value - values.UnitsLost.Value).ToString("+#,0;-#,0;0")
+            : "—";
+
+    private static string FormatNumber(int? value) => value?.ToString("N0") ?? "—";
+    private static string FormatNumber(decimal? value) => value?.ToString("N0") ?? "—";
+    private static string FormatEra(int? seconds) => seconds.HasValue
+        ? $"{seconds.Value / 3600:00}:{seconds.Value % 3600 / 60:00}:{seconds.Value % 60:00}"
+        : "—";
+
+    private static string PlayerMetric(
+        AgeNexus.Application.MatchPerformance.ImportedPlayerStatistics? player,
+        Func<AgeNexus.Domain.MatchPerformance.MatchStatisticValues, int?> selector) =>
+        player is null ? "Sem dados" : $"Jogador {player.PlayerNumber} · {FormatNumber(selector(player.Values))}";
+
+    private static string ResourceMetric(AgeNexus.Application.MatchPerformance.ImportedPlayerStatistics? player) =>
+        player is null ? "Sem dados" : $"Jogador {player.PlayerNumber} · {FormatNumber(ResourceTotal(player.Values))}";
+
     private async Task SaveAsync()
     {
         if (CurrentProfile is null)
@@ -412,7 +666,8 @@ else
             CurrentProfile.Id,
             Source,
             Rows.Select(x => new AgeNexus.Application.MatchPerformance.SavePlayerStatistics(
-                x.PlayerProfileId, x.ToValues(), AgeNexus.Domain.MatchPerformance.StatisticValueOrigin.Manual)).ToArray()));
+                x.PlayerProfileId, x.ToValues(), AgeNexus.Domain.MatchPerformance.StatisticValueOrigin.Manual)).ToArray(),
+            JsonImportDetails));
         SetResult(result, "Rascunho salvo.");
         await ReloadAsync();
         Busy = false;
@@ -549,6 +804,7 @@ else
         public int? CastlesBuilt { get; set; }
         public int? RelicsCaptured { get; set; }
         public bool IsTeamMvp { get; set; }
+        public bool? Survived { get; set; }
         public bool HasValidEraTimes => FeudalAge.IsValid && CastleAge.IsValid && ImperialAge.IsValid;
 
         public static PlayerForm From(AgeNexus.Application.MatchPerformance.PerformancePlayerView view, int teamPosition)
@@ -575,8 +831,29 @@ else
                 Eapm = value.EffectiveActionsPerMinute,
                 ResearchPercent = value.ResearchPercent, WondersBuilt = value.WondersBuilt,
                 CastlesBuilt = value.CastlesBuilt, RelicsCaptured = value.RelicsCaptured,
-                IsTeamMvp = value.IsTeamMvp
+                IsTeamMvp = value.IsTeamMvp, Survived = value.Survived
             };
+        }
+
+        public void Apply(AgeNexus.Domain.MatchPerformance.MatchStatisticValues value)
+        {
+            UnitsKilled = value.UnitsKilled; UnitsLost = value.UnitsLost;
+            BuildingsDestroyed = value.BuildingsDestroyed; BuildingsLost = value.BuildingsLost;
+            LargestArmy = value.LargestArmy; PeakVillagers = value.PeakVillagers;
+            FoodCollected = value.FoodCollected; WoodCollected = value.WoodCollected;
+            GoldCollected = value.GoldCollected; StoneCollected = value.StoneCollected;
+            MilitaryScore = value.MilitaryScore; EconomyScore = value.EconomyScore;
+            TechnologyScore = value.TechnologyScore; SocietyScore = value.SocietyScore;
+            TotalScore = value.TotalScore; UnitsConverted = value.UnitsConverted;
+            TradeGold = value.TradeGold; RelicGold = value.RelicGold;
+            TributeSent = value.TributeSent; TributeReceived = value.TributeReceived;
+            ResearchCount = value.ResearchCount; ExploredPercent = value.ExploredPercent;
+            FeudalAge = EraTimeForm.FromTotalSeconds(value.FeudalAgeSeconds);
+            CastleAge = EraTimeForm.FromTotalSeconds(value.CastleAgeSeconds);
+            ImperialAge = EraTimeForm.FromTotalSeconds(value.ImperialAgeSeconds);
+            ResearchPercent = value.ResearchPercent; WondersBuilt = value.WondersBuilt;
+            CastlesBuilt = value.CastlesBuilt; RelicsCaptured = value.RelicsCaptured;
+            Survived = value.Survived;
         }
 
         public AgeNexus.Domain.MatchPerformance.MatchStatisticValues ToValues() => new(
@@ -585,7 +862,13 @@ else
             TechnologyScore, SocietyScore, TotalScore, UnitsConverted, TradeGold, RelicGold,
             TributeSent, TributeReceived, ResearchCount, ExploredPercent,
             FeudalAge.ToTotalSeconds(), CastleAge.ToTotalSeconds(), ImperialAge.ToTotalSeconds(),
-            Eapm, ResearchPercent, WondersBuilt, CastlesBuilt, RelicsCaptured, IsTeamMvp);
+            Eapm, ResearchPercent, WondersBuilt, CastlesBuilt, RelicsCaptured, IsTeamMvp, Survived);
+    }
+
+    private sealed class JsonPlayerMapping
+    {
+        public int PlayerNumber { get; init; }
+        public Guid? PlayerProfileId { get; set; }
     }
 
     public sealed class EraTimeForm
