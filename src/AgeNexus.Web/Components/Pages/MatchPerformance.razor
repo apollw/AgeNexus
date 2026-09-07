@@ -338,6 +338,7 @@ else
     private string? JsonImportDetails { get; set; }
     private AgeNexus.Application.MatchPerformance.AgeExtractorJsonImportResult? JsonImportResult { get; set; }
     private List<JsonPlayerMapping> JsonMappings { get; } = [];
+    private bool LoadEvidenceAfterRender { get; set; }
 
     private string JsonImportSummary => JsonImportResult?.Status switch
     {
@@ -361,6 +362,8 @@ else
     {
         var authentication = await AuthenticationStateTask;
         CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+        EvidenceGallery = null;
+        LoadEvidenceAfterRender = true;
         await ReloadAsync();
         if (NewMatch == "1" && View?.ReportId is null)
         {
@@ -371,12 +374,7 @@ else
 
     private async Task ReloadAsync()
     {
-        var performanceTask = PerformanceService.GetAsync(MatchId);
-        var evidenceTask = EvidenceService.GetAsync(MatchId);
-        await Task.WhenAll(performanceTask, evidenceTask);
-        View = await performanceTask;
-        EvidenceGallery = await evidenceTask;
-        YouTubeUrl = EvidenceVideo?.Url ?? string.Empty;
+        View = await PerformanceService.GetAsync(MatchId);
         Rows.Clear();
         if (View is null)
         {
@@ -386,6 +384,26 @@ else
         Source = View.Source ?? AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Manual;
         var positions = View.Players.Select(x => x.TeamId).Distinct().Select((id, index) => (id, index: index + 1)).ToDictionary(x => x.id, x => x.index);
         Rows.AddRange(View.Players.Select(x => PlayerForm.From(x, positions[x.TeamId])));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!LoadEvidenceAfterRender)
+        {
+            return;
+        }
+
+        LoadEvidenceAfterRender = false;
+        var evidenceMatchId = MatchId;
+        var gallery = await EvidenceService.GetAsync(evidenceMatchId);
+        if (MatchId != evidenceMatchId)
+        {
+            return;
+        }
+
+        EvidenceGallery = gallery;
+        YouTubeUrl = EvidenceVideo?.Url ?? string.Empty;
+        StateHasChanged();
     }
 
     private async Task SaveYouTubeAsync()

@@ -33,7 +33,7 @@ public sealed class PerformanceStatisticsService(
             return null;
         }
 
-        var humans = match.Teams.SelectMany(team => team.Participants
+        var humans = match.Teams.OrderBy(team => team.Position).SelectMany(team => team.Participants
             .Where(x => x.Type == ParticipantType.Human)
             .Select(x => new { Team = team, PlayerId = x.PlayerProfileId!.Value })).ToArray();
         var playerIds = humans.Select(x => x.PlayerId).ToArray();
@@ -45,11 +45,11 @@ public sealed class PerformanceStatisticsService(
             ? []
             : await database.PlayerMatchStatistics.AsNoTracking()
                 .Where(x => x.ReportId == report.Id).ToArrayAsync(cancellationToken);
-        PlayerPerformanceScore[] scores = report is null
+        PlayerPerformanceScore[] scores = report?.Status != MatchStatisticsStatus.Awarded
             ? []
             : await database.PlayerPerformanceScores.AsNoTracking()
                 .Where(x => x.ReportId == report.Id).ToArrayAsync(cancellationToken);
-        Guid[] confirmedTeams = report is null
+        Guid[] confirmedTeams = report?.Status is not (MatchStatisticsStatus.Submitted or MatchStatisticsStatus.Confirmed or MatchStatisticsStatus.Awarded)
             ? []
             : await database.StatisticsConfirmations.AsNoTracking()
                 .Where(x => x.ReportId == report.Id && x.Decision == StatisticsConfirmationDecision.Confirmed)
