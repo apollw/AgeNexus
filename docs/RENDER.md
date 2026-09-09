@@ -54,7 +54,7 @@ Não remova a URI local enquanto ainda quiser executar o projeto no computador.
 
 ## Contas e permissões
 
-O modo `SingleAdministrator` mantém o cadastro por senha restrito, enquanto `AllowGooglePlayerLogin` libera contas Google de jogadores. A conta mais antiga é promovida uma única vez à função `Administrator`; somente ela registra ou exclui partidas, altera estatísticas, envia evidências e gerencia participantes.
+A autenticação é exclusivamente pelo Google; não existem formulários nem endpoints de cadastro ou login por senha. `AllowGooglePlayerLogin` controla a entrada de novas contas Google. A conta mais antiga é promovida uma única vez à função `Administrator`; somente ela registra ou exclui partidas, altera estatísticas, envia evidências e gerencia participantes. O modo `SingleAdministrator` continua controlando os fluxos competitivos que dependem dessa administração centralizada.
 
 Cada novo jogador escolhe um nick histórico para solicitar vinculação ou cria um perfil novo. Solicitações aparecem em `/jogadores/gerenciar` e só transferem o histórico após aprovação do administrador. Perfis manuais não vinculados continuam disponíveis para partidas futuras.
 

@@ -78,15 +78,13 @@ Abra no navegador exatamente o endereço exibido. A página inicial mostrará o 
 
 Os fluxos de conta ficam em:
 
-- `/conta/criar` — criação de usuário e perfil;
-- `/conta/login` — entrada na conta;
+- `/conta/criar` — criação de conta exclusivamente pelo Google;
+- `/conta/login` — entrada exclusivamente pelo Google;
 - `/conta/vincular-perfil` — escolha de um nick histórico ou criação de um novo jogador;
 - `/perfil` — personalização de nick, localização, foto, civilização favorita e bio;
 - `/jogadores/{id}` — perfil público, histórico, civilizações usadas e recordes relevantes.
 
-A senha deve ter no mínimo 10 caracteres e incluir letra maiúscula, minúscula, número e símbolo.
-
-## Login com Google
+## Autenticação exclusiva com Google
 
 Crie um cliente OAuth do tipo **Aplicativo da Web** no Google Cloud. Cadastre como URI de redirecionamento:
 
@@ -108,6 +106,8 @@ https://SEU_DOMINIO/signin-google
 ```
 
 O sufixo `/signin-google` pertence ao middleware OAuth e não deve ser alterado. As credenciais nunca devem ser gravadas no `appsettings.json` nem enviadas ao Git.
+
+O Age Nexus não expõe cadastro nem login por e-mail e senha. As páginas `/conta/criar` e `/conta/login` iniciam o mesmo fluxo seguro do Google; sem as duas credenciais OAuth configuradas, nenhum novo acesso poderá ser concluído.
 
 Novas contas Google podem entrar como jogadores, mas não recebem permissão administrativa. Se o nick já existir no histórico, o jogador solicita a vinculação e a conta administradora aprova em `/jogadores/gerenciar`. Se o nick ainda não existir, ele pode criar um perfil novo. A conta mais antiga recebe a função `Administrator` automaticamente; depois da primeira publicação desta versão, ela deve sair e entrar novamente para renovar o cookie com essa função.
 

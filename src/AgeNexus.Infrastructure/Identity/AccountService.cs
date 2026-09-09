@@ -27,79 +27,6 @@ public sealed class AccountService(
     public const string GoogleEmailVerifiedClaim = "urn:agenexus:google:email_verified";
     public const string GoogleHostedDomainClaim = "urn:agenexus:google:hosted_domain";
 
-    public async Task<AccountOperationResult> RegisterAsync(
-        string email,
-        string password,
-        string displayName,
-        CancellationToken cancellationToken)
-    {
-        if (!await IsRegistrationOpenAsync(cancellationToken))
-        {
-            return AccountOperationResult.Failure(["RegistrationClosed"]);
-        }
-
-        var normalizedEmail = email.Trim();
-        var strategy = database.Database.CreateExecutionStrategy();
-        ApplicationUser? createdUser = null;
-
-        var result = await strategy.ExecuteAsync(async () =>
-        {
-            await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
-            var user = new ApplicationUser(normalizedEmail);
-            var identityResult = await userManager.CreateAsync(user, password);
-
-            if (!identityResult.Succeeded)
-            {
-                return AccountOperationResult.Failure(identityResult.Errors.Select(x => x.Code));
-            }
-
-            try
-            {
-                database.PlayerProfiles.Add(new PlayerProfile(Guid.NewGuid(), displayName, user.Id));
-            }
-            catch (DomainRuleException)
-            {
-                return AccountOperationResult.Failure(["InvalidProfile"]);
-            }
-
-            await database.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-            createdUser = user;
-            return AccountOperationResult.Success();
-        });
-
-        if (result.Succeeded)
-        {
-            await EnsureAdministratorRoleAsync(cancellationToken);
-            await signInManager.SignInAsync(createdUser!, isPersistent: false);
-        }
-
-        return result;
-    }
-
-    public async Task<AccountOperationResult> LoginAsync(string email, string password, bool rememberMe)
-    {
-        var user = await userManager.FindByEmailAsync(email.Trim());
-        if (user is null)
-        {
-            return AccountOperationResult.Failure(["InvalidCredentials"]);
-        }
-
-        var result = await signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
-        if (result.IsLockedOut)
-        {
-            return AccountOperationResult.Failure(["LockedOut"]);
-        }
-
-        if (!result.Succeeded)
-        {
-            return AccountOperationResult.Failure(["InvalidCredentials"]);
-        }
-
-        await signInManager.SignInAsync(user, rememberMe);
-        return AccountOperationResult.Success();
-    }
-
     public Task LogoutAsync() => signInManager.SignOutAsync();
 
     public AuthenticationProperties ConfigureExternalLogin(string redirectUrl) =>
@@ -282,9 +209,6 @@ public sealed class AccountService(
             return AccountOperationResult.Failure(["InvalidProfile"]);
         }
     }
-
-    public async Task<bool> IsRegistrationOpenAsync(CancellationToken cancellationToken = default) =>
-        !SingleAdministratorMode || !await userManager.Users.AnyAsync(cancellationToken);
 
     public bool IsGooglePlayerLoginOpen => AllowGooglePlayerLogin;
 
@@ -705,8 +629,6 @@ public sealed class AccountService(
             return AccountOperationResult.Failure(["InvalidProfile"]);
         }
     }
-
-    private bool SingleAdministratorMode => configuration.GetValue("OperatingMode:SingleAdministrator", true);
 
     private bool AllowGooglePlayerLogin =>
         configuration.GetValue("OperatingMode:AllowGooglePlayerLogin", true);
