@@ -10,7 +10,12 @@
             Continuar com Google
         </button>
     </form>
-    <div class="account-divider"><span>ou</span></div>
+}
+else
+{
+    <div class="form-alert form-alert-error" role="alert">
+        A autenticação com Google ainda não está configurada neste ambiente.
+    </div>
 }
 
 @code {
