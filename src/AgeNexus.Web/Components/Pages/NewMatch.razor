@@ -1,5 +1,5 @@
 @page "/partidas/nova"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Administrator")]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using System.ComponentModel.DataAnnotations
 @inject AgeNexus.Application.Matches.IMatchWorkflowService Workflow

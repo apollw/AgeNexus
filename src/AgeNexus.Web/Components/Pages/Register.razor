@@ -27,10 +27,13 @@
             <div class="form-alert form-alert-error" role="alert">@ErrorMessage</div>
         }
 
-        @if (RegistrationOpen)
+        @if (GoogleRegistrationOpen)
         {
             <GoogleSignIn ReturnUrl="@SafeReturnUrl" />
+        }
 
+        @if (RegistrationOpen)
+        {
             <form method="post" action="/account/register" class="account-form">
             <AntiforgeryToken />
             <input type="hidden" name="returnUrl" value="@SafeReturnUrl" />
@@ -65,9 +68,12 @@
         else
         {
             <div class="form-alert" role="status">
-                O Age Nexus está operando com uma única conta administradora. Os demais participantes são cadastrados como perfis sem login.
+                Contas com senha permanecem restritas à administração. Jogadores podem entrar com Google e vincular seu histórico.
             </div>
-            <a class="button button-primary account-submit" href="/conta/login">Entrar como administrador</a>
+            @if (!GoogleRegistrationOpen)
+            {
+                <a class="button button-primary account-submit" href="/conta/login">Voltar ao login</a>
+            }
         }
     </div>
 </section>
@@ -80,9 +86,13 @@
     private string? ReturnUrl { get; set; }
 
     private bool RegistrationOpen { get; set; }
+    private bool GoogleRegistrationOpen { get; set; }
 
-    protected override async Task OnInitializedAsync() =>
+    protected override async Task OnInitializedAsync()
+    {
         RegistrationOpen = await Accounts.IsRegistrationOpenAsync();
+        GoogleRegistrationOpen = Accounts.IsGooglePlayerLoginOpen;
+    }
 
     private string SafeReturnUrl => IsSafeLocalUrl(ReturnUrl) ? ReturnUrl! : "/perfil";
 
@@ -92,7 +102,7 @@
         "senha-fraca" => "A senha não atende aos requisitos de segurança.",
         "senhas-diferentes" => "A senha e a confirmação precisam ser iguais.",
         "cadastro-invalido" => "Revise os dados informados e tente novamente.",
-        "cadastro-fechado" => "O cadastro de novas contas está fechado. Somente a conta administradora pode acessar o sistema.",
+        "cadastro-fechado" => "O cadastro com senha está fechado. Use sua conta Google para entrar como jogador.",
         _ => null
     };
 

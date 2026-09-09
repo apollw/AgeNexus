@@ -1,5 +1,5 @@
 @page "/partidas/{MatchId:guid}/desempenho"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Administrator")]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService PerformanceService
 @inject AgeNexus.Application.MatchPerformance.AgeExtractorJsonImporter JsonImporter

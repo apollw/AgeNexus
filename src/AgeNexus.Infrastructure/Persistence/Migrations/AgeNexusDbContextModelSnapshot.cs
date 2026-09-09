@@ -1386,6 +1386,60 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfileClaim", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ApplicationUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("application_user_id");
+
+                    b.Property<DateTimeOffset?>("DecidedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at_utc");
+
+                    b.Property<Guid?>("DecidedByApplicationUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by_application_user_id");
+
+                    b.Property<Guid>("PlayerProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_profile_id");
+
+                    b.Property<DateTimeOffset>("RequestedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id")
+                        .HasName("pk_player_profile_claims");
+
+                    b.HasIndex("ApplicationUserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_profile_claims_pending_user")
+                        .HasFilter("status = 'Pending'");
+
+                    b.HasIndex("DecidedByApplicationUserId")
+                        .HasDatabaseName("ix_profile_claims_decider");
+
+                    b.HasIndex("PlayerProfileId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_profile_claims_pending_profile")
+                        .HasFilter("status = 'Pending'");
+
+                    b.HasIndex("Status", "RequestedAtUtc")
+                        .HasDatabaseName("ix_profile_claims_status_requested");
+
+                    b.ToTable("player_profile_claims", "public");
+                });
+
             modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2035,6 +2089,29 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_player_favorite_factions_player");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfileClaim", b =>
+                {
+                    b.HasOne("AgeNexus.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicationUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_profile_claims_user");
+
+                    b.HasOne("AgeNexus.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("DecidedByApplicationUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_profile_claims_decider");
+
+                    b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_profile_claims_profile");
                 });
 
             modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfile", b =>

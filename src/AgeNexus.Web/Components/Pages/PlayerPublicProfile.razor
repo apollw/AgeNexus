@@ -1,0 +1,146 @@
+@page "/jogadores/{PlayerId:guid}"
+@inject AgeNexus.Application.Queries.IPlayerPublicProfileQueryService Profiles
+@inject AgeNexus.Application.Queries.IGeneralStatisticsQueryService GeneralStatistics
+
+<PageTitle>@(Profile is null ? "Jogador" : Profile.DisplayName) · Age Nexus</PageTitle>
+
+@if (Profile is null)
+{
+    <section class="panel panel-empty page-empty"><strong>Jogador não encontrado.</strong><a class="button button-secondary" href="/jogadores">Voltar</a></section>
+}
+else
+{
+    <section class="panel public-profile-hero">
+        <div class="public-profile-identity">
+            @if (!string.IsNullOrWhiteSpace(Profile.AvatarUrl))
+            {
+                <img class="public-profile-avatar" src="@Profile.AvatarUrl" alt="Avatar de @Profile.DisplayName" />
+            }
+            else
+            {
+                <span class="avatar avatar-xxl">@Initials(Profile.DisplayName)</span>
+            }
+            <div>
+                <span class="eyebrow">Guerreiro do Nexus</span>
+                <h1>@Profile.DisplayName</h1>
+                @if (!string.IsNullOrWhiteSpace(Profile.Location))
+                {
+                    <span class="profile-location">⌖ @Profile.Location</span>
+                }
+                <p>@(string.IsNullOrWhiteSpace(Profile.Bio) ? "Este jogador ainda não escreveu sua crônica." : Profile.Bio)</p>
+            </div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Profile.FavoriteFactionName))
+        {
+            <aside class="public-profile-favorite">
+                @if (!string.IsNullOrWhiteSpace(Profile.FavoriteFactionImageUrl))
+                {
+                    <img src="@Profile.FavoriteFactionImageUrl" alt="" />
+                }
+                <span>Civilização favorita<strong>@Profile.FavoriteFactionName</strong></span>
+            </aside>
+        }
+    </section>
+
+    <section class="public-profile-stats stat-grid">
+        <article class="stat-card"><span>Rating competitivo</span><strong>@Profile.CompetitiveRating.ToString("N0")</strong><small>desempenho PvP</small></article>
+        <article class="stat-card"><span>Pontos de carreira</span><strong>@Profile.CareerPoints.ToString("N0")</strong><small>trajetória geral</small></article>
+        <article class="stat-card"><span>Aproveitamento</span><strong>@Profile.WinRate.ToString("0.##")%</strong><small>@Profile.Victories V · @Profile.Draws E · @Profile.Defeats D</small></article>
+        <article class="stat-card"><span>Partidas validadas</span><strong>@Profile.ValidatedMatches</strong><small>@Profile.PvePoints.ToString("N0") pontos contra IA</small></article>
+    </section>
+
+    <div class="public-profile-grid">
+        <section class="panel public-profile-section">
+            <header class="panel-header"><div><span class="eyebrow">Marcas pessoais</span><h2>Recordes relevantes</h2></div><span class="evidence-count">@Records.Count marcas</span></header>
+            @if (Records.Count == 0)
+            {
+                <div class="panel-empty"><p>As marcas aparecerão quando houver estatísticas confirmadas.</p></div>
+            }
+            else
+            {
+                <div class="profile-record-list">
+                    @foreach (var record in Records)
+                    {
+                        <article class="profile-record @(record.IsNegative ? "profile-record-negative" : null)">
+                            <span class="profile-record-rank">#@record.Position</span>
+                            <div><strong>@record.Title</strong><small>@record.Matches partida(s) contabilizada(s)</small></div>
+                            <b>@FormatValue(record.Value, record.ValueKind)</b>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="panel public-profile-section">
+            <header class="panel-header"><div><span class="eyebrow">Experiência militar</span><h2>Civilizações utilizadas</h2></div></header>
+            @if (Profile.Factions.Count == 0)
+            {
+                <div class="panel-empty"><p>Nenhuma civilização registrada em partidas validadas.</p></div>
+            }
+            else
+            {
+                <div class="profile-faction-list">
+                    @foreach (var faction in Profile.Factions.Take(8))
+                    {
+                        <article>
+                            @if (!string.IsNullOrWhiteSpace(faction.ImageUrl))
+                            {
+                                <img src="@faction.ImageUrl" alt="" />
+                            }
+                            <div><strong>@faction.Name</strong><small>@faction.Uses uso(s) · @faction.Victories vitória(s)</small></div>
+                            <b>@faction.WinRate.ToString("0.##")%</b>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid PlayerId { get; set; }
+
+    private AgeNexus.Application.Queries.PlayerPublicProfileDashboard? Profile { get; set; }
+    private IReadOnlyCollection<PlayerRecord> Records { get; set; } = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Profile = await Profiles.GetAsync(PlayerId);
+        if (Profile is null) return;
+
+        var dashboard = await GeneralStatistics.GetAsync(5);
+        Records = dashboard.Boards.SelectMany(board => board.Entries
+                .Where(entry => entry.PlayerId == PlayerId)
+                .Select(entry => new PlayerRecord(
+                    board.Title, entry.Position, entry.Value, entry.Matches, board.ValueKind,
+                    board.Key is "units-lost" or "buildings-lost")))
+            .OrderBy(x => x.Position).ThenBy(x => x.Title)
+            .ToArray();
+    }
+
+    private static string Initials(string name) => string.Concat(name
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
+
+    private static string FormatValue(decimal value, AgeNexus.Application.Queries.GeneralStatisticValueKind kind) => kind switch
+    {
+        AgeNexus.Application.Queries.GeneralStatisticValueKind.Percentage => $"{value:0.##}%",
+        AgeNexus.Application.Queries.GeneralStatisticValueKind.Duration => FormatDuration(value),
+        AgeNexus.Application.Queries.GeneralStatisticValueKind.Decimal => value.ToString("N1"),
+        _ => value.ToString("N0")
+    };
+
+    private static string FormatDuration(decimal value)
+    {
+        var seconds = Math.Max(0, decimal.ToInt32(decimal.Truncate(value)));
+        return $"{seconds / 3600:00}:{seconds % 3600 / 60:00}:{seconds % 60:00}";
+    }
+
+    private sealed record PlayerRecord(
+        string Title,
+        int Position,
+        decimal Value,
+        int Matches,
+        AgeNexus.Application.Queries.GeneralStatisticValueKind ValueKind,
+        bool IsNegative);
+}

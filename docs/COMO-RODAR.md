@@ -80,7 +80,9 @@ Os fluxos de conta ficam em:
 
 - `/conta/criar` — criação de usuário e perfil;
 - `/conta/login` — entrada na conta;
-- `/perfil` — personalização de nome público, localização, avatar e bio.
+- `/conta/vincular-perfil` — escolha de um nick histórico ou criação de um novo jogador;
+- `/perfil` — personalização de nick, localização, foto, civilização favorita e bio;
+- `/jogadores/{id}` — perfil público, histórico, civilizações usadas e recordes relevantes.
 
 A senha deve ter no mínimo 10 caracteres e incluir letra maiúscula, minúscula, número e símbolo.
 
@@ -106,6 +108,10 @@ https://SEU_DOMINIO/signin-google
 ```
 
 O sufixo `/signin-google` pertence ao middleware OAuth e não deve ser alterado. As credenciais nunca devem ser gravadas no `appsettings.json` nem enviadas ao Git.
+
+Novas contas Google podem entrar como jogadores, mas não recebem permissão administrativa. Se o nick já existir no histórico, o jogador solicita a vinculação e a conta administradora aprova em `/jogadores/gerenciar`. Se o nick ainda não existir, ele pode criar um perfil novo. A conta mais antiga recebe a função `Administrator` automaticamente; depois da primeira publicação desta versão, ela deve sair e entrar novamente para renovar o cookie com essa função.
+
+Fotos de perfil usam o mesmo Storage já configurado para evidências. O servidor aceita JPEG, PNG ou WebP de até 2 MB e grava no banco somente a URL pública, nunca o arquivo dentro do PostgreSQL.
 
 Para encerrar a aplicação, pressione `Ctrl+C` no terminal.
 

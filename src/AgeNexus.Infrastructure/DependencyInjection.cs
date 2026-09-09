@@ -90,7 +90,9 @@ public static class DependencyInjection
                 };
             });
         }
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+            options.AddPolicy(AccountService.AdministratorRole,
+                policy => policy.RequireRole(AccountService.AdministratorRole)));
 
         services.ConfigureApplicationCookie(options =>
         {
@@ -114,6 +116,7 @@ public static class DependencyInjection
         services.AddScoped<IRankingQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IMatchHistoryQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IPlayerDirectoryQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
+        services.AddScoped<IPlayerPublicProfileQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IGeneralStatisticsQueryService>(x => x.GetRequiredService<GeneralStatisticsQueryService>());
         services.AddScoped<IStatisticsQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IClanQueryService>(x => x.GetRequiredService<CompetitionQueryService>());

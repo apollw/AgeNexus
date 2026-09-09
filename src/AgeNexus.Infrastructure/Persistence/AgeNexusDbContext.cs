@@ -16,6 +16,7 @@ public sealed class AgeNexusDbContext(DbContextOptions<AgeNexusDbContext> option
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<PlayerProfile> PlayerProfiles => Set<PlayerProfile>();
+    public DbSet<PlayerProfileClaim> PlayerProfileClaims => Set<PlayerProfileClaim>();
     public DbSet<AiDifficulty> AiDifficulties => Set<AiDifficulty>();
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<MatchTeam> MatchTeams => Set<MatchTeam>();

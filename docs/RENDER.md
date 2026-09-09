@@ -32,6 +32,7 @@ Em produção, a aplicação executa somente as migrations pendentes uma vez dur
 | `ConnectionStrings__AgeNexus` | Connection string Npgsql do Session pooler |
 | `Authentication__Google__ClientId` | Client ID OAuth atual |
 | `Authentication__Google__ClientSecret` | Client secret OAuth armazenado somente como segredo |
+| `OperatingMode__AllowGooglePlayerLogin` | `true` para permitir novas contas Google de jogadores |
 | `Supabase__Url` | URL HTTPS do projeto Supabase |
 | `Supabase__ServiceRoleKey` | chave de serviço do Supabase, armazenada somente como segredo |
 
@@ -51,9 +52,13 @@ https://SEU_DOMINIO.onrender.com/signin-google
 
 Não remova a URI local enquanto ainda quiser executar o projeto no computador.
 
-## Funcionamento desta primeira versão
+## Contas e permissões
 
-O modo `SingleAdministrator` permanece ativo. Somente a conta administradora existente pode entrar e alterar dados. Os demais usuários acessam publicamente partidas, jogadores, rankings e estatísticas.
+O modo `SingleAdministrator` mantém o cadastro por senha restrito, enquanto `AllowGooglePlayerLogin` libera contas Google de jogadores. A conta mais antiga é promovida uma única vez à função `Administrator`; somente ela registra ou exclui partidas, altera estatísticas, envia evidências e gerencia participantes.
+
+Cada novo jogador escolhe um nick histórico para solicitar vinculação ou cria um perfil novo. Solicitações aparecem em `/jogadores/gerenciar` e só transferem o histórico após aprovação do administrador. Perfis manuais não vinculados continuam disponíveis para partidas futuras.
+
+Depois do primeiro deploy desta versão, o administrador deve sair e entrar novamente para que o cookie inclua a nova função. Os demais usuários podem editar somente o próprio nick, foto, localização, civilização favorita e bio.
 
 O plano gratuito pode suspender o serviço sem tráfego. O primeiro acesso depois da suspensão pode demorar, e os usuários autenticados podem precisar entrar novamente após reinicializações ou novos deploys.
 

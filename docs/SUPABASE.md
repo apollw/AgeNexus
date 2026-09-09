@@ -86,6 +86,10 @@ dotnet user-secrets set "Supabase:EvidenceBucket" "match-evidence" --project src
 
 A chave `service_role` ignora RLS e nunca deve ser exposta no navegador, enviada em conversa, registrada em logs ou adicionada ao Git. A aplicação envia as imagens ao Storage pelo servidor e grava apenas o caminho, hash e vínculo com a partida no PostgreSQL.
 
+## Fotos de perfil
+
+As fotos utilizam o mesmo bucket público, em objetos isolados pelo identificador do perfil. São aceitos JPEG, PNG e WebP de até 2 MB. Quando o jogador troca ou remove a foto, o backend também tenta apagar o objeto anterior pertencente àquele perfil. Apenas a URL pública fica em `player_profiles`; o upload passa sempre pelo servidor e nunca expõe a chave de serviço ao navegador.
+
 O schema da aplicação é controlado exclusivamente pelas [migrações do EF Core](EF-CORE.md). Não use `supabase db push` para alterar essas tabelas, pois isso criaria um segundo histórico de migrações concorrente.
 
 Referências oficiais: [CLI e desenvolvimento local](https://supabase.com/docs/guides/local-development/cli/getting-started), [fluxo de migrações](https://supabase.com/docs/guides/local-development/cli-workflows) e [conexões PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres).

@@ -1,5 +1,5 @@
 @page "/jogadores/gerenciar"
-@attribute [Authorize]
+@attribute [Authorize(Policy = "Administrator")]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using System.ComponentModel.DataAnnotations
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
@@ -21,6 +21,32 @@
 }
 
 <div class="managed-players-layout">
+    @if (Claims.Count > 0)
+    {
+        <section class="panel profile-form-card profile-claims-panel">
+            <header class="panel-header">
+                <div><span class="eyebrow">Vinculações pendentes</span><h2>@Claims.Count solicitação(ões)</h2></div>
+            </header>
+            <div class="managed-player-list">
+                @foreach (var claim in Claims)
+                {
+                    <article class="managed-player-row profile-claim-row" @key="claim.ClaimId">
+                        <span class="avatar">@claim.DisplayName[..1].ToUpperInvariant()</span>
+                        <div>
+                            <strong>@claim.DisplayName</strong>
+                            <small>@claim.AccountEmail</small>
+                            <small>Solicitado em @claim.RequestedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</small>
+                        </div>
+                        <div class="profile-claim-actions">
+                            <button class="button button-primary button-compact" type="button" @onclick="() => DecideClaimAsync(claim.ClaimId, true)" disabled="@Busy">Aprovar</button>
+                            <button class="table-action-button table-action-danger" type="button" @onclick="() => DecideClaimAsync(claim.ClaimId, false)" disabled="@Busy">Recusar</button>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+    }
+
     <section class="panel profile-form-card">
         <header class="panel-header">
             <div>
@@ -89,7 +115,7 @@
                         </div>
                         <div>
                             <strong>@profile.DisplayName</strong>
-                            <small>@(profile.HasUserAccount ? "Conta administradora · possui login" : "Participante manual · sem login")</small>
+                            <small>@(profile.HasUserAccount ? "Perfil vinculado a uma conta" : "Participante manual · disponível para vinculação")</small>
                             @if (!string.IsNullOrWhiteSpace(profile.Location))
                             {
                                 <small>@profile.Location</small>
@@ -111,6 +137,7 @@
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
 
     private IReadOnlyCollection<AgeNexus.Infrastructure.Identity.ManagedPlayerProfile> Profiles { get; set; } = [];
+    private IReadOnlyCollection<AgeNexus.Infrastructure.Identity.ManagedProfileClaim> Claims { get; set; } = [];
     private PlayerForm Form { get; set; } = new();
     private string? Message { get; set; }
     private bool HasError { get; set; }
@@ -122,6 +149,7 @@
     {
         var authentication = await AuthenticationStateTask;
         Profiles = await Accounts.GetManagedProfilesAsync(authentication.User);
+        Claims = await Accounts.GetPendingProfileClaimsAsync(authentication.User);
     }
 
     private async Task SaveAsync()
@@ -164,6 +192,19 @@
     }
 
     private void ResetForm() => Form = new PlayerForm();
+
+    private async Task DecideClaimAsync(Guid claimId, bool approve)
+    {
+        Busy = true;
+        var authentication = await AuthenticationStateTask;
+        var result = await Accounts.DecideProfileClaimAsync(authentication.User, claimId, approve);
+        HasError = !result.Succeeded;
+        Message = result.Succeeded
+            ? (approve ? "Perfil vinculado à conta." : "Solicitação recusada.")
+            : "Não foi possível decidir esta solicitação; talvez o perfil já tenha sido vinculado.";
+        await ReloadAsync();
+        Busy = false;
+    }
 
     private sealed class PlayerForm
     {

@@ -5,7 +5,7 @@
 
 <section class="page-heading compact-heading">
     <div><span class="eyebrow">Guerreiros do Nexus</span><h1>Jogadores</h1><p>Perfis, ratings e evolução em cada modalidade.</p></div>
-    <AuthorizeView>
+    <AuthorizeView Policy="Administrator">
         <Authorized>
             <a class="button button-primary" href="/jogadores/gerenciar"><span>+</span> Gerenciar participantes</a>
         </Authorized>
@@ -23,7 +23,7 @@ else
     <section class="card-grid">
         @foreach (var player in PlayerItems)
         {
-            <article class="panel quick-card">
+            <a class="panel quick-card player-directory-card" href="/jogadores/@player.PlayerId">
                 @if (!string.IsNullOrWhiteSpace(player.AvatarUrl))
                 {
                     <img class="avatar" src="@player.AvatarUrl" alt="Avatar de @player.DisplayName" />
@@ -36,7 +36,8 @@ else
                     <strong>@player.DisplayName</strong>
                     <small>Rating @player.CompetitiveRating.ToString("0") · Carreira @player.CareerPoints.ToString("0.##") · IA @player.PvePoints.ToString("0.##")</small>
                 </div>
-            </article>
+                <b>→</b>
+            </a>
         }
     </section>
 }
