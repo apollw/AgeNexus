@@ -38,24 +38,24 @@ else
             <strong>Ranking de força</strong>
             <span>O índice considera vitórias, empates e a confiança da amostra. Quanto mais partidas, mais confiável é a colocação.</span>
         </div>
-        <div class="data-table">
+        <div class="data-table mobile-card-table faction-mobile-table">
             <div class="table-head faction-table-row"><span>Pos.</span><span>Civilização</span><span>Usos</span><span>Vitórias</span><span>Derrotas</span><span>Aproveitamento</span><span>Índice</span></div>
             @foreach (var rankedFaction in Factions.Select((faction, index) => new { Faction = faction, Rank = index + 1 }))
             {
                 <div class="table-row faction-table-row">
-                    <strong class="faction-position">#@rankedFaction.Rank</strong>
-                    <span class="faction-name-cell">
+                    <strong class="faction-position" data-label="Posição">#@rankedFaction.Rank</strong>
+                    <span class="faction-name-cell" data-label="Civilização">
                         @if (rankedFaction.Faction.ImageUrl is not null)
                         {
                             <img src="@rankedFaction.Faction.ImageUrl" alt="" width="104" height="104" loading="lazy" />
                         }
                         <strong>@rankedFaction.Faction.Name</strong>
                     </span>
-                    <span>@rankedFaction.Faction.Uses</span>
-                    <span>@rankedFaction.Faction.Victories</span>
-                    <span>@rankedFaction.Faction.Defeats</span>
-                    <span>@rankedFaction.Faction.WinRate.ToString("0.##")%</span>
-                    <strong class="faction-strength">@rankedFaction.Faction.StrengthIndex.ToString("0.##")</strong>
+                    <span data-label="Usos">@rankedFaction.Faction.Uses</span>
+                    <span data-label="Vitórias">@rankedFaction.Faction.Victories</span>
+                    <span data-label="Derrotas">@rankedFaction.Faction.Defeats</span>
+                    <span data-label="Aproveitamento">@rankedFaction.Faction.WinRate.ToString("0.##")%</span>
+                    <strong class="faction-strength" data-label="Índice">@rankedFaction.Faction.StrengthIndex.ToString("0.##")</strong>
                 </div>
             }
         </div>

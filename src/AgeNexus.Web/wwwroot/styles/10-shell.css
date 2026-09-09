@@ -66,5 +66,6 @@
 .topbar-link { color: var(--forest); font-size: var(--font-copy); font-weight: 800; }
 .topbar-link:hover { color: var(--gold); }
 .logout-form { display: inline-flex; }
-.logout-button { padding: 6px 2px; color: var(--muted); border: 0; background: transparent; font-size: var(--font-caption); font-weight: 700; cursor: pointer; }
-.logout-button:hover { color: var(--red); }
+.logout-button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 7px 11px; color: #746d61; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,253,248,.72); font-size: var(--font-caption); font-weight: 800; cursor: pointer; transition: .16s ease; }
+.logout-button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.logout-button:hover { color: var(--red); border-color: color-mix(in srgb, var(--red) 38%, var(--line)); background: #fff8f5; }

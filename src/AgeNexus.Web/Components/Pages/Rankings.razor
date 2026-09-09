@@ -17,13 +17,16 @@
         }
         else
         {
-            <div class="data-table">
+            <div class="data-table mobile-card-table ranking-mobile-table">
                 <div class="table-head"><span>Posição</span><span>Participante</span><span>Pontuação</span><span>Partidas</span><span>Situação</span></div>
                 @foreach (var entry in board.Value)
                 {
                     <div class="table-row">
-                        <span>#@entry.Position</span><span>@entry.DisplayName</span><span>@entry.Score.ToString("0.##")</span>
-                        <span>@entry.ValidatedMatches</span><span>@(entry.IsProvisional ? "Provisório" : "Classificado")</span>
+                        <span data-label="Posição">#@entry.Position</span>
+                        <span data-label="Participante">@entry.DisplayName</span>
+                        <span data-label="Pontuação">@entry.Score.ToString("0.##")</span>
+                        <span data-label="Partidas">@entry.ValidatedMatches</span>
+                        <span data-label="Situação" data-mobile-wide="true">@(entry.IsProvisional ? "Provisório" : "Classificado")</span>
                     </div>
                 }
             </div>

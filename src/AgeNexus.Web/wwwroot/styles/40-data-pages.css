@@ -11,6 +11,7 @@
 .table-head { min-height: 37px; color: #8e877a; background: #f0ece3; font-size: var(--font-sm); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .table-row { border-top: 1px solid #e9e4da; font-size: var(--font-caption); transition: .15s; }
 .table-row:hover { background: #fbf6e9; }
+.clan-table .table-head, .clan-table .table-row { grid-template-columns: .7fr 2fr .8fr; }
 .faction-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
 .faction-podium-card { position: relative; display: flex; align-items: center; gap: 18px; min-height: 150px; padding: 24px; overflow: hidden; }
 .faction-podium-card::after { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: linear-gradient(90deg, var(--gold), transparent 80%); }
