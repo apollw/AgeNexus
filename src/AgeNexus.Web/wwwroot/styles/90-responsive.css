@@ -13,6 +13,9 @@
 }
 
 @media (max-width: 900px) {
+    .public-profile-grid { grid-template-columns: 1fr; }
+    .public-profile-hero { align-items: flex-start; flex-direction: column; }
+    .public-profile-favorite { width: 100%; }
     .faction-podium { grid-template-columns: 1fr; }
     .faction-podium-card { min-height: 120px; }
     .records-hero { grid-template-columns: 1fr; }
@@ -71,7 +74,8 @@
     .account-card { padding: 24px 18px; }.form-grid { grid-template-columns: 1fr; }
     .profile-layout, .onboarding-grid, .public-profile-grid { grid-template-columns: 1fr; }.profile-preview { padding: 28px 20px; }.profile-form-card { padding: 24px 18px; }
     .onboarding-result, .public-profile-hero, .public-profile-identity { align-items: flex-start; flex-direction: column; }.onboarding-result .button { width: 100%; }
-    .public-profile-avatar { width: 82px; height: 82px; }.public-profile-favorite { width: 100%; }.public-profile-identity h1 { font-size: 30px; }
+    .public-profile-hero { min-height: 0; }.public-profile-avatar { width: 82px; height: 82px; }.public-profile-favorite { width: 100%; }.public-profile-identity h1 { font-size: 30px; }
+    .public-profile-stats .stat-card { min-height: 132px; }.public-profile-stats .stat-card > div { display: grid; gap: 2px; }
     .profile-claim-row { grid-template-columns: auto minmax(0,1fr); }.profile-claim-actions { grid-column: 1 / -1; width: 100%; }.profile-claim-actions .button, .profile-claim-actions .table-action-button { flex: 1; }
     .profile-record, .profile-faction-list article { padding: 13px 15px; }
     .json-import-inputs { grid-template-columns: 1fr; }.json-import-or { min-height: 20px; }.json-file-picker { min-height: 145px; }.json-player-mapping { grid-template-columns: 1fr; }

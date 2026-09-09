@@ -67,7 +67,9 @@ public sealed class PlayerProfile
         }
 
         var normalizedAvatarUrl = NormalizeOptional(avatarUrl);
-        if (normalizedAvatarUrl is not null &&
+        var isLocalProfileImage = normalizedAvatarUrl?.StartsWith("/profile-images/", StringComparison.Ordinal) == true &&
+                                  !normalizedAvatarUrl.StartsWith("//", StringComparison.Ordinal);
+        if (normalizedAvatarUrl is not null && !isLocalProfileImage &&
             (!Uri.TryCreate(normalizedAvatarUrl, UriKind.Absolute, out var avatarUri) ||
              (avatarUri.Scheme != Uri.UriSchemeHttps && avatarUri.Scheme != Uri.UriSchemeHttp)))
         {
@@ -88,7 +90,9 @@ public sealed class PlayerProfile
     public void UpdateAvatar(string? avatarUrl)
     {
         var normalizedAvatarUrl = NormalizeOptional(avatarUrl);
-        if (normalizedAvatarUrl is not null &&
+        var isLocalProfileImage = normalizedAvatarUrl?.StartsWith("/profile-images/", StringComparison.Ordinal) == true &&
+                                  !normalizedAvatarUrl.StartsWith("//", StringComparison.Ordinal);
+        if (normalizedAvatarUrl is not null && !isLocalProfileImage &&
             (!Uri.TryCreate(normalizedAvatarUrl, UriKind.Absolute, out var avatarUri) ||
              (avatarUri.Scheme != Uri.UriSchemeHttps && avatarUri.Scheme != Uri.UriSchemeHttp)))
         {

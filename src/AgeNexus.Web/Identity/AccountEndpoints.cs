@@ -1,6 +1,8 @@
 using AgeNexus.Infrastructure.Identity;
+using AgeNexus.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.EntityFrameworkCore;
 
 namespace AgeNexus.Web.Identity;
 
@@ -15,6 +17,7 @@ public static class AccountEndpoints
         group.MapGet("/external/google/callback", CompleteGoogleLoginAsync);
         group.MapPost("/logout", LogoutAsync).RequireAuthorization();
         group.MapPost("/profile", UpdateProfileAsync).RequireAuthorization();
+        endpoints.MapGet("/profile-images/{playerProfileId:guid}", GetProfileImageAsync);
         return endpoints;
     }
 
@@ -165,5 +168,25 @@ public static class AccountEndpoints
         }
 
         return returnUrl;
+    }
+
+    private static async Task<IResult> GetProfileImageAsync(
+        Guid playerProfileId,
+        HttpContext context,
+        AgeNexusDbContext database,
+        CancellationToken cancellationToken)
+    {
+        var avatar = await database.PlayerProfileAvatars.AsNoTracking()
+            .Where(x => x.PlayerProfileId == playerProfileId)
+            .Select(x => new { x.ContentType, x.Content, x.Sha256 })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (avatar is null)
+        {
+            return Results.NotFound();
+        }
+
+        context.Response.Headers.CacheControl = "public,max-age=31536000,immutable";
+        context.Response.Headers.ETag = $"\"{avatar.Sha256}\"";
+        return Results.Bytes(avatar.Content, avatar.ContentType);
     }
 }

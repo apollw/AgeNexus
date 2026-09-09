@@ -1386,6 +1386,39 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfileAvatar", b =>
+                {
+                    b.Property<Guid>("PlayerProfileId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_profile_id");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("content");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("content_type");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("PlayerProfileId")
+                        .HasName("pk_player_profile_avatars");
+
+                    b.ToTable("player_profile_avatars", "public");
+                });
+
             modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfileClaim", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2089,6 +2122,16 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_player_favorite_factions_player");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfileAvatar", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.Players.PlayerProfile", null)
+                        .WithOne()
+                        .HasForeignKey("AgeNexus.Domain.Players.PlayerProfileAvatar", "PlayerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_player_profile_avatars_profile");
                 });
 
             modelBuilder.Entity("AgeNexus.Domain.Players.PlayerProfileClaim", b =>
