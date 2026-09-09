@@ -10,6 +10,8 @@
 }
 else
 {
+    <a class="public-profile-back" href="/jogadores">← Voltar aos jogadores</a>
+
     <section class="panel public-profile-hero">
         <div class="public-profile-identity">
             @if (!string.IsNullOrWhiteSpace(Profile.AvatarUrl))
@@ -25,7 +27,7 @@ else
                 <h1>@Profile.DisplayName</h1>
                 @if (!string.IsNullOrWhiteSpace(Profile.Location))
                 {
-                    <span class="profile-location">⌖ @Profile.Location</span>
+                    <span class="public-profile-location">⌖ @Profile.Location</span>
                 }
                 <p>@(string.IsNullOrWhiteSpace(Profile.Bio) ? "Este jogador ainda não escreveu sua crônica." : Profile.Bio)</p>
             </div>
@@ -43,10 +45,22 @@ else
     </section>
 
     <section class="public-profile-stats stat-grid">
-        <article class="stat-card"><span>Rating competitivo</span><strong>@Profile.CompetitiveRating.ToString("N0")</strong><small>desempenho PvP</small></article>
-        <article class="stat-card"><span>Pontos de carreira</span><strong>@Profile.CareerPoints.ToString("N0")</strong><small>trajetória geral</small></article>
-        <article class="stat-card"><span>Aproveitamento</span><strong>@Profile.WinRate.ToString("0.##")%</strong><small>@Profile.Victories V · @Profile.Draws E · @Profile.Defeats D</small></article>
-        <article class="stat-card"><span>Partidas validadas</span><strong>@Profile.ValidatedMatches</strong><small>@Profile.PvePoints.ToString("N0") pontos contra IA</small></article>
+        <article class="stat-card">
+            <span class="stat-icon" aria-hidden="true">♜</span>
+            <div><span>Rating competitivo</span><strong>@Profile.CompetitiveRating.ToString("N0")</strong><small>desempenho PvP</small></div>
+        </article>
+        <article class="stat-card">
+            <span class="stat-icon" aria-hidden="true">✦</span>
+            <div><span>Pontos de carreira</span><strong>@Profile.CareerPoints.ToString("N0")</strong><small>trajetória geral</small></div>
+        </article>
+        <article class="stat-card">
+            <span class="stat-icon" aria-hidden="true">%</span>
+            <div><span>Aproveitamento</span><strong>@Profile.WinRate.ToString("0.##")%</strong><small>@Profile.Victories V · @Profile.Draws E · @Profile.Defeats D</small></div>
+        </article>
+        <article class="stat-card">
+            <span class="stat-icon" aria-hidden="true">⚔</span>
+            <div><span>Partidas validadas</span><strong>@Profile.ValidatedMatches</strong><small>@Profile.PvePoints.ToString("N0") pontos contra IA</small></div>
+        </article>
     </section>
 
     <div class="public-profile-grid">
@@ -63,7 +77,7 @@ else
                     {
                         <article class="profile-record @(record.IsNegative ? "profile-record-negative" : null)">
                             <span class="profile-record-rank">#@record.Position</span>
-                            <div><strong>@record.Title</strong><small>@record.Matches partida(s) contabilizada(s)</small></div>
+                            <div><strong>@record.Title</strong><small>@MatchCount(record.Matches)</small></div>
                             <b>@FormatValue(record.Value, record.ValueKind)</b>
                         </article>
                     }
@@ -87,7 +101,7 @@ else
                             {
                                 <img src="@faction.ImageUrl" alt="" />
                             }
-                            <div><strong>@faction.Name</strong><small>@faction.Uses uso(s) · @faction.Victories vitória(s)</small></div>
+                            <div><strong>@faction.Name</strong><small>@UsageCount(faction.Uses) · @VictoryCount(faction.Victories)</small></div>
                             <b>@faction.WinRate.ToString("0.##")%</b>
                         </article>
                     }
@@ -135,6 +149,10 @@ else
         var seconds = Math.Max(0, decimal.ToInt32(decimal.Truncate(value)));
         return $"{seconds / 3600:00}:{seconds % 3600 / 60:00}:{seconds % 60:00}";
     }
+
+    private static string MatchCount(int count) => $"{count} {(count == 1 ? "partida contabilizada" : "partidas contabilizadas")}";
+    private static string UsageCount(int count) => $"{count} {(count == 1 ? "uso" : "usos")}";
+    private static string VictoryCount(int count) => $"{count} {(count == 1 ? "vitória" : "vitórias")}";
 
     private sealed record PlayerRecord(
         string Title,

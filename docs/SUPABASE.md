@@ -88,7 +88,9 @@ A chave `service_role` ignora RLS e nunca deve ser exposta no navegador, enviada
 
 ## Fotos de perfil
 
-As fotos utilizam o mesmo bucket público, em objetos isolados pelo identificador do perfil. São aceitos JPEG, PNG e WebP de até 2 MB. Quando o jogador troca ou remove a foto, o backend também tenta apagar o objeto anterior pertencente àquele perfil. Apenas a URL pública fica em `player_profiles`; o upload passa sempre pelo servidor e nunca expõe a chave de serviço ao navegador.
+Quando o Storage está configurado, as fotos utilizam o mesmo bucket público, em objetos isolados pelo identificador do perfil. São aceitos JPEG, PNG e WebP de até 2 MB. Quando o jogador troca ou remove a foto, o backend também tenta apagar o objeto anterior pertencente àquele perfil.
+
+Se as variáveis do Storage ainda não estiverem disponíveis, o AgeNexus usa automaticamente a tabela `player_profile_avatars` no PostgreSQL. Esse fallback mantém somente uma imagem por jogador e a entrega por uma URL pública versionada com cache longo. Assim o recurso continua funcional sem depender de arquivos locais efêmeros do Render; ao configurar o Storage depois, o próximo upload migra naturalmente o avatar daquele jogador para o bucket.
 
 O schema da aplicação é controlado exclusivamente pelas [migrações do EF Core](EF-CORE.md). Não use `supabase db push` para alterar essas tabelas, pois isso criaria um segundo histórico de migrações concorrente.
 

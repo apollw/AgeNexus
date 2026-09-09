@@ -64,6 +64,33 @@ public sealed class PlayerProfileTests
     }
 
     [Fact]
+    public void Database_avatar_can_use_the_local_public_endpoint()
+    {
+        var profile = new PlayerProfile(Guid.NewGuid(), "Jogador");
+
+        profile.UpdateAvatar($"/profile-images/{profile.Id:D}?v=0123456789ab");
+
+        Assert.StartsWith("/profile-images/", profile.AvatarUrl);
+    }
+
+    [Fact]
+    public void Profile_avatar_validates_content_and_can_be_replaced()
+    {
+        var playerId = Guid.NewGuid();
+        var content = new byte[] { 0xff, 0xd8, 0xff, 0x01 };
+        var hash = new string('a', 64);
+        var avatar = new PlayerProfileAvatar(
+            playerId, "image/jpeg", content, hash, DateTimeOffset.UtcNow);
+
+        avatar.Replace("image/png", new byte[] { 1, 2, 3 }, new string('b', 64), DateTimeOffset.UtcNow);
+
+        Assert.Equal("image/png", avatar.ContentType);
+        Assert.Equal(new byte[] { 1, 2, 3 }, avatar.Content);
+        Assert.Throws<DomainRuleException>(() => avatar.Replace(
+            "image/svg+xml", content, hash, DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
     public void Historical_profile_claim_requires_an_administrator_decision()
     {
         var profileId = Guid.NewGuid();

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using AgeNexus.Application.Evidence;
 using AgeNexus.Domain.Common;
 using AgeNexus.Domain.GameCatalog;
@@ -544,7 +545,7 @@ public sealed class AccountService(
 
         if (!storage.IsConfigured)
         {
-            return AccountOperationResult.Failure(["AvatarStorageNotConfigured"]);
+            return await SaveDatabaseAvatarAsync(profile, null, fileName, content, cancellationToken);
         }
 
         if (content.Length == 0 || content.Length > 2 * 1024 * 1024 ||
@@ -559,6 +560,12 @@ public sealed class AccountService(
         {
             await storage.UploadAsync(objectKey, image.ContentType, content, cancellationToken);
             profile.UpdateAvatar(storage.GetPublicUrl(objectKey));
+            var databaseAvatar = await database.PlayerProfileAvatars.SingleOrDefaultAsync(
+                x => x.PlayerProfileId == profile.Id, cancellationToken);
+            if (databaseAvatar is not null)
+            {
+                database.PlayerProfileAvatars.Remove(databaseAvatar);
+            }
             await database.SaveChangesAsync(cancellationToken);
             if (previousObjectKey is not null && previousObjectKey.StartsWith($"profiles/{profile.Id:N}/", StringComparison.Ordinal))
             {
@@ -594,6 +601,12 @@ public sealed class AccountService(
         var objectKey = profile.AvatarUrl is null || !storage.IsConfigured
             ? null
             : storage.TryGetObjectKey(profile.AvatarUrl);
+        var databaseAvatar = await database.PlayerProfileAvatars.SingleOrDefaultAsync(
+            x => x.PlayerProfileId == profile.Id, cancellationToken);
+        if (databaseAvatar is not null)
+        {
+            database.PlayerProfileAvatars.Remove(databaseAvatar);
+        }
         profile.UpdateAvatar(null);
         await database.SaveChangesAsync(cancellationToken);
         if (objectKey is not null && objectKey.StartsWith($"profiles/{profile.Id:N}/", StringComparison.Ordinal))
@@ -774,6 +787,46 @@ public sealed class AccountService(
         catch (HttpRequestException exception)
         {
             logger.LogWarning(exception, "Falha ao remover o objeto de avatar {ObjectKey}.", objectKey);
+        }
+    }
+
+    private async Task<AccountOperationResult> SaveDatabaseAvatarAsync(
+        PlayerProfile profile,
+        ProfileImage? image,
+        string fileName,
+        byte[] content,
+        CancellationToken cancellationToken)
+    {
+        if (content.Length == 0 || content.Length > 2 * 1024 * 1024 ||
+            image is null && !ProfileImage.TryIdentify(fileName, content, out image))
+        {
+            return AccountOperationResult.Failure(["InvalidAvatar"]);
+        }
+
+        var detectedImage = image!;
+        try
+        {
+            var hash = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+            var avatar = await database.PlayerProfileAvatars.SingleOrDefaultAsync(
+                x => x.PlayerProfileId == profile.Id, cancellationToken);
+            if (avatar is null)
+            {
+                database.PlayerProfileAvatars.Add(new PlayerProfileAvatar(
+                    profile.Id, detectedImage.ContentType, content, hash, DateTimeOffset.UtcNow));
+            }
+            else
+            {
+                avatar.Replace(detectedImage.ContentType, content, hash, DateTimeOffset.UtcNow);
+            }
+
+            profile.UpdateAvatar($"/profile-images/{profile.Id:D}?v={hash[..12]}");
+            await database.SaveChangesAsync(cancellationToken);
+            return AccountOperationResult.Success();
+        }
+        catch (Exception exception) when (exception is DomainRuleException or DbUpdateException)
+        {
+            logger.LogError(exception, "Falha ao salvar avatar no banco para o perfil {ProfileId}.", profile.Id);
+            return AccountOperationResult.Failure(["AvatarUploadFailed"]);
         }
     }
 
