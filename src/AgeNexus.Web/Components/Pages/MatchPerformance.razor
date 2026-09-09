@@ -646,10 +646,12 @@ else
         {
             format = "AgeExtractor",
             importedAtUtc = DateTimeOffset.UtcNow,
-            originalJson = JsonImportResult.OriginalJson,
-            issues = JsonImportResult.Issues,
-            normalizations = JsonImportResult.Normalizations
+            status = JsonImportResult.Status.ToString(),
+            issueCount = JsonImportResult.Issues.Count,
+            normalizationCount = JsonImportResult.Normalizations.Count
         });
+        JsonText = string.Empty;
+        JsonFileContent = null;
         HasError = false;
         Message = JsonImportResult.Status == AgeNexus.Application.MatchPerformance.JsonImportStatus.Partial
             ? "Estatísticas disponíveis preenchidas. Revise os campos vazios indicados antes de salvar."

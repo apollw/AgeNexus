@@ -37,7 +37,7 @@ Informações opcionais podem ser solicitadas após a importação: nome de cada
 3. Faça o parse com um parser JSON. Não execute o conteúdo nem tente extrair automaticamente um objeto de um texto arbitrário com logs e mensagens misturados.
 4. Valide a estrutura e a identificação dos jogadores.
 5. Valide cada estatística e produza uma lista de problemas por jogador e campo.
-6. Preserve o documento original e crie uma representação normalizada separada para cálculos.
+6. Mantenha o documento original somente em memória durante a validação e crie uma representação normalizada separada para os cálculos. Depois de preencher os campos, descarte o JSON bruto.
 7. Mostre o resumo da importação e prossiga para a análise quando a estrutura for válida. Campos problemáticos podem ser excluídos de métricas específicas, conforme a seção 6.
 8. Se a aplicação tiver histórico, crie um identificador próprio para a importação. Não use apenas o nome do arquivo ou o número do jogador como identidade persistente.
 
@@ -183,7 +183,7 @@ Não ajuste a quantidade silenciosamente e não una registros duplicados. Solici
 
 Se um grupo de estatísticas estiver ausente ou não for um objeto, marque seus campos conhecidos como indisponíveis. Se um campo estiver ausente, for `null`, vazio, negativo, de tipo inadequado ou fora da faixa permitida, exclua-o dos cálculos que dependem dele e registre o problema. Os demais dados válidos podem ser analisados.
 
-Use uma representação interna de valor indisponível, como `null`, **sem modificar o JSON original**. Não transforme ausência em zero. Se não restarem dados válidos suficientes para a análise solicitada, explique quais faltam e peça a correção.
+Use uma representação interna de valor indisponível, como `null`, **sem modificar o JSON durante o processamento**. Não transforme ausência em zero. Se não restarem dados válidos suficientes para a análise solicitada, explique quais faltam e peça a correção.
 
 ### Normalizações aceitáveis
 
@@ -199,7 +199,7 @@ Use uma representação interna de valor indisponível, como `null`, **sem modif
 
 Rejeite booleanos como valores numéricos, mesmo em linguagens que tratem `true` como `1`. Não use conversões permissivas que aceitem somente o começo de uma string. Em JavaScript, verifique também se os inteiros estão dentro da faixa de representação exata antes de calcular.
 
-Campos desconhecidos podem ser preservados no original e ignorados pela análise, sem rejeitar todo o documento apenas por sua presença.
+Campos desconhecidos podem ser ignorados pela análise, sem rejeitar todo o documento apenas por sua presença.
 
 ### Alertas de coerência
 
@@ -262,7 +262,7 @@ Não atribua vitória, derrota, equipe ou identidade com base no número do joga
 
 ## 8. Organização interna sugerida para a aplicação
 
-Mantenha separados o JSON original, os valores normalizados, a lista de problemas e as métricas calculadas. Uma importação pode ter estado `valida`, `parcial` ou `invalida`, definido pela aplicação consumidora. Esses estados e os metadados da importação não fazem parte do JSON emitido pelo AgeExtractor.
+Durante o processamento, mantenha separados o JSON original, os valores normalizados, a lista de problemas e as métricas calculadas. Após o preenchimento, persista somente as estatísticas normalizadas e um resumo mínimo da importação; descarte o JSON bruto. Uma importação pode ter estado `valida`, `parcial` ou `invalida`, definido pela aplicação consumidora. Esses estados e os metadados da importação não fazem parte do JSON emitido pelo AgeExtractor.
 
 Se o usuário corrigir algum dado na interface, registre o valor anterior e a correção, recalcule as métricas afetadas e deixe claro que aquele valor foi revisado pelo usuário. Não substitua silenciosamente o original.
 
