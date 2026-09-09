@@ -216,6 +216,13 @@ else
 
     private async Task SetupCatalogAsync()
     {
+        var authentication = await AuthenticationStateTask;
+        if (!await Accounts.IsAdministratorAsync(authentication.User))
+        {
+            SetupError = "Sua conta não possui permissão para alterar o catálogo.";
+            return;
+        }
+
         SettingUpCatalog = true;
         SetupError = null;
         var result = await CatalogSetup.InitializeAsync(SetupForm.GameName, SetupForm.EditionName);
@@ -237,6 +244,13 @@ else
 
     private async Task SyncAge2CatalogAsync()
     {
+        var authentication = await AuthenticationStateTask;
+        if (!await Accounts.IsAdministratorAsync(authentication.User))
+        {
+            SetupError = "Sua conta não possui permissão para alterar o catálogo.";
+            return;
+        }
+
         SyncingCatalog = true;
         CatalogSyncFailed = false;
         CatalogMessage = null;

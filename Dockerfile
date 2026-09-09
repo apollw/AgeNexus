@@ -15,6 +15,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
+USER $APP_UID
+
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV DOTNET_EnableDiagnostics=0
 

@@ -754,6 +754,14 @@ else
 
     private async Task FinalizeAsync()
     {
+        var authentication = await AuthenticationStateTask;
+        if (!await Accounts.IsAdministratorAsync(authentication.User))
+        {
+            HasError = true;
+            Message = "Sua conta não possui permissão para finalizar estatísticas.";
+            return;
+        }
+
         if (View?.ReportId is not Guid reportId)
         {
             return;

@@ -54,7 +54,7 @@ Não remova a URI local enquanto ainda quiser executar o projeto no computador.
 
 ## Contas e permissões
 
-A autenticação é exclusivamente pelo Google; não existem formulários nem endpoints de cadastro ou login por senha. `AllowGooglePlayerLogin` controla a entrada de novas contas Google. A conta mais antiga é promovida uma única vez à função `Administrator`; somente ela registra ou exclui partidas, altera estatísticas, envia evidências e gerencia participantes. O modo `SingleAdministrator` continua controlando os fluxos competitivos que dependem dessa administração centralizada.
+A autenticação é exclusivamente pelo Google; não existem formulários nem endpoints de cadastro ou login por senha. `AllowGooglePlayerLogin` controla a entrada de novas contas Google. Administradores existentes são preservados. Quando não há administrador, apenas a conta com e-mail confirmado indicado em `Security__BootstrapAdministratorEmail` pode receber a função `Administrator`; somente o administrador registra ou exclui partidas, altera estatísticas, envia evidências e gerencia participantes. O modo `SingleAdministrator` continua controlando os fluxos competitivos que dependem dessa administração centralizada.
 
 Cada novo jogador escolhe um nick histórico para solicitar vinculação ou cria um perfil novo. Solicitações aparecem em `/jogadores/gerenciar` e só transferem o histórico após aprovação do administrador. Perfis manuais não vinculados continuam disponíveis para partidas futuras.
 
@@ -65,3 +65,9 @@ O plano gratuito pode suspender o serviço sem tráfego. O primeiro acesso depoi
 ## Região e latência
 
 Mantenha aplicação e banco na menor distância de rede oferecida pelos provedores. A localização do banco não deve ser documentada no repositório; confira-a no painel privado e compare a latência antes de alterar a região declarada no `render.yaml`. Se não houver uma região gratuita mais próxima, preserve a configuração atual para evitar migrações sem ganho comprovado.
+
+## Revisão de segurança
+
+Veja [SECURITY-REVIEW.md](SECURITY-REVIEW.md) para o escopo, achados e limitações da revisão. Para uma instalação já administrada, esta atualização não exige configurar bootstrap nem troca o administrador. Em instalação nova, remova `Security__BootstrapAdministratorEmail` após a atribuição para evitar promoção futura involuntária.
+
+Cookies de autenticação e antifalsificação exigem HTTPS em produção. Mantenha a configuração correta do proxy do Render para o callback Google. O contêiner executa como usuário sem privilégios de root. Sessões interativas são revalidadas a cada cinco minutos; alterações no carimbo de segurança, bloqueio, remoção da conta ou mudanças de função encerram o estado autenticado na próxima revalidação.

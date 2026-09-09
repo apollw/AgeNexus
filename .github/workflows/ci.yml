@@ -26,6 +26,11 @@ jobs:
       - name: Restore
         run: dotnet restore AgeNexus.slnx
 
+      - name: Audit direct and transitive NuGet packages
+        run: |
+          dotnet list AgeNexus.slnx package --vulnerable --include-transitive --format json > nuget-audit.json
+          python3 scripts/check-vulnerable-packages.py nuget-audit.json
+
       - name: Build
         run: dotnet build AgeNexus.slnx --configuration Release --no-restore
 
