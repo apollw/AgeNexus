@@ -18,7 +18,7 @@
 }
 
 <section class="panel table-panel">
-    <div class="data-table match-table">
+    <div class="data-table match-table mobile-card-table">
         <div class="table-head"><span>Confronto</span><span>Formato</span><span>Categoria</span><span>Status</span><span>Data</span><span>Ações</span></div>
         @if (RecentMatches.Count == 0)
         {
@@ -32,7 +32,7 @@
             @foreach (var match in RecentMatches)
             {
                 <div class="table-row">
-                    <span>
+                    <span data-label="Confronto" data-mobile-wide="true">
                         @if (IsAdministrator)
                         {
                             <a href="/partidas/@match.MatchId/desempenho">@string.Join(" × ", match.Teams)</a>
@@ -42,11 +42,11 @@
                             @string.Join(" × ", match.Teams)
                         }
                     </span>
-                    <span>@match.Format</span>
-                    <span>@match.Category</span>
-                    <span>@match.Status</span>
-                    <span>@match.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</span>
-                    <div class="match-actions">
+                    <span data-label="Formato">@match.Format</span>
+                    <span data-label="Categoria">@match.Category</span>
+                    <span data-label="Status">@match.Status</span>
+                    <span data-label="Data">@match.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                    <div class="match-actions" data-label="Ações" data-mobile-wide="true">
                         @if (IsAdministrator)
                         {
                             <a class="table-action" href="/partidas/@match.MatchId/desempenho">Preencher estatísticas →</a>
