@@ -77,4 +77,6 @@ public interface IEvidenceObjectStorage
     string GetPublicUrl(string objectKey);
 
     string GetPublicDownloadUrl(string objectKey, string fileName);
+
+    string? TryGetObjectKey(string publicUrl);
 }

@@ -1,0 +1,150 @@
+@page "/conta/vincular-perfil"
+@attribute [Authorize]
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
+@inject NavigationManager Navigation
+
+<PageTitle>Vincular jogador · Age Nexus</PageTitle>
+
+<section class="page-heading compact-heading">
+    <div>
+        <span class="eyebrow">Primeiro acesso</span>
+        <h1>Encontre sua história.</h1>
+        <p>Vincule sua conta Google ao nick que já aparece nas partidas. Essa escolha será confirmada pelo administrador.</p>
+    </div>
+</section>
+
+@if (View is null)
+{
+    <section class="panel panel-empty page-empty"><strong>Carregando perfis disponíveis...</strong></section>
+}
+else if (View.LinkedProfile is not null)
+{
+    <section class="panel onboarding-result">
+        <span class="empty-icon">✓</span>
+        <div><span class="eyebrow">Perfil vinculado</span><h2>@View.LinkedProfile.DisplayName</h2><p>Seu histórico já pertence a esta conta.</p></div>
+        <a class="button button-primary" href="/perfil">Personalizar perfil</a>
+    </section>
+}
+else if (View.PendingClaim is not null)
+{
+    <section class="panel onboarding-result onboarding-pending">
+        <span class="empty-icon">⌛</span>
+        <div>
+            <span class="eyebrow">Aguardando confirmação</span>
+            <h2>@View.PendingClaim.DisplayName</h2>
+            <p>O administrador precisa confirmar que este nick pertence a você. Isso impede que outra pessoa tome seu histórico.</p>
+        </div>
+        <button class="button button-secondary" type="button" @onclick="CancelAsync" disabled="@Busy">Cancelar solicitação</button>
+    </section>
+}
+else
+{
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <div class="form-alert @(HasError ? "form-alert-error" : "form-alert-success")">@Message</div>
+    }
+
+    <div class="onboarding-grid">
+        <section class="panel profile-form-card">
+            <header class="panel-header"><div><span class="eyebrow">Histórico existente</span><h2>Algum destes nicks é seu?</h2></div></header>
+            @if (View.AvailableProfiles.Count == 0)
+            {
+                <p>Nenhum perfil histórico está disponível para vinculação neste momento.</p>
+            }
+            else
+            {
+                <label class="form-field">
+                    <span>Selecione seu nick</span>
+                    <select @bind="SelectedProfileId">
+                        <option value="">Escolha um jogador</option>
+                        @foreach (var profile in View.AvailableProfiles)
+                        {
+                            <option value="@profile.Id">@profile.DisplayName</option>
+                        }
+                    </select>
+                </label>
+                <p class="profile-claim-warning">A solicitação não transfere o perfil imediatamente. O administrador revisará antes da vinculação.</p>
+                <button class="button button-primary" type="button" @onclick="RequestClaimAsync" disabled="@(Busy || !SelectedProfileId.HasValue)">Solicitar vinculação</button>
+            }
+        </section>
+
+        <section class="panel profile-form-card">
+            <header class="panel-header"><div><span class="eyebrow">Novo jogador</span><h2>Meu nick ainda não existe</h2></div></header>
+            <p>Crie um perfil novo somente se você nunca apareceu nas partidas registradas.</p>
+            <label class="form-field">
+                <span>Seu nick</span>
+                <input @bind="NewDisplayName" maxlength="100" placeholder="Como você aparece no jogo" />
+            </label>
+            <button class="button button-secondary" type="button" @onclick="CreateProfileAsync" disabled="@(Busy || string.IsNullOrWhiteSpace(NewDisplayName))">Criar novo perfil</button>
+        </section>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private AgeNexus.Infrastructure.Identity.ProfileOnboardingView? View { get; set; }
+    private Guid? SelectedProfileId { get; set; }
+    private string NewDisplayName { get; set; } = string.Empty;
+    private string? Message { get; set; }
+    private bool HasError { get; set; }
+    private bool Busy { get; set; }
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        var authentication = await AuthenticationStateTask;
+        View = await Accounts.GetProfileOnboardingAsync(authentication.User);
+    }
+
+    private async Task RequestClaimAsync()
+    {
+        if (!SelectedProfileId.HasValue) return;
+        Busy = true;
+        var authentication = await AuthenticationStateTask;
+        var result = await Accounts.RequestProfileClaimAsync(authentication.User, SelectedProfileId.Value);
+        SetResult(result, "Solicitação enviada ao administrador.");
+        await ReloadAsync();
+        Busy = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        Busy = true;
+        var authentication = await AuthenticationStateTask;
+        var result = await Accounts.CancelProfileClaimAsync(authentication.User);
+        SetResult(result, "Solicitação cancelada.");
+        await ReloadAsync();
+        Busy = false;
+    }
+
+    private async Task CreateProfileAsync()
+    {
+        Busy = true;
+        var authentication = await AuthenticationStateTask;
+        var result = await Accounts.CreateOwnProfileAsync(authentication.User, NewDisplayName);
+        if (result.Succeeded)
+        {
+            Navigation.NavigateTo("/perfil", forceLoad: true);
+            return;
+        }
+        SetResult(result, string.Empty);
+        Busy = false;
+    }
+
+    private void SetResult(AgeNexus.Infrastructure.Identity.AccountOperationResult result, string success)
+    {
+        HasError = !result.Succeeded;
+        Message = result.Succeeded ? success : result.ErrorCodes.FirstOrDefault() switch
+        {
+            "ProfileUnavailable" => "Este perfil já foi vinculado ou solicitado por outra pessoa.",
+            "PendingClaimExists" => "Cancele sua solicitação atual antes de escolher outro caminho.",
+            "DuplicateDisplayName" => "Esse nick já existe. Se ele for seu, solicite a vinculação.",
+            "InvalidProfile" => "Informe um nick válido, com até 100 caracteres.",
+            _ => "Não foi possível concluir a operação. Atualize a página e tente novamente."
+        };
+    }
+}

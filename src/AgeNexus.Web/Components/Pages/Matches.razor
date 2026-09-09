@@ -1,11 +1,15 @@
 @page "/partidas"
 @inject AgeNexus.Application.Queries.IMatchHistoryQueryService History
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
 <PageTitle>Partidas · Age Nexus</PageTitle>
 
 <section class="page-heading compact-heading">
     <div><span class="eyebrow">Histórico de batalhas</span><h1>Partidas</h1><p>Resultados, confirmações e evidências da comunidade.</p></div>
-    <a class="button button-primary" href="/partidas/nova"><span>+</span> Nova partida</a>
+    @if (IsAdministrator)
+    {
+        <a class="button button-primary" href="/partidas/nova"><span>+</span> Nova partida</a>
+    }
 </section>
 
 @if (!string.IsNullOrWhiteSpace(DeleteMessage))
@@ -28,13 +32,25 @@
             @foreach (var match in RecentMatches)
             {
                 <div class="table-row">
-                    <span><a href="/partidas/@match.MatchId/desempenho">@string.Join(" × ", match.Teams)</a></span>
+                    <span>
+                        @if (IsAdministrator)
+                        {
+                            <a href="/partidas/@match.MatchId/desempenho">@string.Join(" × ", match.Teams)</a>
+                        }
+                        else
+                        {
+                            @string.Join(" × ", match.Teams)
+                        }
+                    </span>
                     <span>@match.Format</span>
                     <span>@match.Category</span>
                     <span>@match.Status</span>
                     <span>@match.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</span>
                     <div class="match-actions">
-                        <a class="table-action" href="/partidas/@match.MatchId/desempenho">Preencher estatísticas →</a>
+                        @if (IsAdministrator)
+                        {
+                            <a class="table-action" href="/partidas/@match.MatchId/desempenho">Preencher estatísticas →</a>
+                        }
                         @if (!string.IsNullOrWhiteSpace(match.YouTubeVideoUrl))
                         {
                             <a class="table-action table-action-media" href="@match.YouTubeVideoUrl" target="_blank" rel="noopener noreferrer">▶ YouTube</a>
@@ -47,7 +63,7 @@
                         {
                             <a class="table-action table-action-media" href="/partidas/@match.MatchId/evidencias">↓ Replay</a>
                         }
-                        @if (CurrentApplicationUserId.HasValue)
+                        @if (IsAdministrator)
                         {
                             <form method="post" action="/matches/delete" class="match-delete-form"
                                   onsubmit="return confirm('Excluir definitivamente esta partida?');">
@@ -71,7 +87,7 @@
     private string? DeleteStatus { get; set; }
 
     private IReadOnlyCollection<AgeNexus.Application.Queries.MatchSummary> RecentMatches { get; set; } = [];
-    private Guid? CurrentApplicationUserId { get; set; }
+    private bool IsAdministrator { get; set; }
     private bool DeleteSucceeded => DeleteStatus == "ok";
     private string? DeleteMessage => DeleteStatus switch
     {
@@ -87,8 +103,7 @@
     protected override async Task OnInitializedAsync()
     {
         var authentication = await AuthenticationStateTask;
-        var userId = authentication.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        CurrentApplicationUserId = Guid.TryParse(userId, out var parsedUserId) ? parsedUserId : null;
+        IsAdministrator = await Accounts.IsAdministratorAsync(authentication.User);
         RecentMatches = await History.GetRecentAsync();
     }
 }

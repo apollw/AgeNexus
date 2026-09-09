@@ -111,6 +111,12 @@ if (!app.Environment.IsDevelopment())
     await database.Database.MigrateAsync();
 }
 
+await using (var identityScope = app.Services.CreateAsyncScope())
+{
+    var accounts = identityScope.ServiceProvider.GetRequiredService<AgeNexus.Infrastructure.Identity.AccountService>();
+    await accounts.EnsureAdministratorRoleAsync();
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");

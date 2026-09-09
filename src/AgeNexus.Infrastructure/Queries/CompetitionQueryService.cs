@@ -12,6 +12,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
     IRankingQueryService,
     IMatchHistoryQueryService,
     IPlayerDirectoryQueryService,
+    IPlayerPublicProfileQueryService,
     IGeneralStatisticsQueryService,
     IStatisticsQueryService,
     IClanQueryService,
@@ -213,6 +214,87 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     .Where(x => x.BeneficiaryId == player.Id && x.Scope == PointScopeKind.Pve)
                     .Sum(x => (decimal?)x.Points) ?? 0m)))
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<PlayerPublicProfileDashboard?> GetAsync(
+        Guid playerId,
+        CancellationToken cancellationToken = default) =>
+        GetPlayerProfileCoreAsync(playerId, cancellationToken);
+
+    private async Task<PlayerPublicProfileDashboard?> GetPlayerProfileCoreAsync(
+        Guid playerId,
+        CancellationToken cancellationToken)
+    {
+        var profile = await database.PlayerProfiles.AsNoTracking()
+            .Where(x => x.Id == playerId)
+            .Select(player => new
+            {
+                player.Id,
+                player.DisplayName,
+                player.Bio,
+                player.Location,
+                player.AvatarUrl,
+                CompetitiveRating = ScoringRuleSet.InitialRating +
+                    (database.RatingEvents.Where(x => x.Scope == RatingScopeKind.GeneralCompetitive &&
+                                                       x.BeneficiaryId == player.Id)
+                        .Sum(x => (decimal?)x.Delta) ?? 0m),
+                CareerPoints = database.PointEvents.Where(x => x.BeneficiaryId == player.Id &&
+                    (x.Scope == PointScopeKind.Career || x.Scope == PointScopeKind.PerformanceBonus))
+                    .Sum(x => (decimal?)x.Points) ?? 0m,
+                PvePoints = database.PointEvents.Where(x => x.BeneficiaryId == player.Id &&
+                    x.Scope == PointScopeKind.Pve).Sum(x => (decimal?)x.Points) ?? 0m
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (profile is null)
+        {
+            return null;
+        }
+
+        var favorite = await (
+            from selected in database.PlayerFavoriteFactions.AsNoTracking()
+            join faction in database.Factions.AsNoTracking() on selected.FactionId equals faction.Id
+            where selected.PlayerProfileId == playerId && selected.Priority == 1
+            select new { faction.Name, faction.ImageUrl })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var matches = await (
+            from participant in database.MatchParticipants.AsNoTracking()
+            join team in database.MatchTeams.AsNoTracking()
+                on EF.Property<Guid>(participant, "team_id") equals team.Id
+            join match in database.Matches.AsNoTracking()
+                on EF.Property<Guid>(team, "match_id") equals match.Id
+            where participant.Type == ParticipantType.Human && participant.PlayerProfileId == playerId &&
+                  match.Status == MatchStatus.Validated
+            select new { match.Id, team.Result, participant.FactionId })
+            .ToArrayAsync(cancellationToken);
+        var factionIds = matches.Where(x => x.FactionId.HasValue).Select(x => x.FactionId!.Value)
+            .Distinct().ToArray();
+        var factions = await database.Factions.AsNoTracking().Where(x => factionIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var factionSummaries = matches.Where(x => x.FactionId.HasValue)
+            .GroupBy(x => x.FactionId!.Value)
+            .Select(group =>
+            {
+                var uses = group.Count();
+                var victories = group.Count(x => x.Result == TeamResult.Victory);
+                var draws = group.Count(x => x.Result == TeamResult.Draw);
+                var faction = factions[group.Key];
+                return new PlayerPublicFactionSummary(
+                    faction.Id, faction.Name, faction.ImageUrl, uses, victories,
+                    Math.Round((victories + draws * 0.5m) / uses * 100m, 2));
+            })
+            .OrderByDescending(x => x.Uses).ThenByDescending(x => x.WinRate).ThenBy(x => x.Name)
+            .ToArray();
+        var victories = matches.Count(x => x.Result == TeamResult.Victory);
+        var draws = matches.Count(x => x.Result == TeamResult.Draw);
+        var defeats = matches.Count(x => x.Result == TeamResult.Defeat);
+        var winRate = matches.Length == 0 ? 0m : Math.Round((victories + draws * 0.5m) / matches.Length * 100m, 2);
+
+        return new PlayerPublicProfileDashboard(
+            profile.Id, profile.DisplayName, profile.Bio, profile.Location, profile.AvatarUrl,
+            favorite?.Name, favorite?.ImageUrl,
+            profile.CompetitiveRating, profile.CareerPoints, profile.PvePoints,
+            matches.Length, victories, draws, defeats, winRate, factionSummaries);
     }
 
     async Task<GeneralStatisticsDashboard> IGeneralStatisticsQueryService.GetAsync(

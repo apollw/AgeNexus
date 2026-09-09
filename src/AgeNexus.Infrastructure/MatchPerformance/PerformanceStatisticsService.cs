@@ -6,6 +6,7 @@ using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Infrastructure.Persistence;
+using AgeNexus.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -16,6 +17,7 @@ public sealed class PerformanceStatisticsService(
     AgeNexusDbContextFactory databaseFactory,
     IPerformanceCalculator calculator,
     IMatchWorkflowService matchWorkflow,
+    AccountService accounts,
     IConfiguration configuration) : IPerformanceStatisticsService
 {
     private const string ManualMvpRuleVersion = "2026.09-manual-mvp.1";
@@ -109,9 +111,9 @@ public sealed class PerformanceStatisticsService(
             return PerformanceOperationResult.Failure("MatchNotFound");
         }
 
-        if (!CanManageMatch(match, request.SubmittedByPlayerProfileId))
+        if (!await accounts.IsAdministratorProfileAsync(request.SubmittedByPlayerProfileId, cancellationToken))
         {
-            return PerformanceOperationResult.Failure("PlayerNotInMatch");
+            return PerformanceOperationResult.Failure("NotAuthorized");
         }
 
         var participantTeams = HumanParticipantTeams(match);
@@ -199,9 +201,13 @@ public sealed class PerformanceStatisticsService(
         }
 
         var match = await LoadMatchAsync(report.MatchId, cancellationToken);
-        if (match is null || !CanManageMatch(match, playerProfileId))
+        if (match is null)
         {
-            return PerformanceOperationResult.Failure("PlayerNotInMatch");
+            return PerformanceOperationResult.Failure("MatchNotFound");
+        }
+        if (!await accounts.IsAdministratorProfileAsync(playerProfileId, cancellationToken))
+        {
+            return PerformanceOperationResult.Failure("NotAuthorized");
         }
 
         var humanCount = HumanParticipantTeams(match).Count;
@@ -438,7 +444,8 @@ public sealed class PerformanceStatisticsService(
         }
 
         var match = await LoadMatchAsync(report.MatchId, cancellationToken);
-        if (match is null || !SingleAdministratorMode || match.CreatedByPlayerProfileId != administratorPlayerProfileId)
+        if (match is null || !await accounts.IsAdministratorProfileAsync(
+                administratorPlayerProfileId, cancellationToken))
         {
             return PerformanceOperationResult.Failure("NotAuthorized");
         }
@@ -481,14 +488,6 @@ public sealed class PerformanceStatisticsService(
             .Where(x => x.Type == ParticipantType.Human)
             .Select(x => new { PlayerId = x.PlayerProfileId!.Value, TeamId = team.Id }))
             .ToDictionary(x => x.PlayerId, x => x.TeamId);
-
-    private static bool IsHumanParticipant(Match match, Guid playerId) =>
-        match.Teams.SelectMany(x => x.Participants)
-            .Any(x => x.Type == ParticipantType.Human && x.PlayerProfileId == playerId);
-
-    private bool CanManageMatch(Match match, Guid playerId) =>
-        IsHumanParticipant(match, playerId) ||
-        (SingleAdministratorMode && match.CreatedByPlayerProfileId == playerId);
 
     private bool SingleAdministratorMode =>
         configuration.GetValue("OperatingMode:SingleAdministrator", true);

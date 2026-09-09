@@ -14,6 +14,8 @@ services:
         value: Production
       - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
         value: "true"
+      - key: OperatingMode__AllowGooglePlayerLogin
+        value: "true"
       - key: ConnectionStrings__AgeNexus
         sync: false
       - key: Authentication__Google__ClientId

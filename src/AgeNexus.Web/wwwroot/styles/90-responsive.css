@@ -69,7 +69,11 @@
     .account-shell { display: block; min-height: auto; }
     .account-intro { margin-bottom: 30px; }.account-intro h1 { font-size: 37px; }.account-intro > p { font-size: 14px; }.account-benefits { display: none; }
     .account-card { padding: 24px 18px; }.form-grid { grid-template-columns: 1fr; }
-    .profile-layout { grid-template-columns: 1fr; }.profile-preview { padding: 28px 20px; }.profile-form-card { padding: 24px 18px; }
+    .profile-layout, .onboarding-grid, .public-profile-grid { grid-template-columns: 1fr; }.profile-preview { padding: 28px 20px; }.profile-form-card { padding: 24px 18px; }
+    .onboarding-result, .public-profile-hero, .public-profile-identity { align-items: flex-start; flex-direction: column; }.onboarding-result .button { width: 100%; }
+    .public-profile-avatar { width: 82px; height: 82px; }.public-profile-favorite { width: 100%; }.public-profile-identity h1 { font-size: 30px; }
+    .profile-claim-row { grid-template-columns: auto minmax(0,1fr); }.profile-claim-actions { grid-column: 1 / -1; width: 100%; }.profile-claim-actions .button, .profile-claim-actions .table-action-button { flex: 1; }
+    .profile-record, .profile-faction-list article { padding: 13px 15px; }
     .json-import-inputs { grid-template-columns: 1fr; }.json-import-or { min-height: 20px; }.json-file-picker { min-height: 145px; }.json-player-mapping { grid-template-columns: 1fr; }
     .json-import-highlights { grid-template-columns: 1fr; }
     .evidence-video-form, .evidence-manager-grid, .evidence-gallery-grid { grid-template-columns: 1fr; }

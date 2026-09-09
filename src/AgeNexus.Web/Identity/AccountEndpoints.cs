@@ -114,6 +114,10 @@ public static class AccountEndpoints
         var result = await accounts.CompleteGoogleLoginAsync(cancellationToken);
         if (result.Succeeded)
         {
+            if (result.RequiresProfileSetup)
+            {
+                return Results.LocalRedirect("/conta/vincular-perfil");
+            }
             return Results.LocalRedirect(GetSafeReturnUrl(context.Request.Query["returnUrl"].ToString()));
         }
 
@@ -135,15 +139,19 @@ public static class AccountEndpoints
     {
         await antiforgery.ValidateRequestAsync(context);
         var form = await context.Request.ReadFormAsync(cancellationToken);
+        var favoriteFactionId = Guid.TryParse(form["favoriteFactionId"].ToString(), out var parsedFactionId)
+            ? parsedFactionId
+            : (Guid?)null;
         var result = await accounts.UpdateProfileAsync(
             context.User,
             form["displayName"].ToString(),
             form["bio"].ToString(),
             form["location"].ToString(),
-            form["avatarUrl"].ToString(),
+            favoriteFactionId,
             cancellationToken);
 
-        return Results.LocalRedirect(result.Succeeded ? "/perfil?salvo=1" : "/perfil?erro=perfil-invalido");
+        var error = result.ErrorCodes.Contains("DuplicateDisplayName") ? "nick-em-uso" : "perfil-invalido";
+        return Results.LocalRedirect(result.Succeeded ? "/perfil?salvo=1" : $"/perfil?erro={error}");
     }
 
     private static string GetSafeReturnUrl(string? returnUrl)

@@ -76,6 +76,39 @@ public interface IPlayerDirectoryQueryService
         CancellationToken cancellationToken = default);
 }
 
+public sealed record PlayerPublicFactionSummary(
+    Guid FactionId,
+    string Name,
+    string? ImageUrl,
+    int Uses,
+    int Victories,
+    decimal WinRate);
+
+public sealed record PlayerPublicProfileDashboard(
+    Guid PlayerId,
+    string DisplayName,
+    string? Bio,
+    string? Location,
+    string? AvatarUrl,
+    string? FavoriteFactionName,
+    string? FavoriteFactionImageUrl,
+    decimal CompetitiveRating,
+    decimal CareerPoints,
+    decimal PvePoints,
+    int ValidatedMatches,
+    int Victories,
+    int Draws,
+    int Defeats,
+    decimal WinRate,
+    IReadOnlyCollection<PlayerPublicFactionSummary> Factions);
+
+public interface IPlayerPublicProfileQueryService
+{
+    Task<PlayerPublicProfileDashboard?> GetAsync(
+        Guid playerId,
+        CancellationToken cancellationToken = default);
+}
+
 public enum GeneralStatisticValueKind
 {
     Integer,

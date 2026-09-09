@@ -1,5 +1,6 @@
 @page "/perfil"
 @attribute [Authorize]
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
 <PageTitle>Meu perfil · Age Nexus</PageTitle>
@@ -16,8 +17,9 @@
     @if (CurrentProfile is null)
     {
         <div class="panel panel-empty">
-            <strong>Não foi possível carregar seu perfil.</strong>
-            <p>Atualize a página. Se o problema continuar, sua conta pode não estar ligada a um perfil.</p>
+            <strong>Sua conta ainda não está ligada a um jogador.</strong>
+            <p>Escolha um nick histórico ou crie seu primeiro perfil.</p>
+            <a class="button button-primary" href="/conta/vincular-perfil">Vincular meu jogador</a>
         </div>
     }
     else
@@ -34,11 +36,33 @@
                 }
                 <span class="eyebrow">Prévia pública</span>
                 <h2>@CurrentProfile.DisplayName</h2>
+                @if (!string.IsNullOrWhiteSpace(CurrentProfile.FavoriteFactionName))
+                {
+                    <div class="profile-favorite-civ">
+                        @if (!string.IsNullOrWhiteSpace(CurrentProfile.FavoriteFactionImageUrl))
+                        {
+                            <img src="@CurrentProfile.FavoriteFactionImageUrl" alt="" />
+                        }
+                        <span>Civilização favorita<br /><strong>@CurrentProfile.FavoriteFactionName</strong></span>
+                    </div>
+                }
                 @if (!string.IsNullOrWhiteSpace(CurrentProfile.Location))
                 {
                     <p class="profile-location">⌖ @CurrentProfile.Location</p>
                 }
                 <p>@(string.IsNullOrWhiteSpace(CurrentProfile.Bio) ? "Conte um pouco sobre sua jornada nos jogos." : CurrentProfile.Bio)</p>
+                <div class="profile-avatar-actions">
+                    <label class="button button-secondary button-compact profile-upload-button">
+                        Trocar foto
+                        <InputFile OnChange="UploadAvatarAsync" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled="@Busy" />
+                    </label>
+                    @if (!string.IsNullOrWhiteSpace(CurrentProfile.AvatarUrl))
+                    {
+                        <button class="table-action-button table-action-danger" type="button" @onclick="RemoveAvatarAsync" disabled="@Busy">Remover foto</button>
+                    }
+                </div>
+                <small class="profile-avatar-help">JPEG, PNG ou WebP · até 2 MB</small>
+                <a class="profile-public-link" href="/jogadores/@CurrentProfile.Id">Ver meu perfil público →</a>
             </aside>
 
             <div class="account-card profile-form-card">
@@ -54,7 +78,11 @@
                 }
                 else if (!string.IsNullOrWhiteSpace(Error))
                 {
-                    <div class="form-alert form-alert-error" role="alert">Revise os dados. A URL do avatar deve começar com http:// ou https://.</div>
+                    <div class="form-alert form-alert-error" role="alert">@(Error == "nick-em-uso" ? "Esse nick já pertence a outro jogador." : "Revise os dados do perfil.")</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Message))
+                {
+                    <div class="form-alert @(HasError ? "form-alert-error" : "form-alert-success")" role="status">@Message</div>
                 }
 
                 <form method="post" action="/account/profile" class="account-form">
@@ -71,8 +99,14 @@
                     </label>
 
                     <label class="form-field">
-                        <span>URL do avatar</span>
-                        <input name="avatarUrl" type="url" maxlength="500" value="@CurrentProfile.AvatarUrl" placeholder="https://exemplo.com/avatar.jpg" />
+                        <span>Civilização favorita</span>
+                        <select name="favoriteFactionId">
+                            <option value="">Ainda não escolhi</option>
+                            @foreach (var faction in Factions)
+                            {
+                                <option value="@faction.Id" selected="@(CurrentProfile.FavoriteFactionId == faction.Id)">@faction.Name</option>
+                            }
+                        </select>
                     </label>
 
                     <label class="form-field">
@@ -99,13 +133,61 @@
     private string? Error { get; set; }
 
     private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+    private IReadOnlyCollection<AgeNexus.Infrastructure.Identity.ProfileFactionOption> Factions { get; set; } = [];
+    private string? Message { get; set; }
+    private bool HasError { get; set; }
+    private bool Busy { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         var authenticationState = await AuthenticationStateTask;
         CurrentProfile = await Accounts.GetProfileAsync(authenticationState.User, CancellationToken.None);
+        Factions = await Accounts.GetFactionOptionsAsync();
+    }
+
+    private async Task UploadAvatarAsync(InputFileChangeEventArgs args)
+    {
+        Busy = true;
+        Message = null;
+        try
+        {
+            await using var input = args.File.OpenReadStream(2 * 1024 * 1024);
+            using var memory = new MemoryStream();
+            await input.CopyToAsync(memory);
+            var authentication = await AuthenticationStateTask;
+            var result = await Accounts.UploadProfileAvatarAsync(
+                authentication.User, args.File.Name, memory.ToArray());
+            SetAvatarResult(result, "Foto atualizada.");
+            CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+        }
+        catch (IOException)
+        {
+            HasError = true;
+            Message = "A imagem deve ter no máximo 2 MB.";
+        }
+        Busy = false;
+    }
+
+    private async Task RemoveAvatarAsync()
+    {
+        Busy = true;
+        var authentication = await AuthenticationStateTask;
+        var result = await Accounts.RemoveProfileAvatarAsync(authentication.User);
+        SetAvatarResult(result, "Foto removida.");
+        CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+        Busy = false;
+    }
+
+    private void SetAvatarResult(AgeNexus.Infrastructure.Identity.AccountOperationResult result, string success)
+    {
+        HasError = !result.Succeeded;
+        Message = result.Succeeded ? success : result.ErrorCodes.FirstOrDefault() switch
+        {
+            "InvalidAvatar" => "Use uma imagem JPEG, PNG ou WebP válida, com até 2 MB.",
+            "AvatarStorageNotConfigured" => "O armazenamento de imagens ainda não está configurado.",
+            _ => "Não foi possível atualizar a foto agora."
+        };
     }
 
     private static string GetInitial(string value) => value[..1].ToUpperInvariant();
 }
-

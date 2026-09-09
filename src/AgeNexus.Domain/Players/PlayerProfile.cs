@@ -85,7 +85,24 @@ public sealed class PlayerProfile
         AvatarUrl = normalizedAvatarUrl;
     }
 
+    public void UpdateAvatar(string? avatarUrl)
+    {
+        var normalizedAvatarUrl = NormalizeOptional(avatarUrl);
+        if (normalizedAvatarUrl is not null &&
+            (!Uri.TryCreate(normalizedAvatarUrl, UriKind.Absolute, out var avatarUri) ||
+             (avatarUri.Scheme != Uri.UriSchemeHttps && avatarUri.Scheme != Uri.UriSchemeHttp)))
+        {
+            throw new DomainRuleException("Avatar URL must be an absolute HTTP or HTTPS URL.");
+        }
+
+        if (normalizedAvatarUrl?.Length > 500)
+        {
+            throw new DomainRuleException("Avatar URL cannot exceed 500 characters.");
+        }
+
+        AvatarUrl = normalizedAvatarUrl;
+    }
+
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
-

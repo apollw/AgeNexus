@@ -9,8 +9,8 @@ using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.EvidenceAndModeration;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Infrastructure.Persistence;
+using AgeNexus.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using DomainMatchType = AgeNexus.Domain.Matches.MatchType;
 
@@ -23,7 +23,7 @@ public sealed class MatchWorkflowService(
     IPvePointCalculator pvePointCalculator,
     ScoringRuleSet rules,
     IEvidenceObjectStorage evidenceStorage,
-    IConfiguration configuration,
+    AccountService accounts,
     ILogger<MatchWorkflowService> logger) : IMatchWorkflowService
 {
     public async Task<MatchWorkflowResult> RegisterAsync(
@@ -32,6 +32,11 @@ public sealed class MatchWorkflowService(
     {
         ArgumentNullException.ThrowIfNull(request);
         var matchId = Guid.NewGuid();
+        if (!await accounts.IsAdministratorProfileAsync(request.CreatedByPlayerProfileId, cancellationToken))
+        {
+            return MatchWorkflowResult.Failure(matchId, "NotAuthorized");
+        }
+
         try
         {
             var match = new Match(
@@ -311,8 +316,7 @@ public sealed class MatchWorkflowService(
             return MatchWorkflowResult.Failure(matchId, "MatchNotFound");
         }
 
-        var isSingleAdministrator = configuration.GetValue("OperatingMode:SingleAdministrator", true);
-        if (!isSingleAdministrator && match.CreatedByPlayerProfileId != requestedByPlayerProfileId)
+        if (!await accounts.IsAdministratorProfileAsync(requestedByPlayerProfileId, cancellationToken))
         {
             return MatchWorkflowResult.Failure(matchId, "MatchDeletionNotAuthorized");
         }

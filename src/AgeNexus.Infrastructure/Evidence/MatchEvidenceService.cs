@@ -3,8 +3,8 @@ using AgeNexus.Application.Evidence;
 using AgeNexus.Domain.EvidenceAndModeration;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Infrastructure.Persistence;
+using AgeNexus.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace AgeNexus.Infrastructure.Evidence;
@@ -12,7 +12,7 @@ namespace AgeNexus.Infrastructure.Evidence;
 internal sealed class MatchEvidenceService(
     AgeNexusDbContext database,
     IEvidenceObjectStorage storage,
-    IConfiguration configuration,
+    AccountService accounts,
     ILogger<MatchEvidenceService> logger) : IMatchEvidenceService
 {
     private const int MaximumScreenshots = 5;
@@ -76,7 +76,7 @@ internal sealed class MatchEvidenceService(
             return MatchEvidenceOperationResult.Failure("MatchNotFound");
         }
 
-        if (!CanManageMatch(match, submittedByPlayerProfileId))
+        if (!await accounts.IsAdministratorProfileAsync(submittedByPlayerProfileId, cancellationToken))
         {
             return MatchEvidenceOperationResult.Failure("EvidenceNotAuthorized");
         }
@@ -151,7 +151,7 @@ internal sealed class MatchEvidenceService(
             return MatchEvidenceOperationResult.Failure("MatchNotFound");
         }
 
-        if (!CanManageMatch(match, submittedByPlayerProfileId))
+        if (!await accounts.IsAdministratorProfileAsync(submittedByPlayerProfileId, cancellationToken))
         {
             return MatchEvidenceOperationResult.Failure("EvidenceNotAuthorized");
         }
@@ -196,7 +196,7 @@ internal sealed class MatchEvidenceService(
             return MatchEvidenceOperationResult.Failure("MatchNotFound");
         }
 
-        if (!CanManageMatch(match, submittedByPlayerProfileId))
+        if (!await accounts.IsAdministratorProfileAsync(submittedByPlayerProfileId, cancellationToken))
         {
             return MatchEvidenceOperationResult.Failure("EvidenceNotAuthorized");
         }
@@ -265,7 +265,7 @@ internal sealed class MatchEvidenceService(
         }
 
         var match = await LoadMatchAsync(evidence.MatchId, cancellationToken);
-        if (match is null || !CanManageMatch(match, requestedByPlayerProfileId))
+        if (match is null || !await accounts.IsAdministratorProfileAsync(requestedByPlayerProfileId, cancellationToken))
         {
             return MatchEvidenceOperationResult.Failure("EvidenceNotAuthorized");
         }
@@ -305,11 +305,6 @@ internal sealed class MatchEvidenceService(
     private Task<Match?> LoadMatchAsync(Guid matchId, CancellationToken cancellationToken) =>
         database.Matches.Include(match => match.Teams).ThenInclude(team => team.Participants)
             .SingleOrDefaultAsync(match => match.Id == matchId, cancellationToken);
-
-    private bool CanManageMatch(Match match, Guid playerId) =>
-        match.Teams.SelectMany(team => team.Participants)
-            .Any(participant => participant.Type == ParticipantType.Human && participant.PlayerProfileId == playerId) ||
-        configuration.GetValue("OperatingMode:SingleAdministrator", true);
 
     private sealed record ScreenshotFile(string Extension, string ContentType)
     {

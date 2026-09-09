@@ -69,6 +69,22 @@ internal sealed class SupabaseEvidenceObjectStorage : IEvidenceObjectStorage
         return $"{publicUrl}?download={Uri.EscapeDataString(fileName)}";
     }
 
+    public string? TryGetObjectKey(string publicUrl)
+    {
+        if (!IsConfigured || !Uri.TryCreate(publicUrl, UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        var prefix = $"/storage/v1/object/public/{Escape(bucket)}/";
+        if (uri.Host != baseUri!.Host || !uri.AbsolutePath.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return Uri.UnescapeDataString(uri.AbsolutePath[prefix.Length..]);
+    }
+
     private async Task EnsureBucketAsync(CancellationToken cancellationToken)
     {
         if (bucketReady)
