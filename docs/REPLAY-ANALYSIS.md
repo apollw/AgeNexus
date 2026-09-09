@@ -2,6 +2,8 @@
 
 O relatório pós-jogo e o replay são recursos independentes. As estatísticas são preenchidas manualmente ou importadas do JSON do AgeExtractor. O replay é somente o arquivo original da partida disponibilizado para download.
 
+O JSON do AgeExtractor é processado temporariamente para preencher o formulário e depois descartado. O banco recebe as estatísticas normalizadas e apenas um resumo da importação, nunca o documento JSON completo.
+
 ## Formatos e armazenamento
 
 O upload aceita `.aoe2record`, `.mgz` e `.mgx`, com limite de 50 MB. O arquivo é armazenado no bucket público de evidências do Supabase Storage e não é interpretado pela aplicação.
@@ -35,4 +37,3 @@ As quatro pontuações finais oficiais são normalizadas entre os humanos da mes
 | Destaque da equipe derrotada | +1 carreira | +1 carreira | não se aplica |
 
 O destaque da derrota precisa liderar ao menos um pilar, alcançar índice geral mínimo de 0,55 e ficar no máximo 0,15 atrás do líder. Um jogador que já recebeu MVP não acumula esse destaque. Partidas PvE com apenas um humano não concedem MVP automático.
-

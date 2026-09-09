@@ -27,7 +27,6 @@ public sealed record ImportedPlayerStatistics(
 
 public sealed record AgeExtractorJsonImportResult(
     JsonImportStatus Status,
-    string OriginalJson,
     int? PlayerCount,
     IReadOnlyCollection<ImportedPlayerStatistics> Players,
     IReadOnlyCollection<JsonImportIssue> Issues,
@@ -56,7 +55,7 @@ public sealed class AgeExtractorJsonImporter
         }
         catch (JsonException)
         {
-            return Invalid(original, "Não foi possível interpretar o conteúdo como JSON.");
+            return Invalid("Não foi possível interpretar o conteúdo como JSON.");
         }
 
         using (document)
@@ -64,25 +63,25 @@ public sealed class AgeExtractorJsonImporter
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
             {
-                return Invalid(original, "A raiz do JSON precisa ser um objeto.");
+                return Invalid("A raiz do JSON precisa ser um objeto.");
             }
 
             if (!root.TryGetProperty("quantidade_jogadores", out var countElement) ||
                 countElement.ValueKind != JsonValueKind.Number || !countElement.TryGetInt32(out var playerCount) ||
                 playerCount is < 2 or > 8)
             {
-                return Invalid(original, "quantidade_jogadores deve ser um inteiro entre 2 e 8.", "quantidade_jogadores");
+                return Invalid("quantidade_jogadores deve ser um inteiro entre 2 e 8.", "quantidade_jogadores");
             }
 
             if (!root.TryGetProperty("jogadores", out var playersElement) || playersElement.ValueKind != JsonValueKind.Array)
             {
-                return Invalid(original, "jogadores deve ser um array.", "jogadores", playerCount);
+                return Invalid("jogadores deve ser um array.", "jogadores", playerCount);
             }
 
             var playerElements = playersElement.EnumerateArray().ToArray();
             if (playerElements.Length != playerCount)
             {
-                return Invalid(original, $"O arquivo informa {playerCount} jogadores, mas contém {playerElements.Length} registros.", "jogadores", playerCount);
+                return Invalid($"O arquivo informa {playerCount} jogadores, mas contém {playerElements.Length} registros.", "jogadores", playerCount);
             }
 
             var identified = new List<(int Number, JsonElement Element)>();
@@ -93,7 +92,7 @@ public sealed class AgeExtractorJsonImporter
                     numberElement.ValueKind != JsonValueKind.Number || !numberElement.TryGetInt32(out var number) ||
                     number < 1 || number > playerCount)
                 {
-                    return Invalid(original, $"Cada participante deve possuir jogador entre 1 e {playerCount}.", "jogadores[].jogador", playerCount);
+                    return Invalid($"Cada participante deve possuir jogador entre 1 e {playerCount}.", "jogadores[].jogador", playerCount);
                 }
 
                 identified.Add((number, element));
@@ -102,14 +101,14 @@ public sealed class AgeExtractorJsonImporter
             if (identified.Select(x => x.Number).Distinct().Count() != playerCount ||
                 !identified.Select(x => x.Number).Order().SequenceEqual(Enumerable.Range(1, playerCount)))
             {
-                return Invalid(original, $"Os identificadores devem formar o conjunto de 1 até {playerCount}, sem repetição.", "jogadores[].jogador", playerCount);
+                return Invalid($"Os identificadores devem formar o conjunto de 1 até {playerCount}, sem repetição.", "jogadores[].jogador", playerCount);
             }
 
             var players = identified.OrderBy(x => x.Number)
                 .Select(x => ReadPlayer(x.Number, x.Element, issues, normalizations)).ToArray();
             return new(
                 issues.Any(x => x.Severity == JsonImportIssueSeverity.Error) ? JsonImportStatus.Partial : JsonImportStatus.Valid,
-                original, playerCount, players, issues, normalizations);
+                playerCount, players, issues, normalizations);
         }
     }
 
@@ -172,8 +171,8 @@ public sealed class AgeExtractorJsonImporter
         return new(number, values);
     }
 
-    private static AgeExtractorJsonImportResult Invalid(string original, string reason, string path = "$", int? count = null) =>
-        new(JsonImportStatus.Invalid, original, count, [],
+    private static AgeExtractorJsonImportResult Invalid(string reason, string path = "$", int? count = null) =>
+        new(JsonImportStatus.Invalid, count, [],
             [new(null, path, null, reason, "A importação foi interrompida.")], []);
 
     private static string RemoveOptionalMarkdownFence(string value)

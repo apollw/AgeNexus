@@ -1,4 +1,5 @@
 using AgeNexus.Application.MatchPerformance;
+using System.Text.Json;
 
 namespace AgeNexus.Domain.Tests;
 
@@ -69,6 +70,18 @@ public sealed class AgeExtractorJsonImporterTests
         Assert.Equal(0, first.Values.BuildingsLost);
         Assert.Equal(0, first.Values.TributeSent);
         Assert.False(first.Values.Survived);
+    }
+
+    [Fact]
+    public void Does_not_keep_the_original_document_after_import()
+    {
+        var json = ValidJson();
+        json = json.Insert(json.IndexOf('{') + 1, " \"temporary_marker\": \"do-not-retain\",");
+
+        var result = importer.Import(json);
+
+        Assert.Equal(JsonImportStatus.Valid, result.Status);
+        Assert.DoesNotContain("do-not-retain", JsonSerializer.Serialize(result));
     }
 
     [Theory]
