@@ -1,0 +1,24 @@
+.scoring-guide { max-width: 58rem; font-size: 1rem; line-height: 1.75; }
+.scoring-guide > section { padding: 1.5rem 0; border-bottom: 1px solid var(--line); }
+.scoring-guide > section:first-child { padding-top: .25rem; }
+.scoring-guide h2 { font-size: 1.3rem; line-height: 1.4; margin: 0 0 1rem; color: var(--forest); }
+.scoring-guide p { margin: .75rem 0; }
+.guide-definitions { margin: 0; }
+.guide-definitions > div { margin: 0 0 1rem; }
+.guide-definitions dt { font-weight: 800; }
+.guide-definitions dd { margin: .25rem 0 0; }
+.guide-example { background: var(--forest-light); padding: 1rem 1.25rem; border-left: 3px solid var(--forest); }
+.guide-table-wrap { overflow-x: auto; }
+.scoring-guide table { width: 100%; border-collapse: collapse; margin: .5rem 0 1rem; font-size: 1rem; }
+.scoring-guide caption { text-align: left; font-size: .875rem; padding-bottom: .5rem; }
+.scoring-guide th, .scoring-guide td { text-align: center; padding: .7rem .5rem; border-bottom: 1px solid var(--line); }
+.scoring-guide th:first-child { text-align: left; }
+.scoring-guide thead { background: var(--forest); color: white; }
+.guide-details { margin-top: 1.5rem; padding: 1rem 1.25rem; background: var(--surface); border: 1px solid var(--line); }
+.guide-details summary { cursor: pointer; font-weight: 800; line-height: 1.5; }
+.guide-details summary:focus-visible { outline: 2px solid var(--forest); outline-offset: 5px; }
+@media (max-width: 600px) {
+    .scoring-guide h2 { font-size: 1.15rem; }
+    .guide-example, .guide-details { padding: .85rem; }
+    .scoring-guide th, .scoring-guide td { padding: .6rem .3rem; }
+}
