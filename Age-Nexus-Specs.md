@@ -615,6 +615,15 @@ Clãs podem entrar no fim do MVP ou na primeira versão posterior, pois não blo
 - Civilizações, mapas, jogos e dificuldades são dados configuráveis.
 - O sistema consegue recalcular ratings e estatísticas a partir do histórico validado.
 
+### 12.1. Navegação e leitura no celular
+
+- Usuários autenticados devem conseguir sair da conta pela barra superior, inclusive no celular.
+- Até 760 px, a navegação inferior usa destaque hexagonal e oferece as demais seções no menu Mais.
+- Partidas, rankings, clãs e estatísticas de civilizações são apresentados como cartões com rótulos por campo no celular; em telas maiores, mantêm a apresentação tabular.
+- Recordes Gerais usam uma coluna no celular, com nomes e valores capazes de quebrar linha.
+- A barra inferior e o espaço reservado no conteúdo consideram a área segura do dispositivo.
+- Detalhes de implementação e roteiro de conferência: [Experiência mobile](docs/MOBILE-UX.md).
+
 ## 13. Instruções para a IA implementadora
 
 1. Trate este documento como a especificação funcional inicial, não como autorização para implementar todas as fases de uma vez.
