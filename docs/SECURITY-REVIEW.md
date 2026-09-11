@@ -1,4 +1,4 @@
-# Revisão de segurança do AgeNexus — 2026-09-09
+# Revisão de segurança do AgeNexus — iniciada em 2026-09-09, concluída no código em 2026-09-11
 
 Base examinada: `382cb217417cd5f6d3bf56a3686db0e9f601dcc1` (master, PR #27).
 Revisão de código e configuração versionada, sem acesso ao banco de produção, às variáveis do Render, às políticas reais do Supabase ou ao console Google. Não é uma certificação nem um teste de invasão completo.
@@ -34,13 +34,13 @@ Revisão de código e configuração versionada, sem acesso ao banco de produç�
 
 - Busca de padrões de alta confiança em arquivos atuais e 611 blobs do histórico local: nenhum GOCSPX, token GitHub, chave privada PEM ou JWT detectado. Busca heurística, não prova ausência de senhas ou outros segredos; não cobre referências que não estejam no clone local.
 - Testes novos cobrem bootstrap, preservação de administrador existente, aprovação de vínculo, isolamento de edição de perfil, principal sem autenticação e invalidação de sessão por alteração de stamp/função/bloqueio/exclusão.
-- Build, suíte e auditoria NuGet: resultados serão registrados após execução do CI. O ambiente local não possui dotnet disponível.
+- CI do commit `f9769549`: build sem erros ou avisos, 86 testes aprovados, nenhuma vulnerabilidade reportada pelo NuGet em dependências diretas/transitivas e modelo EF sem mudanças pendentes. Execução: https://github.com/apollw/AgeNexus/actions/runs/34391747281 . O ambiente local não possui dotnet disponível.
 - Acesso HTTP de produção não pôde ser concluído neste ambiente (restrição/timeout de rede). Não foi possível verificar headers reais, cookie autenticado, HTTPS efetivo, rotas com conta comum/admin ou se o deploy corresponde à versão revisada.
 
 ## Riscos e verificações de infraestrutura ainda abertos
 
 1. Render: conferir variáveis, segredo OAuth, modo Production, versão publicada e redes/proxies confiáveis. ASPNETCORE_FORWARDEDHEADERS_ENABLED não deve ser interpretado como validação de qualquer proxy. AllowedHosts está amplo na configuração versionada; restringir aos hosts efetivamente usados exige confirmar domínio e health checks reais.
-2. Supabase/PostgreSQL: conferir políticas RLS e privilégios de anon/authenticated, exposição de schemas, segurança da service-role, acesso externo, TLS da conexão, backups e recuperação. Não se deduzem da configuração do aplicativo.
+2. **Prioridade alta — possível acesso direto pela Data API:** `supabase/config.toml` expõe `public`, e as migrações EF não habilitam RLS. Se os grants padrão de anon/authenticated estiverem ativos em produção, isso pode permitir leitura/alteração direta das tabelas sem passar pela autorização do AgeNexus. A exposição real não foi confirmada. O ajuste `auto_expose_new_tables = false` protege apenas novas tabelas no ambiente local; não corrige permissões existentes nem altera o projeto hospedado. Execute `scripts/security/audit-data-api.sql` para obter apenas metadados e permissões. Como a aplicação usa conexão PostgreSQL pelo servidor, avaliar desativar a Data API ou remover acesso das roles públicas às tabelas do aplicativo, após conferir usos externos. Supabase/PostgreSQL: conferir políticas RLS e privilégios de anon/authenticated, exposição de schemas, segurança da service-role, acesso externo, TLS da conexão, backups e recuperação. Não se deduzem da configuração do aplicativo.
 3. Google: conferir URIs autorizadas, escopos no consentimento, contas com acesso ao projeto e proteção da conta administradora. Remover permissões no Google não equivale a revogar instantaneamente um cookie já emitido pelo AgeNexus.
 4. Sessões: revalidação tem janela de até 5 minutos, não revogação instantânea. Logout encerra o navegador atual; não existe fluxo de encerrar todas as sessões. Chaves Data Protection de produção são efêmeras na configuração versionada, causando logout após reinício; persistência futura deve proteger as chaves.
 5. Abuso/privacidade: não há rate limiting explícito para criação de contas, solicitações de vínculo, leitura de imagens e health/database. Solicitação pendente reserva um perfil até cancelamento/rejeição. Imagens não têm metadados removidos; uploads não têm antivírus. Retenção/exclusão de contas precisa de política e fluxo próprios.
@@ -51,3 +51,5 @@ Revisão de código e configuração versionada, sem acesso ao banco de produç�
 - https://learn.microsoft.com/aspnet/core/blazor/security/?view=aspnetcore-8.0
 - https://learn.microsoft.com/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0
 - https://support.google.com/accounts/answer/12921417
+
+- https://supabase.com/docs/guides/api/securing-your-api
