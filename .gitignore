@@ -7,3 +7,12 @@ supabase/.branches/
 .idea/
 *.user
 
+
+# Local credentials must never enter Git or the container build context.
+.env
+.env.*
+!.env.example
+**/appsettings.Local.json
+**/secrets.json
+*.pfx
+*.p12

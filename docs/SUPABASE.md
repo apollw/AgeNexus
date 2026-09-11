@@ -95,3 +95,9 @@ Se as variáveis do Storage ainda não estiverem disponíveis, o AgeNexus usa au
 O schema da aplicação é controlado exclusivamente pelas [migrações do EF Core](EF-CORE.md). Não use `supabase db push` para alterar essas tabelas, pois isso criaria um segundo histórico de migrações concorrente.
 
 Referências oficiais: [CLI e desenvolvimento local](https://supabase.com/docs/guides/local-development/cli/getting-started), [fluxo de migrações](https://supabase.com/docs/guides/local-development/cli-workflows) e [conexões PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres).
+
+## Auditoria da Data API
+
+A autenticação do AgeNexus não protege chamadas diretas à Data API do Supabase. O schema `public` está exposto na configuração local e as migrações EF não definem RLS. Confira no projeto hospedado as permissões reais com `scripts/security/audit-data-api.sql` (somente leitura, sem conteúdo de contas). Permissões de escrita/leitura para `anon` ou `authenticated` sem RLS nas tabelas do aplicativo exigem correção prioritária.
+
+A configuração local agora usa `auto_expose_new_tables = false`; ela não revoga grants antigos e não muda o Supabase hospedado. Como o backend usa PostgreSQL diretamente, pode-se desativar a Data API quando não há outro consumidor, ou restringir os grants das tabelas do aplicativo. Faça essa escolha após verificar integrações reais; não altere indiscriminadamente o schema `storage`, utilizado pelos uploads. Consulte https://supabase.com/docs/guides/api/securing-your-api .

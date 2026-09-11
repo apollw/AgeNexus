@@ -652,17 +652,23 @@ public sealed class AccountService(
             return;
         }
 
-        var firstUser = await userManager.Users.OrderBy(x => x.CreatedAtUtc)
-            .ThenBy(x => x.Id).FirstOrDefaultAsync(cancellationToken);
-        if (firstUser is null)
+        // Bootstrap is opt-in. Registration order must never grant administrative access.
+        var bootstrapEmail = configuration["Security:BootstrapAdministratorEmail"]?.Trim();
+        if (string.IsNullOrWhiteSpace(bootstrapEmail))
         {
             return;
         }
 
-        var assignment = await userManager.AddToRoleAsync(firstUser, AdministratorRole);
+        var bootstrapUser = await userManager.FindByEmailAsync(bootstrapEmail);
+        if (bootstrapUser is null || !bootstrapUser.EmailConfirmed)
+        {
+            return;
+        }
+
+        var assignment = await userManager.AddToRoleAsync(bootstrapUser, AdministratorRole);
         if (!assignment.Succeeded)
         {
-            throw new InvalidOperationException("The first account could not be assigned as administrator.");
+            throw new InvalidOperationException("The configured account could not be assigned as administrator.");
         }
     }
 
@@ -677,7 +683,8 @@ public sealed class AccountService(
         }
 
         var user = await userManager.FindByIdAsync(userId.Value.ToString());
-        return user is not null && await userManager.IsInRoleAsync(user, AdministratorRole);
+        return user is not null && !await userManager.IsLockedOutAsync(user) &&
+               await userManager.IsInRoleAsync(user, AdministratorRole);
     }
 
     public async Task<bool> IsAdministratorProfileAsync(
@@ -694,10 +701,12 @@ public sealed class AccountService(
         }
 
         var user = await userManager.FindByIdAsync(userId.Value.ToString());
-        return user is not null && await userManager.IsInRoleAsync(user, AdministratorRole);
+        return user is not null && !await userManager.IsLockedOutAsync(user) &&
+               await userManager.IsInRoleAsync(user, AdministratorRole);
     }
 
     private static Guid? GetUserId(ClaimsPrincipal principal) =>
+        principal.Identity?.IsAuthenticated == true &&
         Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ? userId : null;
 
     private async Task TryDeleteStorageObjectAsync(string objectKey, CancellationToken cancellationToken)

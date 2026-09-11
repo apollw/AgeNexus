@@ -28,6 +28,15 @@ if (builder.Environment.IsDevelopment())
         .PersistKeysToFileSystem(keyDirectory);
 }
 
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.PostConfigure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(
+        Microsoft.AspNetCore.Identity.IdentityConstants.ApplicationScheme,
+        options => options.Cookie.SecurePolicy = CookieSecurePolicy.Always);
+    builder.Services.PostConfigure<Microsoft.AspNetCore.Antiforgery.AntiforgeryOptions>(
+        options => options.Cookie.SecurePolicy = CookieSecurePolicy.Always);
+}
+
 var app = builder.Build();
 
 if (args.Contains("--diagnose-general-statistics", StringComparer.OrdinalIgnoreCase))
@@ -127,6 +136,14 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self'; object-src 'none'; base-uri 'self'";
+    await next(context);
+});
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
