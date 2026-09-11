@@ -71,3 +71,9 @@ Mantenha aplicação e banco na menor distância de rede oferecida pelos provedo
 Veja [SECURITY-REVIEW.md](SECURITY-REVIEW.md) para o escopo, achados e limitações da revisão. Para uma instalação já administrada, esta atualização não exige configurar bootstrap nem troca o administrador. Em instalação nova, remova `Security__BootstrapAdministratorEmail` após a atribuição para evitar promoção futura involuntária.
 
 Cookies de autenticação e antifalsificação exigem HTTPS em produção. Mantenha a configuração correta do proxy do Render para o callback Google. O contêiner executa como usuário sem privilégios de root. Sessões interativas são revalidadas a cada cinco minutos; alterações no carimbo de segurança, bloqueio, remoção da conta ou mudanças de função encerram o estado autenticado na próxima revalidação.
+
+## Permanência do login
+
+O login Google emite cookie persistente tanto para contas já vinculadas quanto no primeiro acesso. Fechar a aba ou o navegador não encerra a sessão. A validade permanece em 14 dias, renovada pelo uso conforme a expiração deslizante do Identity. O botão Sair remove o cookie. Após publicar esta alteração, sessões antigas precisam de um novo login para receber o cookie persistente.
+
+Isso não muda a proteção HTTPS, a revalidação nem a revogação de acesso. Limpeza de cookies, navegação privada, expiração e reinícios que percam as chaves Data Protection ainda podem exigir novo login. As chaves de produção ainda não têm armazenamento persistente configurado neste projeto.

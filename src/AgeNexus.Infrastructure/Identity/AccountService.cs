@@ -43,7 +43,7 @@ public sealed class AccountService(
         var signIn = await signInManager.ExternalLoginSignInAsync(
             info.LoginProvider,
             info.ProviderKey,
-            isPersistent: false,
+            isPersistent: true,
             bypassTwoFactor: true);
         if (signIn.Succeeded)
         {
@@ -116,7 +116,7 @@ public sealed class AccountService(
         if (operation.Succeeded)
         {
             await EnsureAdministratorRoleAsync(cancellationToken);
-            await signInManager.SignInAsync(account!, isPersistent: false);
+            await signInManager.SignInAsync(account!, isPersistent: true);
         }
 
         return operation;
