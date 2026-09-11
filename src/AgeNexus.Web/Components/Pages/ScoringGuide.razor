@@ -1,0 +1,70 @@
+@page "/pontuacao"
+@using AgeNexus.Domain.Competition
+
+<PageTitle>Pontuação e rankings · Age Nexus</PageTitle>
+
+<section class="page-heading compact-heading">
+    <div><span class="eyebrow">Guia do jogador</span><h1>Pontuação e rankings</h1><p>Entenda o que cada partida acrescenta ao seu histórico.</p></div>
+    <a class="button button-secondary" href="/rankings">Ver rankings</a>
+</section>
+
+<article class="scoring-guide">
+    <section aria-labelledby="guide-rankings">
+        <h2 id="guide-rankings">Cada ranking mede uma coisa</h2>
+        <dl class="guide-definitions">
+            <div><dt>Geral competitivo</dt><dd>É seu rating de habilidade: começa em @ScoringRuleSet.InitialRating.ToString("0") e sobe ou desce conforme os resultados contra humanos. Vencer adversários mais fortes rende mais; perder para mais fracos custa mais. Partidas com IA auxiliando os lados humanos têm peso reduzido. Humanos contra uma equipe só de IA não alteram esse rating.</dd></div>
+            <div><dt>Carreira</dt><dd>Soma a participação e os resultados ao longo do tempo: pontos de partidas contra humanos, bônus de MVP e @((ScoringRuleSet.PveCareerContribution * 100).ToString("0"))% dos pontos obtidos contra IA. Uma derrota também pode render pontos de carreira.</dd></div>
+            <div><dt>Domínio contra IA</dt><dd>Reúne apenas pontos contra IA com comprovação verificada ou auditada. Fica separado do rating competitivo.</dd></div>
+        </dl>
+        <p class="guide-example"><strong>Exemplo:</strong> perder um 1×1 contra outro jogador reduz seu rating, mas acrescenta 25 pontos de carreira. São medidas diferentes.</p>
+    </section>
+
+    <section aria-labelledby="guide-career">
+        <h2 id="guide-career">Quanto uma partida contra humanos vale?</h2>
+        <p>Estes são os pontos de <strong>carreira por jogador</strong> em equipes equilibradas, sem IA:</p>
+        <div class="guide-table-wrap">
+            <table>
+                <caption>Pontos de carreira por resultado</caption>
+                <thead><tr><th scope="col">Formato</th><th scope="col">Vitória</th><th scope="col">Empate</th><th scope="col">Derrota</th></tr></thead>
+                <tbody>
+                    @for (var size = 1; size <= 4; size++)
+                    {
+                        <tr><th scope="row">@(size)×@(size)</th><td>@Rules.GetPvpCareerBase(size, ScoringResult.Victory)</td><td>@Rules.GetPvpCareerBase(size, ScoringResult.Draw)</td><td>@Rules.GetPvpCareerBase(size, ScoringResult.Defeat)</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p>Em confrontos como 2×3, a equipe menor ganha um multiplicador maior se vencer. Com IA ajudando um dos lados humanos, a base é reduzida a 70% e ajustada pela dificuldade do confronto.</p>
+    </section>
+
+    <section aria-labelledby="guide-ai">
+        <h2 id="guide-ai">Como contam as partidas contra IA?</h2>
+        <p>Somam-se os valores das IAs adversárias e divide-se pelo número de humanos da equipe. Os cinco níveis internos rendem <strong>8, 15, 30, 50 ou 75 pontos por IA derrotada</strong>; uma derrota válida parte de 1, 2, 4, 6 ou 8 pontos por IA.</p>
+        <p>A comprovação também conta: sem evidência, não há pontos; evidência básica vale 40%, com teto de 150 pontos por temporada, e não entra no ranking oficial contra IA. Evidência verificada ou auditada vale 100%, antes das reduções por repetição.</p>
+        <p class="guide-example"><strong>Exemplo:</strong> dois humanos vencem duas IAs de nível interno 3. São (30 + 30) ÷ 2 = <strong>30 pontos contra IA e 10,5 de carreira para cada jogador</strong>, com comprovação completa e sem redução por repetição.</p>
+    </section>
+
+    <section aria-labelledby="guide-mvp">
+        <h2 id="guide-mvp">MVP e desempenho</h2>
+        <p>Na versão atual, o administrador indica o MVP de cada equipe ao revisar as estatísticas. Após finalizar o relatório, o MVP recebe <strong>+2 pontos de carreira em partidas só entre humanos</strong>, ou <strong>+1 com IA auxiliando</strong>. Contra uma equipe só de IA, o MVP não dá pontos extras. Esse bônus não altera o rating.</p>
+        <p>O índice de desempenho compara militar, economia, tecnologia e sociedade entre os jogadores da partida. Ele ajuda a analisar a atuação, mas não escolhe automaticamente o MVP nem concede um bônus por cada estatística liderada.</p>
+    </section>
+
+    <section aria-labelledby="guide-position">
+        <h2 id="guide-position">Quando apareço e como subo?</h2>
+        <p>Os rankings usam os resultados validados; salvar um rascunho não basta. Quanto maior a pontuação daquele ranking, melhor a posição. No competitivo, você fica <strong>provisório nas primeiras 9 partidas contabilizadas</strong> e classificado a partir da 10ª.</p>
+        <p><strong>Equipes fixas:</strong> cada combinação exata de jogadores tem rating próprio. Trocar um integrante cria outra formação, provisória até completar 5 partidas. <strong>Clãs:</strong> o quadro está disponível, mas o registro atual de partidas ainda não gera pontuação de clã automaticamente.</p>
+    </section>
+
+    <details class="guide-details">
+        <summary>Detalhes dos ajustes e casos especiais</summary>
+        <p><strong>Rating:</strong> considera a força média e o tamanho das equipes. As primeiras 10 partidas têm ajuste mais rápido. Os pesos são 100% no 1×1, 90% no 2×2, 85% no 3×3, 80% no 4×4 e 75% em equipes desiguais. A variação final é arredondada e limitada a ±40 por partida; confrontos híbridos têm redução adicional.</p>
+        <p><strong>Repetição contra IA:</strong> uma vitória vale 100% enquanto houver menos de 3 registros equivalentes já pontuados na temporada; com 3 a 9, vale 25%; com 10 ou mais, não rende novos pontos. Hoje esse contador inclui derrotas que renderam pontos. A equivalência considera edição, mapa, dificuldades das IAs, jogadores humanos e civilizações.</p>
+        <p><strong>Desempenho:</strong> os pesos militar/economia/tecnologia/sociedade são 45/35/10/10% em duelos e 40/30/10/20% quando há equipe com mais de um humano. A comparação é relativa à própria partida.</p>
+        <p><strong>Todos contra todos:</strong> ainda não recebe a pontuação base de rating e carreira usada nos confrontos entre duas equipes. Excluir uma partida remove seus pontos e bônus. Empates na pontuação do ranking não usam confronto direto como desempate.</p>
+    </details>
+</article>
+
+@code {
+    private static readonly ScoringRuleSet Rules = new();
+}

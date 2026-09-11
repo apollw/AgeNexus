@@ -21,3 +21,7 @@ dotnet build AgeNexus.slnx
 dotnet test AgeNexus.slnx
 dotnet run --project src/AgeNexus.Web
 ```
+
+### Guia de pontuação
+
+A página pública `/pontuacao`, acessível pelos rankings e pelo menu (em **Mais** no celular), explica rating competitivo, carreira, IA, MVP indicado pelo administrador e classificações provisórias. Os valores da tabela PvP vêm de `ScoringRuleSet`. Detalhes adicionais ficam em um bloco expansível. O texto descreve as regras implementadas, incluindo o contador atual de repetição PvE e a ausência de geração automática de pontos de clã.
