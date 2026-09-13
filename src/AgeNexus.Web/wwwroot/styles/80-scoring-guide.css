@@ -1,24 +1,54 @@
-.scoring-guide { max-width: 58rem; font-size: 1rem; line-height: 1.75; }
-.scoring-guide > section { padding: 1.5rem 0; border-bottom: 1px solid var(--line); }
-.scoring-guide > section:first-child { padding-top: .25rem; }
-.scoring-guide h2 { font-size: 1.3rem; line-height: 1.4; margin: 0 0 1rem; color: var(--forest); }
-.scoring-guide p { margin: .75rem 0; }
-.guide-definitions { margin: 0; }
-.guide-definitions > div { margin: 0 0 1rem; }
-.guide-definitions dt { font-weight: 800; }
-.guide-definitions dd { margin: .25rem 0 0; }
-.guide-example { background: var(--forest-light); padding: 1rem 1.25rem; border-left: 3px solid var(--forest); }
-.guide-table-wrap { overflow-x: auto; }
-.scoring-guide table { width: 100%; border-collapse: collapse; margin: .5rem 0 1rem; font-size: 1rem; }
-.scoring-guide caption { text-align: left; font-size: .875rem; padding-bottom: .5rem; }
-.scoring-guide th, .scoring-guide td { text-align: center; padding: .7rem .5rem; border-bottom: 1px solid var(--line); }
-.scoring-guide th:first-child { text-align: left; }
-.scoring-guide thead { background: var(--forest); color: white; }
-.guide-details { margin-top: 1.5rem; padding: 1rem 1.25rem; background: var(--surface); border: 1px solid var(--line); }
-.guide-details summary { cursor: pointer; font-weight: 800; line-height: 1.5; }
-.guide-details summary:focus-visible { outline: 2px solid var(--forest); outline-offset: 5px; }
+/* Player guide: parchment panels, forest highlights and gold accents. */
+.scoring-heading { padding-bottom: 1.5rem; border-bottom: 1px solid var(--line); }
+.scoring-heading .button { flex-shrink: 0; }
+.scoring-guide { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; width: 100%; font-size: 1rem; line-height: 1.75; }
+.scoring-guide > * { min-width: 0; }
+.scoring-guide h2 { margin: 0 0 1rem; color: var(--forest); font: 600 clamp(1.05rem, 1.4vw, 1.25rem)/1.5 "Unbounded", sans-serif; letter-spacing: -.025em; text-wrap: balance; }
+.scoring-guide p { margin: 1rem 0 0; }
+.guide-overview { grid-column: 1 / -1; }
+.guide-overview > h2 { font-family: "Manrope", sans-serif; font-size: 1.15rem; letter-spacing: 0; }
+.guide-definitions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 0; }
+.guide-ranking-card { position: relative; padding: 1.5rem; border: 1px solid var(--line); border-top: 3px solid var(--gold); border-radius: 7px; background: var(--surface); box-shadow: 0 8px 24px rgba(39,31,19,.04); }
+.guide-ranking-card dt { color: var(--forest); font-size: 1.2rem; line-height: 1.4; font-weight: 800; }
+.guide-card-label { display: block; margin-bottom: .6rem; color: #79561e; font-size: .875rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.guide-ranking-card dd { margin: .9rem 0 0; }
+.guide-ranking-competitive { background: var(--forest); color: #f5f1e8; border-color: var(--forest); border-top-color: var(--gold-light); }
+.guide-ranking-competitive dt { color: #fffdf8; }
+.guide-ranking-competitive .guide-card-label { color: var(--gold-light); }
+.guide-panel { padding: clamp(1.25rem, 2.5vw, 2rem); background: var(--surface); border: 1px solid var(--line); border-radius: 7px; box-shadow: 0 8px 24px rgba(39,31,19,.035); }
+.guide-kicker { display: block; margin-bottom: .75rem; color: #79561e; font-size: .875rem; font-weight: 800; letter-spacing: .045em; }
+.scoring-guide .guide-example { margin-top: 1.25rem; padding: 1rem 1.2rem; background: var(--forest-light); color: #193d35; border-left: 3px solid var(--forest); border-radius: 0 5px 5px 0; font-size: .9375rem; line-height: 1.7; }
+.guide-overview > .guide-example { background: #ede5d5; border-color: var(--gold); color: var(--ink); }
+.guide-table-wrap { overflow-x: auto; margin-top: 1.25rem; border: 1px solid var(--line); border-radius: 5px; }
+.scoring-guide table { width: 100%; border-collapse: collapse; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.scoring-guide caption { padding: .8rem 1rem; text-align: left; background: #f5f1e8; font-size: .875rem; font-weight: 700; }
+.scoring-guide th, .scoring-guide td { padding: .9rem .6rem; text-align: center; border-bottom: 1px solid var(--line); }
+.scoring-guide th:first-child { text-align: left; padding-left: 1rem; }
+.scoring-guide thead { background: var(--forest); color: #fffdf8; font-size: .875rem; }
+.scoring-guide tbody th { color: var(--forest); }
+.scoring-guide tbody td:nth-child(2) { color: var(--forest); font-weight: 800; background: rgba(220,234,228,.45); }
+.scoring-guide tbody tr:last-child > * { border-bottom: 0; }
+.guide-details { grid-column: 1 / -1; padding: 1.25rem 1.5rem; background: #ede5d5; border: 1px solid #d7c8a9; border-radius: 7px; }
+.guide-details summary { cursor: pointer; color: var(--forest); font-weight: 800; line-height: 1.5; min-height: 1.5rem; }
+.guide-details summary::marker { color: #79561e; }
+.guide-details[open] summary { padding-bottom: 1rem; border-bottom: 1px solid #d7c8a9; }
+.guide-details summary:focus-visible { outline: 2px solid var(--forest); outline-offset: 5px; border-radius: 2px; }
+@media (max-width: 1200px) {
+    .guide-definitions { grid-template-columns: 1fr; }
+    .guide-ranking-card { display: grid; grid-template-columns: minmax(10rem, 1fr) 2.5fr; gap: 1.25rem; }
+    .guide-ranking-card dd { margin: 0; }
+}
+@media (max-width: 900px) {
+    .scoring-guide { grid-template-columns: 1fr; }
+}
 @media (max-width: 600px) {
-    .scoring-guide h2 { font-size: 1.15rem; }
-    .guide-example, .guide-details { padding: .85rem; }
-    .scoring-guide th, .scoring-guide td { padding: .6rem .3rem; }
+    .scoring-heading { gap: 1rem; align-items: flex-start; flex-direction: column; }
+    .scoring-heading h1 { font-size: clamp(1.65rem, 7vw, 2.15rem); line-height: 1.2; }
+    .scoring-guide { gap: 1rem; }
+    .guide-ranking-card { display: block; padding: 1.25rem; }
+    .guide-ranking-card dd { margin-top: .75rem; }
+    .guide-panel { padding: 1.15rem; }
+    .scoring-guide .guide-example, .guide-details { padding: 1rem; }
+    .scoring-guide th, .scoring-guide td { padding: .75rem .3rem; }
+    .scoring-guide th:first-child { padding-left: .5rem; }
 }
