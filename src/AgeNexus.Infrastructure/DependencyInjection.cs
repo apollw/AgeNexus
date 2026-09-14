@@ -38,6 +38,8 @@ public static class DependencyInjection
         services.AddHttpClient(nameof(SupabaseEvidenceObjectStorage), client =>
             client.Timeout = TimeSpan.FromSeconds(30));
         services.AddSingleton<CompetitionQueryCache>();
+        services.AddSingleton<CatalogQueryCache>();
+        services.AddSingleton<SlowDatabaseCommandInterceptor>();
         services.AddSingleton<CompetitionCacheInvalidationInterceptor>();
         services.AddSingleton<IEvidenceObjectStorage, SupabaseEvidenceObjectStorage>();
         services.AddDbContext<AgeNexusDbContext>((serviceProvider, options) =>
@@ -46,7 +48,8 @@ public static class DependencyInjection
                 npgsql.MigrationsAssembly(typeof(AgeNexusDbContext).Assembly.FullName);
                 npgsql.MigrationsHistoryTable("__ef_migrations_history", "public");
                 npgsql.EnableRetryOnFailure(3);
-            }).AddInterceptors(serviceProvider.GetRequiredService<CompetitionCacheInvalidationInterceptor>()));
+            }).AddInterceptors(serviceProvider.GetRequiredService<CompetitionCacheInvalidationInterceptor>(),
+                serviceProvider.GetRequiredService<SlowDatabaseCommandInterceptor>()));
         services.AddScoped<AgeNexusDbContextFactory>();
 
         services

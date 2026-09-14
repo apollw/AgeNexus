@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace AgeNexus.Infrastructure.Persistence;
 
-internal sealed class CompetitionCacheInvalidationInterceptor(CompetitionQueryCache cache)
+internal sealed class CompetitionCacheInvalidationInterceptor(CompetitionQueryCache cache, CatalogQueryCache catalogCache)
     : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(
@@ -31,6 +31,13 @@ internal sealed class CompetitionCacheInvalidationInterceptor(CompetitionQueryCa
                 entry.Entity.GetType().Assembly == typeof(Domain.Matches.Match).Assembly) == true)
         {
             cache.Invalidate();
+            if (context.ChangeTracker.Entries().Any(entry =>
+                (entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted) &&
+                (entry.Entity is Domain.Players.PlayerProfile or Domain.Competition.Season ||
+                 entry.Entity.GetType().Namespace == typeof(Domain.GameCatalog.GameEdition).Namespace)))
+            {
+                catalogCache.Invalidate();
+            }
         }
     }
 }

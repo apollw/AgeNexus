@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AgeNexus.Infrastructure.Queries;
 
-internal sealed class CompetitionQueryService(AgeNexusDbContext database, CompetitionQueryCache cache) :
+internal sealed class CompetitionQueryService(AgeNexusDbContext database, CompetitionQueryCache cache, CatalogQueryCache catalogCache) :
     IRankingQueryService,
     IMatchHistoryQueryService,
     IPlayerDirectoryQueryService,
@@ -517,7 +517,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
     public Task<MatchRegistrationCatalog> GetMatchRegistrationCatalogAsync(
         Guid? gameEditionId = null,
         CancellationToken cancellationToken = default)
-        => cache.GetOrCreateAsync(
+        => catalogCache.GetOrCreateAsync(
             $"catalog:match:{gameEditionId}",
             token => GetMatchRegistrationCatalogCoreAsync(gameEditionId, token),
             cancellationToken);

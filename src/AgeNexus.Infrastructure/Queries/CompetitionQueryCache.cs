@@ -1,8 +1,11 @@
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace AgeNexus.Infrastructure.Queries;
 
-internal sealed class CompetitionQueryCache(IMemoryCache cache)
+internal class CompetitionQueryCache(IMemoryCache cache, ILogger<CompetitionQueryCache> logger,
+    string cacheNamespace = "competition")
 {
     private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(2);
     private readonly SemaphoreSlim[] gates = Enumerable.Range(0, 32)
@@ -17,7 +20,7 @@ internal sealed class CompetitionQueryCache(IMemoryCache cache)
         where T : notnull
     {
         var currentVersion = Volatile.Read(ref version);
-        var versionedKey = $"competition:{currentVersion}:{key}";
+        var versionedKey = $"{cacheNamespace}:{currentVersion}:{key}";
         if (cache.TryGetValue(versionedKey, out T? cached) && cached is not null)
         {
             return cached;
@@ -25,7 +28,9 @@ internal sealed class CompetitionQueryCache(IMemoryCache cache)
 
         var gateIndex = (int)((uint)StringComparer.Ordinal.GetHashCode(versionedKey) % (uint)gates.Length);
         var gate = gates[gateIndex];
+        var elapsed = Stopwatch.StartNew();
         await gate.WaitAsync(cancellationToken);
+        var waitMilliseconds = elapsed.ElapsedMilliseconds;
         try
         {
             if (cache.TryGetValue(versionedKey, out cached) && cached is not null)
@@ -48,6 +53,11 @@ internal sealed class CompetitionQueryCache(IMemoryCache cache)
         finally
         {
             gate.Release();
+            if (elapsed.ElapsedMilliseconds >= 500)
+            {
+                logger.LogWarning("Slow query group {QueryGroup}: {ElapsedMs}ms total, {WaitMs}ms waiting for cache. Trace {TraceId}",
+                    key.Split(':')[0], elapsed.ElapsedMilliseconds, waitMilliseconds, Activity.Current?.TraceId.ToString());
+            }
         }
     }
 
