@@ -21,3 +21,18 @@ Se persistir, correlacione os avisos e erros do EF com CPU/memória do Render, r
 ## Recuperação da página de desempenho
 
 A página de desempenho usa uma única sequência de consultas para não multiplicar conexões PostgreSQL. O carregamento principal é limitado a 30 segundos e a galeria de evidências a 15 segundos. Falhas, partidas ausentes e contas sem perfil vinculado agora encerram o indicador de carregamento e apresentam uma ação útil. O botão de nova tentativa repete apenas a leitura da página. Exceções completas permanecem nos logs do servidor.
+
+## Incidente de setembro de 2026
+
+Com aproximadamente sete partidas registradas, foi observado aumento progressivo no tempo para abrir a listagem, cadastrar uma partida e carregar a tela de desempenho. A tela de desempenho chegou a permanecer indefinidamente em `Carregando partida...`.
+
+A análise encontrou duas causas concretas no código:
+
+- toda gravação invalidava também o cache do catálogo estável do formulário, forçando sete consultas adicionais no acesso seguinte;
+- o relatório de desempenho podia abrir até seis contextos de banco simultaneamente, além da leitura paralela do perfil, aumentando a disputa pelo limite de conexões do PostgreSQL hospedado.
+
+As correções foram integradas pelos PRs #33 e #34. O catálogo passou a ter invalidação própria e a leitura do relatório agora usa uma sequência controlada em um único contexto. A interface encerra o carregamento em até 30 segundos, mostra erro e permite nova tentativa. A galeria de evidências possui limite independente de 15 segundos.
+
+### Lição de validação
+
+Build e testes automatizados confirmam regras e regressões conhecidas, mas não reproduzem sozinhos latência de rede, limites do plano hospedado, crescimento real dos dados e uso contínuo do Blazor Server. Mudanças em caminhos críticos devem combinar testes com uma verificação manual após o deploy. Relatos de aumento progressivo, horário aproximado e tela afetada são evidências de diagnóstico e devem ser correlacionados com os avisos de desempenho do servidor.
