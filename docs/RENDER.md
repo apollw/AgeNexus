@@ -77,3 +77,11 @@ Cookies de autenticação e antifalsificação exigem HTTPS em produção. Mante
 O login Google emite cookie persistente tanto para contas já vinculadas quanto no primeiro acesso. Fechar a aba ou o navegador não encerra a sessão. A validade permanece em 14 dias, renovada pelo uso conforme a expiração deslizante do Identity. O botão Sair remove o cookie. Após publicar esta alteração, sessões antigas precisam de um novo login para receber o cookie persistente.
 
 Isso não muda a proteção HTTPS, a revalidação nem a revogação de acesso. Limpeza de cookies, navegação privada, expiração e reinícios que percam as chaves Data Protection ainda podem exigir novo login. As chaves de produção ainda não têm armazenamento persistente configurado neste projeto.
+
+## Verificação operacional após deploy
+
+Depois de alterações em consultas ou cadastro de partidas, valide no ambiente publicado: abrir `/partidas`, iniciar um cadastro, salvar e abrir `/partidas/{id}/desempenho`. Use uma partida real ou um fluxo previamente autorizado e anote o horário UTC se houver demora.
+
+No Render, procure pelos avisos `Slow query group`, `Slow statistics load`, `Slow database command`, `Timed out loading performance page` e `Failed to load performance page`. Compare-os com CPU, memória, reinicializações e conexões do Supabase. Não considere somente o resultado do CI como confirmação de desempenho em produção.
+
+A página de desempenho não deve permanecer indefinidamente carregando. Ela encerra a tentativa principal após 30 segundos, registra o erro no servidor e oferece nova tentativa. A leitura usa um único contexto de banco por vez para respeitar a disponibilidade limitada de conexões do ambiente hospedado. Consulte [PERFORMANCE.md](PERFORMANCE.md) para o histórico e os limites desse diagnóstico.
