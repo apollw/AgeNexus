@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Application.Matches;
 using AgeNexus.Domain.Common;
@@ -18,13 +20,29 @@ public sealed class PerformanceStatisticsService(
     IPerformanceCalculator calculator,
     IMatchWorkflowService matchWorkflow,
     AccountService accounts,
-    IConfiguration configuration) : IPerformanceStatisticsService
+    IConfiguration configuration,
+    ILogger<PerformanceStatisticsService> logger) : IPerformanceStatisticsService
 {
     private const string ManualMvpRuleVersion = "2026.09-manual-mvp.1";
 
     public async Task<PerformanceReportView?> GetAsync(
         Guid matchId,
         CancellationToken cancellationToken = default)
+    {
+        var elapsed = Stopwatch.StartNew();
+        try
+        {
+            return await GetCoreAsync(matchId, cancellationToken);
+        }
+        finally
+        {
+            if (elapsed.ElapsedMilliseconds >= 500)
+                logger.LogWarning("Slow statistics load: {ElapsedMs}ms. Trace {TraceId}",
+                    elapsed.ElapsedMilliseconds, Activity.Current?.TraceId.ToString());
+        }
+    }
+
+    private async Task<PerformanceReportView?> GetCoreAsync(Guid matchId, CancellationToken cancellationToken)
     {
         await using var matchDatabase = databaseFactory.CreateDbContext();
         await using var reportDatabase = databaseFactory.CreateDbContext();
