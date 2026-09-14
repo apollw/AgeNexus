@@ -17,3 +17,7 @@ O servidor emite avisos a partir de 500 ms:
 Os novos avisos não registram SQL, parâmetros, identificadores de jogadores ou credenciais. O TraceId ajuda a correlacionar quando há uma Activity ativa, mas pode estar ausente em eventos Blazor. Os tempos não representam toda a latência do navegador/SignalR.
 
 Se persistir, correlacione os avisos e erros do EF com CPU/memória do Render, região e conexões do Supabase e desconexões SignalR. Tempo alto apenas no formulário durante digitação exige medir navegador e circuito Blazor. Não houve acesso a métricas do servidor ou banco hospedado nesta revisão, nem benchmark de produção. Os testes de regressão verificam invalidação e reutilização após oito gravações, não desempenho de PostgreSQL.
+
+## Recuperação da página de desempenho
+
+A página de desempenho usa uma única sequência de consultas para não multiplicar conexões PostgreSQL. O carregamento principal é limitado a 30 segundos e a galeria de evidências a 15 segundos. Falhas, partidas ausentes e contas sem perfil vinculado agora encerram o indicador de carregamento e apresentam uma ação útil. O botão de nova tentativa repete apenas a leitura da página. Exceções completas permanecem nos logs do servidor.
