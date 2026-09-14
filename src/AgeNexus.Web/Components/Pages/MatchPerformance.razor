@@ -5,6 +5,7 @@
 @inject AgeNexus.Application.MatchPerformance.AgeExtractorJsonImporter JsonImporter
 @inject AgeNexus.Application.Evidence.IMatchEvidenceService EvidenceService
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
+@inject ILogger<MatchPerformance> Logger
 
 <PageTitle>Desempenho da partida · Age Nexus</PageTitle>
 
@@ -17,9 +18,25 @@
     <a class="button button-secondary" href="/partidas">Voltar</a>
 </section>
 
-@if (View is null || CurrentProfile is null)
+@if (IsLoading)
 {
-    <section class="panel panel-empty page-empty"><strong>Carregando partida...</strong></section>
+    <section class="panel panel-empty page-empty" role="status"><strong>Carregando partida...</strong></section>
+}
+else if (!string.IsNullOrWhiteSpace(LoadError))
+{
+    <section class="panel panel-empty page-empty load-failure" role="alert">
+        <strong>Não foi possível carregar a partida</strong>
+        <p>@LoadError</p>
+        <button class="button button-primary" type="button" @onclick="LoadPageAsync">Tentar novamente</button>
+    </section>
+}
+else if (View is null)
+{
+    <section class="panel panel-empty page-empty" role="alert"><strong>Partida não encontrada.</strong><a class="button button-secondary" href="/partidas">Voltar às partidas</a></section>
+}
+else if (CurrentProfile is null)
+{
+    <section class="panel panel-empty page-empty" role="alert"><strong>Sua conta ainda não possui um perfil de jogador vinculado.</strong><a class="button button-primary" href="/conta/vincular-perfil">Configurar perfil</a></section>
 }
 else
 {
@@ -351,6 +368,8 @@ else
     private AgeNexus.Application.MatchPerformance.AgeExtractorJsonImportResult? JsonImportResult { get; set; }
     private List<JsonPlayerMapping> JsonMappings { get; } = [];
     private bool LoadEvidenceAfterRender { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private string? LoadError { get; set; }
 
     private string JsonImportSummary => JsonImportResult?.Status switch
     {
@@ -372,20 +391,44 @@ else
         CurrentProfile is not null &&
         View.Players.Any(x => x.PlayerProfileId == CurrentProfile.Id && !View.ConfirmedTeamIds.Contains(x.TeamId));
 
-    protected override async Task OnParametersSetAsync()
+    protected override Task OnParametersSetAsync() => LoadPageAsync();
+
+    private async Task LoadPageAsync()
     {
-        var authentication = await AuthenticationStateTask;
+        IsLoading = true;
+        LoadError = null;
+        View = null;
+        CurrentProfile = null;
         EvidenceGallery = null;
-        LoadEvidenceAfterRender = true;
-        var profileTask = Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
-        var performanceTask = PerformanceService.GetAsync(MatchId);
-        await Task.WhenAll(profileTask, performanceTask);
-        CurrentProfile = await profileTask;
-        ApplyPerformanceView(await performanceTask);
-        if (NewMatch == "1" && View?.ReportId is null)
+        LoadEvidenceAfterRender = false;
+        try
         {
-            Message = "Partida registrada. Agora transcreva as estatísticas finais de cada jogador e salve o relatório.";
-            HasError = false;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var authentication = await AuthenticationStateTask;
+            // These operations share a limited PostgreSQL connection pool in production.
+            // Loading them in sequence prevents this page from multiplying connections.
+            CurrentProfile = await Accounts.GetProfileAsync(authentication.User, timeout.Token);
+            ApplyPerformanceView(await PerformanceService.GetAsync(MatchId, timeout.Token));
+            LoadEvidenceAfterRender = View is not null && CurrentProfile is not null;
+            if (NewMatch == "1" && View?.ReportId is null)
+            {
+                Message = "Partida registrada. Agora transcreva as estatísticas finais de cada jogador e salve o relatório.";
+                HasError = false;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            LoadError = "O servidor demorou mais de 30 segundos para responder. Tente novamente.";
+            Logger.LogWarning("Timed out loading performance page for match {MatchId}", MatchId);
+        }
+        catch (Exception exception)
+        {
+            LoadError = "O servidor encontrou um erro ao consultar os dados. Tente novamente.";
+            Logger.LogError(exception, "Failed to load performance page for match {MatchId}", MatchId);
+        }
+        finally
+        {
+            IsLoading = false;
         }
     }
 
@@ -417,15 +460,23 @@ else
 
         LoadEvidenceAfterRender = false;
         var evidenceMatchId = MatchId;
-        var gallery = await EvidenceService.GetAsync(evidenceMatchId);
-        if (MatchId != evidenceMatchId)
+        try
         {
-            return;
-        }
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var gallery = await EvidenceService.GetAsync(evidenceMatchId, timeout.Token);
+            if (MatchId != evidenceMatchId)
+            {
+                return;
+            }
 
-        EvidenceGallery = gallery;
-        YouTubeUrl = EvidenceVideo?.Url ?? string.Empty;
-        StateHasChanged();
+            EvidenceGallery = gallery;
+            YouTubeUrl = EvidenceVideo?.Url ?? string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Failed to load evidence for match {MatchId}", evidenceMatchId);
+        }
     }
 
     private async Task SaveYouTubeAsync()

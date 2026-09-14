@@ -44,13 +44,10 @@ public sealed class PerformanceStatisticsService(
 
     private async Task<PerformanceReportView?> GetCoreAsync(Guid matchId, CancellationToken cancellationToken)
     {
-        await using var matchDatabase = databaseFactory.CreateDbContext();
-        await using var reportDatabase = databaseFactory.CreateDbContext();
-        var matchTask = LoadMatchForReadAsync(matchDatabase, matchId, cancellationToken);
-        var reportTask = reportDatabase.MatchStatisticsReports.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.MatchId == matchId, cancellationToken);
-        await Task.WhenAll(matchTask, reportTask);
-        var match = await matchTask;
+        // Keep the whole read on one context. Opening several concurrent contexts here can
+        // exhaust the small connection allowance used by hosted PostgreSQL plans.
+        await using var readDatabase = databaseFactory.CreateDbContext();
+        var match = await LoadMatchForReadAsync(readDatabase, matchId, cancellationToken);
         if (match is null)
         {
             return null;
@@ -60,32 +57,23 @@ public sealed class PerformanceStatisticsService(
             .Where(x => x.Type == ParticipantType.Human)
             .Select(x => new { Team = team, PlayerId = x.PlayerProfileId!.Value })).ToArray();
         var playerIds = humans.Select(x => x.PlayerId).ToArray();
-        var report = await reportTask;
-
-        await using var namesDatabase = databaseFactory.CreateDbContext();
-        await using var statisticsDatabase = databaseFactory.CreateDbContext();
-        await using var scoresDatabase = databaseFactory.CreateDbContext();
-        await using var confirmationsDatabase = databaseFactory.CreateDbContext();
-        var namesTask = namesDatabase.PlayerProfiles.AsNoTracking().Where(x => playerIds.Contains(x.Id))
+        var report = await readDatabase.MatchStatisticsReports.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.MatchId == matchId, cancellationToken);
+        var names = await readDatabase.PlayerProfiles.AsNoTracking().Where(x => playerIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
-        var statisticsTask = report is null
-            ? Task.FromResult(Array.Empty<PlayerMatchStatistics>())
-            : statisticsDatabase.PlayerMatchStatistics.AsNoTracking()
+        var statistics = report is null
+            ? []
+            : await readDatabase.PlayerMatchStatistics.AsNoTracking()
                 .Where(x => x.ReportId == report.Id).ToArrayAsync(cancellationToken);
-        var scoresTask = report?.Status != MatchStatisticsStatus.Awarded
-            ? Task.FromResult(Array.Empty<PlayerPerformanceScore>())
-            : scoresDatabase.PlayerPerformanceScores.AsNoTracking()
+        var scores = report?.Status != MatchStatisticsStatus.Awarded
+            ? []
+            : await readDatabase.PlayerPerformanceScores.AsNoTracking()
                 .Where(x => x.ReportId == report.Id).ToArrayAsync(cancellationToken);
-        var confirmedTeamsTask = report?.Status is not (MatchStatisticsStatus.Submitted or MatchStatisticsStatus.Confirmed or MatchStatisticsStatus.Awarded)
-            ? Task.FromResult(Array.Empty<Guid>())
-            : confirmationsDatabase.StatisticsConfirmations.AsNoTracking()
+        var confirmedTeams = report?.Status is not (MatchStatisticsStatus.Submitted or MatchStatisticsStatus.Confirmed or MatchStatisticsStatus.Awarded)
+            ? []
+            : await readDatabase.StatisticsConfirmations.AsNoTracking()
                 .Where(x => x.ReportId == report.Id && x.Decision == StatisticsConfirmationDecision.Confirmed)
                 .Select(x => x.TeamId).ToArrayAsync(cancellationToken);
-        await Task.WhenAll(namesTask, statisticsTask, scoresTask, confirmedTeamsTask);
-        var names = await namesTask;
-        var statistics = await statisticsTask;
-        var scores = await scoresTask;
-        var confirmedTeams = await confirmedTeamsTask;
         var statisticLookup = statistics.ToDictionary(x => x.PlayerProfileId);
         var scoreLookup = scores.ToDictionary(x => x.PlayerProfileId);
         var players = humans.Select(x =>
