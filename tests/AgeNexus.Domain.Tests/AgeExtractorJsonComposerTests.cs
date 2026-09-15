@@ -46,4 +46,25 @@ public sealed class AgeExtractorJsonComposerTests
         Assert.False(result.Succeeded);
         Assert.Contains("repetida", result.Error ?? string.Empty);
     }
+
+    [Fact]
+    public void Rejects_partial_result_before_creating_json()
+    {
+        var fragments = Categories.Take(4).Select(category => $$"""
+            {
+              "quantidade_jogadores": 2,
+              "categoria": "{{category}}",
+              "jogadores": [
+                { "jogador": 1, "{{category}}": {} },
+                { "jogador": 2, "{{category}}": {} }
+              ]
+            }
+            """).ToArray();
+
+        var result = new AgeExtractorJsonComposer().Compose(fragments);
+
+        Assert.False(result.Succeeded);
+        Assert.Null(result.Json);
+        Assert.Contains("cinco categorias", result.Error ?? string.Empty);
+    }
 }
