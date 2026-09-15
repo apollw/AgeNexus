@@ -113,6 +113,7 @@ public static class DependencyInjection
         services.AddScoped<ICatalogSetupService, CatalogSetupService>();
         services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
         services.AddScoped<IPerformanceStatisticsService, PerformanceStatisticsService>();
+        services.AddSingleton<IAgeExtractorService, AgeExtractorProcessService>();
         services.AddScoped<IMatchEvidenceService, MatchEvidenceService>();
         services.AddScoped<CompetitionQueryService>();
         services.AddScoped<GeneralStatisticsQueryService>();

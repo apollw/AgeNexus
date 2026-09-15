@@ -12,6 +12,8 @@ Para alterar o schema e aplicar migrações PostgreSQL, consulte [EF Core e Post
 
 Para importar replays e entender o cálculo de MVP, consulte [Estatísticas pós-jogo e replays](docs/REPLAY-ANALYSIS.md).
 
+Para extrair estatísticas diretamente das cinco capturas, consulte [AgeXtractor integrado](docs/AGEXTRACTOR.md).
+
 Para publicar a aplicação, consulte [Publicação no Render](docs/RENDER.md). Para diagnóstico, limites de conexão e validação após deploy, consulte [Desempenho no cadastro de partidas](docs/PERFORMANCE.md).
 
 Os emblemas de civilizações têm origem no projeto comunitário [AoE2 Tech Tree](https://github.com/SiegeEngineers/aoe2techtree) e são utilizados conforme as [Game Content Usage Rules da Microsoft](https://www.xbox.com/en-US/developers/rules). Age of Empires II © Microsoft Corporation. O AgeNexus não é endossado nem afiliado à Microsoft.

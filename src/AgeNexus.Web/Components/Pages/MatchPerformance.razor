@@ -3,6 +3,7 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService PerformanceService
 @inject AgeNexus.Application.MatchPerformance.AgeExtractorJsonImporter JsonImporter
+@inject AgeNexus.Application.MatchPerformance.IAgeExtractorService AgeExtractorService
 @inject AgeNexus.Application.Evidence.IMatchEvidenceService EvidenceService
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 @inject ILogger<MatchPerformance> Logger
@@ -75,6 +76,32 @@ else
 
     @if (View.Status is null or AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft)
     {
+        <section class="panel profile-form-card online-extractor">
+            <header class="panel-header">
+                <div><span class="eyebrow">AgeXtractor online</span><h2>Extrair estatísticas das capturas</h2></div>
+                <span class="extractor-player-count">@Rows.Count jogador(es)</span>
+            </header>
+            <p>Selecione as cinco telas finais da mesma partida. O processamento pode levar alguns minutos; as imagens são temporárias e o resultado sempre será exibido para revisão antes de preencher o formulário.</p>
+            <div class="extractor-file-grid">
+                @foreach (var category in ExtractorCategories)
+                {
+                    <label class="extractor-file-picker">
+                        <span>@category.Label</span>
+                        <InputFile OnChange="@(args => ReadExtractorImageAsync(args, category.Key))"
+                                   accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled="@Busy" />
+                        <small>@ExtractorFileName(category.Key)</small>
+                    </label>
+                }
+            </div>
+            <div class="performance-actions extractor-actions">
+                <small>JPEG, PNG ou WebP, até 5 MB por imagem.</small>
+                <button class="button button-primary" type="button" @onclick="ExtractImagesAsync"
+                        disabled="@(Busy || ExtractorImages.Count != ExtractorCategories.Length || Rows.Count is < 2 or > 8)">
+                    @(Busy ? "Processando..." : "Extrair e revisar")
+                </button>
+            </div>
+        </section>
+
         <section class="panel profile-form-card json-import">
             <header class="panel-header">
                 <div><span class="eyebrow">AgeExtractor</span><h2>Importar resultado JSON</h2></div>
@@ -367,6 +394,7 @@ else
     private string? JsonImportDetails { get; set; }
     private AgeNexus.Application.MatchPerformance.AgeExtractorJsonImportResult? JsonImportResult { get; set; }
     private List<JsonPlayerMapping> JsonMappings { get; } = [];
+    private Dictionary<string, ExtractorImageSelection> ExtractorImages { get; } = new(StringComparer.Ordinal);
     private bool LoadEvidenceAfterRender { get; set; }
     private bool IsLoading { get; set; } = true;
     private string? LoadError { get; set; }
@@ -631,6 +659,81 @@ else
             JsonFileName = null;
             Message = "O JSON excede o limite de 1 MB ou não pôde ser lido.";
             HasError = true;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private async Task ReadExtractorImageAsync(InputFileChangeEventArgs args, string category)
+    {
+        Busy = true;
+        try
+        {
+            await using var input = args.File.OpenReadStream(5 * 1024 * 1024);
+            using var memory = new MemoryStream();
+            await input.CopyToAsync(memory);
+            ExtractorImages[category] = new(args.File.Name, memory.ToArray());
+            Message = $"Imagem de {ExtractorCategories.Single(x => x.Key == category).Label} selecionada.";
+            HasError = false;
+        }
+        catch (IOException)
+        {
+            ExtractorImages.Remove(category);
+            Message = "A imagem ultrapassa 5 MB ou não pôde ser lida.";
+            HasError = true;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private string ExtractorFileName(string category) =>
+        ExtractorImages.TryGetValue(category, out var image) ? image.FileName : "Nenhuma imagem selecionada";
+
+    private async Task ExtractImagesAsync()
+    {
+        if (ExtractorImages.Count != ExtractorCategories.Length || Rows.Count is < 2 or > 8)
+        {
+            Message = "Selecione as cinco imagens da partida antes de iniciar a extração.";
+            HasError = true;
+            return;
+        }
+
+        Busy = true;
+        Message = "O AgeXtractor está lendo as imagens. Esse processo pode levar alguns minutos.";
+        HasError = false;
+        try
+        {
+            var images = ExtractorCategories.Select(category =>
+                new AgeNexus.Application.MatchPerformance.AgeExtractorImage(
+                    category.Key, ExtractorImages[category.Key].Content)).ToArray();
+            var result = await AgeExtractorService.ExtractAsync(Rows.Count, images);
+            if (!result.Succeeded || string.IsNullOrWhiteSpace(result.Json))
+            {
+                Message = result.ErrorCode switch
+                {
+                    "Busy" => "O AgeXtractor já está processando outra partida. Tente novamente em instantes.",
+                    "Timeout" => "A extração ultrapassou o limite de cinco minutos. Confira as imagens e tente novamente.",
+                    "Unavailable" => "O AgeXtractor ainda não está disponível neste servidor.",
+                    "InvalidImage" => "Uma das imagens não é um JPEG, PNG ou WebP válido de até 5 MB.",
+                    _ => "Não foi possível extrair as estatísticas. Confira as cinco telas e tente novamente."
+                };
+                HasError = true;
+                return;
+            }
+
+            JsonText = string.Empty;
+            JsonFileContent = result.Json;
+            JsonFileName = "Resultado do AgeXtractor online";
+            ExtractorImages.Clear();
+            AnalyzeJsonImport();
+            if (!HasError)
+            {
+                Message = "Extração concluída. Revise os valores e associe cada posição ao jogador correto.";
+            }
         }
         finally
         {
@@ -974,6 +1077,18 @@ else
         public int PlayerNumber { get; init; }
         public Guid? PlayerProfileId { get; set; }
     }
+
+    private static readonly ExtractorCategory[] ExtractorCategories =
+    [
+        new("placar", "Placar"),
+        new("militar", "Militar"),
+        new("economia", "Economia"),
+        new("tecnologia", "Tecnologia"),
+        new("sociedade", "Sociedade")
+    ];
+
+    private sealed record ExtractorCategory(string Key, string Label);
+    private sealed record ExtractorImageSelection(string FileName, byte[] Content);
 
     public sealed class EraTimeForm
     {
