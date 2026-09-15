@@ -34,6 +34,7 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 ENV DOTNET_EnableDiagnostics=0
 ENV AgeExtractor__PythonExecutable=/opt/agextractor-venv/bin/python
 ENV AgeExtractor__WorkingDirectory=/opt/agextractor
+ENV PYTHONPATH=/opt/agextractor
 ENV PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 10000
