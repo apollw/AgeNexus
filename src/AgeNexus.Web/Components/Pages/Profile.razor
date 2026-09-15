@@ -26,14 +26,8 @@
     {
         <div class="profile-layout">
             <aside class="profile-preview panel">
-                @if (!string.IsNullOrWhiteSpace(CurrentProfile.AvatarUrl))
-                {
-                    <img class="profile-avatar-image" src="@CurrentProfile.AvatarUrl" alt="Avatar de @CurrentProfile.DisplayName" />
-                }
-                else
-                {
-                    <span class="avatar avatar-xxl">@GetInitial(CurrentProfile.DisplayName)</span>
-                }
+                <PlayerAvatar DisplayName="@CurrentProfile.DisplayName" Url="@CurrentProfile.AvatarUrl" Size="profile"
+                              Class="profile-avatar-image" Lazy="false" />
                 <span class="eyebrow">Prévia pública</span>
                 <h2>@CurrentProfile.DisplayName</h2>
                 @if (!string.IsNullOrWhiteSpace(CurrentProfile.FavoriteFactionName))
@@ -189,5 +183,4 @@
         };
     }
 
-    private static string GetInitial(string value) => value[..1].ToUpperInvariant();
 }

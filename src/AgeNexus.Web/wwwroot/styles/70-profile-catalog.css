@@ -27,6 +27,7 @@
 .profile-claim-row { grid-template-columns: auto minmax(0,1fr) auto; }
 .profile-claim-actions { display: flex; align-items: center; gap: 9px; }
 .player-directory-card { color: inherit; text-decoration: none; transition: transform .16s ease, box-shadow .16s ease; }
+.player-directory-card .avatar-directory { box-shadow: 0 5px 14px rgba(25, 49, 42, .16); }
 .player-directory-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(35,29,18,.1); }
 .player-directory-card > b { margin-left: auto; color: var(--gold); font-size: 20px; }
 .public-profile-back { display: inline-flex; align-items: center; margin-bottom: 14px; color: var(--muted); font-size: var(--font-caption); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; transition: color .16s ease; }

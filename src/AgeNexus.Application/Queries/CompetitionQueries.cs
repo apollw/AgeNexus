@@ -16,7 +16,10 @@ public sealed record RankingEntry(
     string DisplayName,
     decimal Score,
     int ValidatedMatches,
-    bool IsProvisional);
+    bool IsProvisional)
+{
+    public string? AvatarUrl { get; init; }
+}
 
 public interface IRankingQueryService
 {
@@ -121,6 +124,7 @@ public sealed record GeneralStatisticEntry(
     int Position,
     Guid PlayerId,
     string DisplayName,
+    string? AvatarUrl,
     decimal Value,
     int Matches);
 

@@ -1,0 +1,54 @@
+@if (!string.IsNullOrWhiteSpace(Url))
+{
+    <img class="@CssClass"
+         src="@Url"
+         alt="Avatar de @DisplayName"
+         width="@Pixels"
+         height="@Pixels"
+         loading="@(Lazy ? "lazy" : "eager")"
+         decoding="async"
+         fetchpriority="@(Lazy ? "low" : "auto")"
+         referrerpolicy="no-referrer" />
+}
+else
+{
+    <span class="@CssClass" aria-label="Avatar padrão de @DisplayName">@Initials</span>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public string DisplayName { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Url { get; set; }
+
+    [Parameter]
+    public string Size { get; set; } = "list";
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public bool Lazy { get; set; } = true;
+
+    private string CssClass => $"avatar avatar-{Size} {Class}".Trim();
+    private int Pixels => Size switch
+    {
+        "compact" => 32,
+        "directory" => 52,
+        "hero" => 76,
+        "profile" => 112,
+        _ => 42
+    };
+
+    private string Initials
+    {
+        get
+        {
+            var parts = DisplayName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length == 0
+                ? "?"
+                : string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
+        }
+    }
+}

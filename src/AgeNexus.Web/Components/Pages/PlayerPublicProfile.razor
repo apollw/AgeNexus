@@ -14,14 +14,8 @@ else
 
     <section class="panel public-profile-hero">
         <div class="public-profile-identity">
-            @if (!string.IsNullOrWhiteSpace(Profile.AvatarUrl))
-            {
-                <img class="public-profile-avatar" src="@Profile.AvatarUrl" alt="Avatar de @Profile.DisplayName" />
-            }
-            else
-            {
-                <span class="avatar avatar-xxl">@Initials(Profile.DisplayName)</span>
-            }
+            <PlayerAvatar DisplayName="@Profile.DisplayName" Url="@Profile.AvatarUrl" Size="profile"
+                          Class="public-profile-avatar" Lazy="false" />
             <div>
                 <span class="eyebrow">Guerreiro do Nexus</span>
                 <h1>@Profile.DisplayName</h1>
@@ -132,9 +126,6 @@ else
             .OrderBy(x => x.Position).ThenBy(x => x.Title)
             .ToArray();
     }
-
-    private static string Initials(string name) => string.Concat(name
-        .Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(x => char.ToUpperInvariant(x[0])));
 
     private static string FormatValue(decimal value, AgeNexus.Application.Queries.GeneralStatisticValueKind kind) => kind switch
     {

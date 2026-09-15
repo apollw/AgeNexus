@@ -3,6 +3,7 @@ using AgeNexus.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace AgeNexus.Web.Identity;
 
@@ -114,19 +115,55 @@ public static class AccountEndpoints
         Guid playerProfileId,
         HttpContext context,
         AgeNexusDbContext database,
+        IMemoryCache cache,
         CancellationToken cancellationToken)
     {
-        var avatar = await database.PlayerProfileAvatars.AsNoTracking()
+        var requestedVersion = context.Request.Query["v"].ToString();
+        var hasVersion = requestedVersion.Length == 12 && requestedVersion.All(Uri.IsHexDigit);
+        var cacheKey = $"profile-avatar:{playerProfileId:D}:{requestedVersion}";
+        ProfileAvatarResponse? avatar = null;
+        if (hasVersion)
+        {
+            cache.TryGetValue(cacheKey, out avatar);
+        }
+
+        avatar ??= await database.PlayerProfileAvatars.AsNoTracking()
             .Where(x => x.PlayerProfileId == playerProfileId)
-            .Select(x => new { x.ContentType, x.Content, x.Sha256 })
+            .Select(x => new ProfileAvatarResponse(x.ContentType, x.Content, x.Sha256))
             .SingleOrDefaultAsync(cancellationToken);
         if (avatar is null)
         {
             return Results.NotFound();
         }
 
-        context.Response.Headers.CacheControl = "public,max-age=31536000,immutable";
-        context.Response.Headers.ETag = $"\"{avatar.Sha256}\"";
+        if (hasVersion && !avatar.Sha256.StartsWith(requestedVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return Results.NotFound();
+        }
+
+        if (hasVersion)
+        {
+            cache.Set(cacheKey, avatar, new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(6),
+                Size = Math.Max(1, (int)Math.Ceiling(avatar.Content.Length / (64d * 1024d)))
+            });
+            context.Response.Headers.CacheControl = "public,max-age=31536000,immutable";
+        }
+        else
+        {
+            context.Response.Headers.CacheControl = "public,max-age=300";
+        }
+
+        var etag = $"\"{avatar.Sha256}\"";
+        context.Response.Headers.ETag = etag;
+        if (context.Request.Headers.IfNoneMatch.Any(value => value == etag))
+        {
+            return Results.StatusCode(StatusCodes.Status304NotModified);
+        }
+
         return Results.Bytes(avatar.Content, avatar.ContentType);
     }
+
+    private sealed record ProfileAvatarResponse(string ContentType, byte[] Content, string Sha256);
 }

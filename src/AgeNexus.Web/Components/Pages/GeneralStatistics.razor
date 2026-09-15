@@ -39,7 +39,8 @@ else
             @if (OverallLeaders.FirstOrDefault() is { } master)
             {
                 <div class="records-master">
-                    <span class="records-master-avatar">@Initials(master.DisplayName)</span>
+                    <PlayerAvatar DisplayName="@master.DisplayName" Url="@master.AvatarUrl" Size="hero"
+                                  Class="records-master-avatar" Lazy="false" />
                     <div>
                         <h2>@master.DisplayName</h2>
                         <p>Ocupa o primeiro lugar em <strong>@master.FirstPlaces</strong> categorias.</p>
@@ -52,6 +53,7 @@ else
                 {
                     <div class="records-podium-place records-podium-@leader.Position">
                         <span>@Roman(leader.Position)</span>
+                        <PlayerAvatar DisplayName="@leader.DisplayName" Url="@leader.AvatarUrl" Size="compact" />
                         <div><strong>@leader.DisplayName</strong><small>@leader.FirstPlaces liderança(s)</small></div>
                     </div>
                 }
@@ -120,7 +122,8 @@ else
                             var champion = board.Entries.First();
                             <div class="record-board-champion">
                                 <span class="record-crown">♛</span>
-                                <span class="record-avatar">@Initials(champion.DisplayName)</span>
+                                <PlayerAvatar DisplayName="@champion.DisplayName" Url="@champion.AvatarUrl" Size="list"
+                                              Class="record-avatar" />
                                 <div>
                                     <small>@(IsNegativeRecord(board.Key) ? "Marca inglória" : "Recordista atual")</small>
                                     <strong>@champion.DisplayName</strong>
@@ -136,6 +139,7 @@ else
                                     {
                                         <li>
                                             <span>@entry.Position</span>
+                                            <PlayerAvatar DisplayName="@entry.DisplayName" Url="@entry.AvatarUrl" Size="compact" />
                                             <strong>@entry.DisplayName</strong>
                                             <small>@entry.Matches jogo(s)</small>
                                             <b>@FormatValue(entry.Value, board.ValueKind)</b>
@@ -160,12 +164,12 @@ else
     private IReadOnlyCollection<RecordLeader> OverallLeaders => Dashboard?.Boards
         .Where(x => x.Entries.Count > 0)
         .Select(x => x.Entries.First())
-        .GroupBy(x => new { x.PlayerId, x.DisplayName })
-        .Select(x => new { x.Key.PlayerId, x.Key.DisplayName, FirstPlaces = x.Count() })
+        .GroupBy(x => new { x.PlayerId, x.DisplayName, x.AvatarUrl })
+        .Select(x => new { x.Key.PlayerId, x.Key.DisplayName, x.Key.AvatarUrl, FirstPlaces = x.Count() })
         .OrderByDescending(x => x.FirstPlaces)
         .ThenBy(x => x.DisplayName)
         .Take(3)
-        .Select((x, index) => new RecordLeader(index + 1, x.PlayerId, x.DisplayName, x.FirstPlaces))
+        .Select((x, index) => new RecordLeader(index + 1, x.PlayerId, x.DisplayName, x.AvatarUrl, x.FirstPlaces))
         .ToArray() ?? [];
 
     private IReadOnlyCollection<AgeNexus.Application.Queries.GeneralStatisticBoard> FeaturedBoards =>
@@ -187,9 +191,6 @@ else
         var seconds = Math.Max(0, decimal.ToInt32(decimal.Truncate(value)));
         return $"{seconds / 3600:00}:{seconds % 3600 / 60:00}:{seconds % 60:00}";
     }
-
-    private static string Initials(string name) => string.Concat(name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-        .Take(2).Select(x => char.ToUpperInvariant(x[0])));
 
     private static string CategoryId(string category) => $"categoria-{CategoryClass(category)}";
     private static string CategoryClass(string category) => category.ToLowerInvariant() switch
@@ -232,5 +233,10 @@ else
 
     private static string Roman(int value) => value switch { 1 => "I", 2 => "II", _ => "III" };
 
-    private sealed record RecordLeader(int Position, Guid PlayerId, string DisplayName, int FirstPlaces);
+    private sealed record RecordLeader(
+        int Position,
+        Guid PlayerId,
+        string DisplayName,
+        string? AvatarUrl,
+        int FirstPlaces);
 }

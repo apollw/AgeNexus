@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
 <div class="app-shell">
     <aside class="sidebar">
@@ -26,8 +27,9 @@
                 <AuthorizeView>
                     <Authorized Context="session">
                         <a class="profile-chip" href="/perfil">
-                            <span class="avatar">@GetInitial(session.User.Identity?.Name)</span>
-                            <span class="profile-copy"><strong>@session.User.Identity?.Name</strong><small>Minha conta</small></span>
+                            <PlayerAvatar DisplayName="@(CurrentProfile?.DisplayName ?? session.User.Identity?.Name ?? "Conta")"
+                                          Url="@(CurrentProfile?.AvatarUrl)" Size="list" Lazy="false" />
+                            <span class="profile-copy"><strong>@(CurrentProfile?.DisplayName ?? session.User.Identity?.Name)</strong><small>Minha conta</small></span>
                         </a>
                         <form method="post" action="/account/logout" class="logout-form">
                             <AntiforgeryToken />
@@ -60,6 +62,17 @@
 </div>
 
 @code {
-    private static string GetInitial(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "?" : value[..1].ToUpperInvariant();
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authentication = await AuthenticationStateTask;
+        if (authentication.User.Identity?.IsAuthenticated == true)
+        {
+            CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+        }
+    }
 }

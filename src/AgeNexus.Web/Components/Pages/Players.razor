@@ -24,14 +24,7 @@ else
         @foreach (var player in PlayerItems)
         {
             <a class="panel quick-card player-directory-card" href="/jogadores/@player.PlayerId">
-                @if (!string.IsNullOrWhiteSpace(player.AvatarUrl))
-                {
-                    <img class="avatar" src="@player.AvatarUrl" alt="Avatar de @player.DisplayName" />
-                }
-                else
-                {
-                    <span class="avatar">@player.DisplayName[..1].ToUpperInvariant()</span>
-                }
+                <PlayerAvatar DisplayName="@player.DisplayName" Url="@player.AvatarUrl" Size="directory" />
                 <div>
                     <strong>@player.DisplayName</strong>
                     <small>Rating @player.CompetitiveRating.ToString("0") · Carreira @player.CareerPoints.ToString("0.##") · IA @player.PvePoints.ToString("0.##")</small>

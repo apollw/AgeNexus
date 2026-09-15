@@ -36,14 +36,15 @@ internal sealed class GeneralStatisticsQueryService(
             where match.Status == MatchStatus.Validated &&
                   (report.Status == MatchStatisticsStatus.Confirmed ||
                    report.Status == MatchStatisticsStatus.Awarded)
-            select new { Statistic = statistic, player.DisplayName };
+            select new { Statistic = statistic, player.DisplayName, player.AvatarUrl };
 
         var rows = await source
-            .GroupBy(x => new { x.Statistic.PlayerProfileId, x.DisplayName })
+            .GroupBy(x => new { x.Statistic.PlayerProfileId, x.DisplayName, x.AvatarUrl })
             .Select(group => new GeneralStatisticsAggregate
             {
                 PlayerId = group.Key.PlayerProfileId,
                 DisplayName = group.Key.DisplayName,
+                AvatarUrl = group.Key.AvatarUrl,
                 RowCount = group.Count(),
                 UnitsKilled = group.Sum(x => (decimal?)x.Statistic.UnitsKilled),
                 UnitsKilledMatches = group.Count(x => x.Statistic.UnitsKilled.HasValue),
@@ -116,7 +117,7 @@ internal sealed class GeneralStatisticsQueryService(
                 : available.OrderBy(x => value(x)!.Value).ThenBy(x => x.DisplayName);
             var entries = ordered.Take(leadersPerBoard)
                 .Select((x, index) => new GeneralStatisticEntry(
-                    index + 1, x.PlayerId, x.DisplayName, value(x)!.Value, matches(x)))
+                    index + 1, x.PlayerId, x.DisplayName, x.AvatarUrl, value(x)!.Value, matches(x)))
                 .ToArray();
             return new GeneralStatisticBoard(key, category, title, description, valueKind, entries);
         }
@@ -160,6 +161,7 @@ internal sealed class GeneralStatisticsQueryService(
     {
         public Guid PlayerId { get; init; }
         public string DisplayName { get; init; } = string.Empty;
+        public string? AvatarUrl { get; init; }
         public int RowCount { get; init; }
         public decimal? UnitsKilled { get; init; }
         public int UnitsKilledMatches { get; init; }

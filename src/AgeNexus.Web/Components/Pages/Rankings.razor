@@ -24,7 +24,17 @@
                 {
                     <div class="table-row">
                         <span data-label="Posição">#@entry.Position</span>
-                        <span data-label="Participante">@entry.DisplayName</span>
+                        <span class="ranking-player" data-label="Participante">
+                            @if (IsPlayerBoard(board.Key))
+                            {
+                                <PlayerAvatar DisplayName="@entry.DisplayName" Url="@entry.AvatarUrl" Size="list" />
+                                <a href="/jogadores/@entry.BeneficiaryId">@entry.DisplayName</a>
+                            }
+                            else
+                            {
+                                <span>@entry.DisplayName</span>
+                            }
+                        </span>
                         <span data-label="Pontuação">@entry.Score.ToString("0.##")</span>
                         <span data-label="Partidas">@entry.ValidatedMatches</span>
                         <span data-label="Situação" data-mobile-wide="true">@(entry.IsProvisional ? "Provisório" : "Classificado")</span>
@@ -56,4 +66,7 @@
         "Equipes fixas" => "Duplas, trios e quartetos pela formação exata",
         _ => "Prestígio competitivo dos clãs"
     };
+
+    private static bool IsPlayerBoard(string board) =>
+        board is "Geral competitivo" or "Carreira" or "Domínio contra IA";
 }
