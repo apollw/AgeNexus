@@ -101,6 +101,8 @@
     .profile-record, .profile-faction-list article { padding: 13px 15px; }
     .json-import-inputs { grid-template-columns: 1fr; }.json-import-or { min-height: 20px; }.json-file-picker { min-height: 145px; }.json-player-mapping { grid-template-columns: 1fr; }
     .extractor-file-grid { grid-template-columns: 1fr; }
+    .extractor-crop-section { margin-left: -8px; margin-right: -8px; }.extractor-crop-workspace { padding: 12px; }.extractor-crop-tabs button { flex-basis: 104px; padding: 10px; }
+    .extractor-actions { align-items: stretch; flex-direction: column; }.extractor-actions .button { width: 100%; }
     .json-import-highlights { grid-template-columns: 1fr; }
     .evidence-video-form, .evidence-manager-grid, .evidence-gallery-grid { grid-template-columns: 1fr; }
     .evidence-video-form .button, .evidence-video-card .button, .evidence-replay-card .button { width: 100%; }
