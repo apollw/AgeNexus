@@ -121,6 +121,17 @@ else
                     }
                 </div>
             }
+            @if (ExtractorProgress is not null)
+            {
+                <div class="extractor-progress" role="status" aria-live="polite">
+                    <div>
+                        <strong>@ExtractorProgress.Message</strong>
+                        <span>@ExtractorProgress.Percentage.ToString("N1")%</span>
+                    </div>
+                    <progress max="100" value="@ExtractorProgress.Percentage">@ExtractorProgress.Percentage%</progress>
+                    <small>@ExtractorProgress.Completed de @ExtractorProgress.Total etapas concluídas</small>
+                </div>
+            }
             <div class="performance-actions extractor-actions">
                 <small>@ExtractorImages.Count de 5 imagens carregadas · JPEG, PNG ou WebP, até 5 MB cada. Nenhuma captura é salva no banco.</small>
                 <button class="button button-primary" type="button" @onclick="ExtractImagesAsync"
@@ -426,6 +437,7 @@ else
     private HashSet<string> PendingCropperInitialization { get; } = new(StringComparer.Ordinal);
     private string? ActiveCropCategory { get; set; }
     private string? PendingCropperRefresh { get; set; }
+    private AgeNexus.Application.MatchPerformance.AgeExtractorProgress? ExtractorProgress { get; set; }
     private bool LoadEvidenceAfterRender { get; set; }
     private bool IsLoading { get; set; } = true;
     private string? LoadError { get; set; }
@@ -747,6 +759,7 @@ else
             ExtractorImages[category] = new(args.File.Name, memory.ToArray());
             ActiveCropCategory = category;
             PendingCropperInitialization.Add(category);
+            ExtractorProgress = null;
             Message = $"Imagem de {ExtractorCategories.Single(x => x.Key == category).Label} carregada. Ajuste os quatro cantos da tabela.";
             HasError = false;
         }
@@ -788,6 +801,7 @@ else
         Busy = true;
         Message = "O AgeXtractor está lendo as imagens. Esse processo pode levar alguns minutos.";
         HasError = false;
+        ExtractorProgress = new(0, 1, 0, "Preparando as imagens");
         try
         {
             var images = new List<AgeNexus.Application.MatchPerformance.AgeExtractorImage>();
@@ -802,10 +816,15 @@ else
                     ExtractorImages[category.Key].Content,
                     corners));
             }
-            var result = await AgeExtractorService.ExtractAsync(Rows.Count, images);
+            var progress = new Progress<AgeNexus.Application.MatchPerformance.AgeExtractorProgress>(value =>
+            {
+                ExtractorProgress = value;
+                _ = InvokeAsync(StateHasChanged);
+            });
+            var result = await AgeExtractorService.ExtractAsync(Rows.Count, images, progress);
             if (!result.Succeeded || string.IsNullOrWhiteSpace(result.Json))
             {
-                Message = result.ErrorCode switch
+                var summary = result.ErrorCode switch
                 {
                     "Busy" => "O AgeXtractor já está processando outra partida. Tente novamente em instantes.",
                     "Timeout" => "A extração ultrapassou o limite de cinco minutos. Confira as imagens e tente novamente.",
@@ -813,6 +832,9 @@ else
                     "InvalidImage" => "Uma das imagens não é um JPEG, PNG ou WebP válido de até 5 MB.",
                     _ => "Não foi possível extrair as estatísticas. Confira as cinco telas e tente novamente."
                 };
+                Message = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                    ? summary
+                    : $"{summary} Detalhe: {result.ErrorMessage}";
                 HasError = true;
                 return;
             }
@@ -826,6 +848,7 @@ else
             AnalyzeJsonImport();
             if (!HasError)
             {
+                ExtractorProgress = new(1, 1, 100, "Extração concluída");
                 Message = "Extração concluída. Revise os valores e associe cada posição ao jogador correto.";
             }
         }

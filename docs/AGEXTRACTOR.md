@@ -8,6 +8,8 @@ Na tela de desempenho de uma partida em rascunho, o administrador seleciona as c
 
 Ao iniciar a extração, o navegador envia as coordenadas da imagem original junto dos bytes mantidos em memória. O servidor valida as assinaturas dos arquivos e os pontos, cria uma pasta temporária com nomes internos e um `regioes.json`, executa `python -m agextractor.interfaces.server` e recebe o contrato JSON por `stdout`. A pasta é removida ao final. Apenas uma extração é executada por instância do AgeNexus e cada tentativa tem limite de cinco minutos.
 
+Os eventos estruturados recebidos por `stderr` atualizam a barra de progresso com categoria, jogador e campo em processamento. Em uma falha esperada de reconhecimento, a página apresenta a categoria e o motivo devolvido pelo Python, sem traceback, caminhos internos ou conteúdo das capturas. O JSON final continua isolado em `stdout`.
+
 O JSON passa pelo mesmo `AgeExtractorJsonImporter` usado no upload manual. Leituras ausentes ou duvidosas permanecem visíveis, as posições precisam ser associadas aos jogadores e nada é salvo automaticamente. O administrador revisa os valores antes de preencher e salvar o relatório.
 
 ## Build e atualização
@@ -18,6 +20,6 @@ Em desenvolvimento fora do contêiner, configure `AgeExtractor__PythonExecutable
 
 ## Operação
 
-Erros e encerramentos do processo são registrados sem guardar as imagens ou o JSON nos logs. `Busy` indica outra extração em andamento; `Timeout`, processamento acima de cinco minutos; `Unavailable`, runtime ausente; e `InvalidImage`, arquivo inválido ou acima do limite. CPU e memória devem ser observadas no Render durante as primeiras extrações reais.
+Erros e encerramentos do processo são registrados sem guardar as imagens ou o JSON nos logs. `Busy` indica outra extração em andamento; `Timeout`, processamento acima de cinco minutos; `Unavailable`, runtime ausente; e `InvalidImage`, arquivo inválido ou acima do limite. Falhas do processo incluem a última etapa concluída ou o diagnóstico estruturado do Python. CPU e memória devem ser observadas no Render durante as primeiras extrações reais.
 
 As capturas do extrator não são enviadas ao Supabase Storage nem gravadas no PostgreSQL. A prévia utiliza um `object URL` local do navegador; no servidor, os bytes e as coordenadas existem somente na memória do circuito e na pasta temporária do processamento. A galeria pública de evidências é separada e só armazena uma captura quando o administrador a envia explicitamente nessa seção.

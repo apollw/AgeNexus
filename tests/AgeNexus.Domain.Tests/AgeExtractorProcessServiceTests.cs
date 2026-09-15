@@ -50,6 +50,20 @@ public sealed class AgeExtractorProcessServiceTests
         Assert.Equal("InvalidImage", result.ErrorCode);
     }
 
+    [Fact]
+    public void Parses_structured_progress_and_ignores_unstructured_stderr()
+    {
+        var diagnostic = AgeExtractorProcessService.ParseDiagnostic(
+            "{\"tipo\":\"progresso\",\"concluidas\":12,\"total\":60,\"percentual\":20.0," +
+            "\"mensagem\":\"Tecnologia | jogador 2/4 | pesquisas\"}");
+
+        Assert.NotNull(diagnostic);
+        Assert.Equal("progresso", diagnostic.Type);
+        Assert.Equal(12, diagnostic.Completed);
+        Assert.Equal(20.0m, diagnostic.Percentage);
+        Assert.Null(AgeExtractorProcessService.ParseDiagnostic("tesseract warning"));
+    }
+
     private static AgeExtractorProcessService CreateService()
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
