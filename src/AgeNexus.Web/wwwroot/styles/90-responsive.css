@@ -100,6 +100,7 @@
     .profile-claim-row { grid-template-columns: auto minmax(0,1fr); }.profile-claim-actions { grid-column: 1 / -1; width: 100%; }.profile-claim-actions .button, .profile-claim-actions .table-action-button { flex: 1; }
     .profile-record, .profile-faction-list article { padding: 13px 15px; }
     .json-import-inputs { grid-template-columns: 1fr; }.json-import-or { min-height: 20px; }.json-file-picker { min-height: 145px; }.json-player-mapping { grid-template-columns: 1fr; }
+    .extractor-file-grid { grid-template-columns: 1fr; }
     .json-import-highlights { grid-template-columns: 1fr; }
     .evidence-video-form, .evidence-manager-grid, .evidence-gallery-grid { grid-template-columns: 1fr; }
     .evidence-video-form .button, .evidence-video-card .button, .evidence-replay-card .button { width: 100%; }

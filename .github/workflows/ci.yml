@@ -47,3 +47,11 @@ jobs:
           dotnet ef migrations has-pending-model-changes
           --project src/AgeNexus.Infrastructure/AgeNexus.Infrastructure.csproj
           --startup-project src/AgeNexus.Web/AgeNexus.Web.csproj
+
+      - name: Build container with AgeXtractor
+        run: docker build --tag agenexus-ci .
+
+      - name: Verify AgeXtractor runtime
+        run: >-
+          docker run --rm --entrypoint /opt/agextractor-venv/bin/python agenexus-ci
+          -c "import cv2, pytesseract, agextractor; print('AgeXtractor runtime ready')"

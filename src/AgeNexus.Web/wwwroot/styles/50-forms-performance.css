@@ -44,6 +44,16 @@
 .replay-file-upload .evidence-upload-row { margin-top: 16px; }
 .replay-managed-item { border-color: #b9d1c6; background: #edf5f1; }
 .json-import { margin-bottom: 18px; border-top: 3px solid var(--gold); }
+.online-extractor { margin-bottom: 18px; border-top: 3px solid var(--forest); }
+.online-extractor > p { margin: 0 0 18px; color: var(--muted); font-size: var(--font-caption); line-height: 1.65; }
+.extractor-player-count { padding: 7px 10px; color: var(--forest); border: 1px solid #d9ccb0; border-radius: 999px; background: #faf5e9; font-size: var(--font-sm); font-weight: 800; }
+.extractor-file-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 10px; }
+.extractor-file-picker { display: grid; gap: 8px; min-width: 0; padding: 14px; border: 1px dashed #cdbb96; border-radius: 7px; background: #fffaf0; cursor: pointer; }
+.extractor-file-picker span { color: var(--forest); font-size: var(--font-caption); font-weight: 800; }
+.extractor-file-picker input { width: 100%; color: var(--muted); font-size: var(--font-sm); }
+.extractor-file-picker small { color: var(--muted); font-size: var(--font-sm); overflow-wrap: anywhere; }
+.extractor-actions { align-items: center; justify-content: space-between; }
+.extractor-actions > small { color: var(--muted); }
 .json-import > p { margin: 0 0 18px; color: var(--muted); font-size: var(--font-caption); line-height: 1.65; }
 .json-import-inputs { display: grid; grid-template-columns: minmax(220px,.75fr) auto minmax(300px,1.5fr); gap: 18px; align-items: stretch; }
 .json-file-picker { display: flex; flex-direction: column; justify-content: center; min-height: 180px; padding: 22px; color: var(--forest); border: 1px dashed #cdbb96; border-radius: 7px; background: #faf5e9; font-size: var(--font-copy); font-weight: 800; cursor: pointer; }
