@@ -28,7 +28,8 @@ public sealed class AgeExtractorProcessService(
         var byCategory = images.GroupBy(x => x.Category, StringComparer.Ordinal)
             .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.Ordinal);
         if (Categories.Any(category => !byCategory.TryGetValue(category, out var matches) ||
-                                       matches.Length != 1 || !IsSupportedImage(matches[0].Content)))
+                                       matches.Length != 1 || !IsSupportedImage(matches[0].Content) ||
+                                       !IsValidRegion(matches[0].TableCorners)))
         {
             return AgeExtractorExecutionResult.Failure("InvalidImage");
         }
@@ -58,6 +59,15 @@ public sealed class AgeExtractorProcessService(
                     byCategory[category][0].Content,
                     cancellationToken);
             }
+            var regionsPath = Path.Combine(temporaryDirectory, "regioes.json");
+            var regions = Categories.ToDictionary(
+                category => category,
+                category => byCategory[category][0].TableCorners.Select(point => new[] { point.X, point.Y }).ToArray(),
+                StringComparer.Ordinal);
+            await File.WriteAllTextAsync(
+                regionsPath,
+                JsonSerializer.Serialize(regions),
+                cancellationToken);
 
             var startInfo = new ProcessStartInfo
             {
@@ -74,6 +84,8 @@ public sealed class AgeExtractorProcessService(
             startInfo.ArgumentList.Add(temporaryDirectory);
             startInfo.ArgumentList.Add("--jogadores");
             startInfo.ArgumentList.Add(playerCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            startInfo.ArgumentList.Add("--regioes");
+            startInfo.ArgumentList.Add(regionsPath);
             startInfo.Environment["PYTHONPATH"] = workingDirectory;
             startInfo.Environment["OPENCV_IO_MAX_IMAGE_PIXELS"] = "40000000";
 
@@ -160,6 +172,11 @@ public sealed class AgeExtractorProcessService(
                    content.AsSpan(8, 4).SequenceEqual("WEBP"u8);
         return jpeg || png || webp;
     }
+
+    private static bool IsValidRegion(IReadOnlyCollection<AgeExtractorPoint> corners) =>
+        corners.Count == 4 && corners.All(point =>
+            double.IsFinite(point.X) && double.IsFinite(point.Y) &&
+            point.X >= 0 && point.Y >= 0 && point.X <= 100_000 && point.Y <= 100_000);
 
     private static void Kill(Process? process)
     {

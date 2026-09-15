@@ -1,12 +1,14 @@
 @page "/partidas/{MatchId:guid}/desempenho"
 @attribute [Authorize(Policy = "Administrator")]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IAsyncDisposable
 @inject AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService PerformanceService
 @inject AgeNexus.Application.MatchPerformance.AgeExtractorJsonImporter JsonImporter
 @inject AgeNexus.Application.MatchPerformance.IAgeExtractorService AgeExtractorService
 @inject AgeNexus.Application.Evidence.IMatchEvidenceService EvidenceService
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 @inject ILogger<MatchPerformance> Logger
+@inject Microsoft.JSInterop.IJSRuntime JS
 
 <PageTitle>Desempenho da partida · Age Nexus</PageTitle>
 
@@ -81,23 +83,48 @@ else
                 <div><span class="eyebrow">AgeXtractor online</span><h2>Extrair estatísticas das capturas</h2></div>
                 <span class="extractor-player-count">@Rows.Count jogador(es)</span>
             </header>
-            <p>Selecione as cinco telas finais da mesma partida. O processamento pode levar alguns minutos; as imagens são temporárias e o resultado sempre será exibido para revisão antes de preencher o formulário.</p>
+            <p>Selecione as cinco telas finais da mesma partida. Depois, ajuste os quatro cantos para manter somente a tabela de cada imagem. As capturas são temporárias e o resultado sempre será exibido para revisão.</p>
             <div class="extractor-file-grid">
                 @foreach (var category in ExtractorCategories)
                 {
-                    <label class="extractor-file-picker">
+                    <label class="extractor-file-picker @(ExtractorImages.ContainsKey(category.Key) ? "extractor-file-ready" : null)">
                         <span>@category.Label</span>
                         <InputFile OnChange="@(args => ReadExtractorImageAsync(args, category.Key))"
+                                   id="@ExtractorInputId(category.Key)"
                                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled="@Busy" />
                         <small>@ExtractorFileName(category.Key)</small>
                     </label>
                 }
             </div>
+            @if (ExtractorImages.Count > 0)
+            {
+                <div class="extractor-crop-section">
+                    <div class="extractor-crop-tabs" aria-label="Imagens carregadas para ajuste">
+                        @foreach (var category in ExtractorCategories.Where(category => ExtractorImages.ContainsKey(category.Key)))
+                        {
+                            <button class="@(ActiveCropCategory == category.Key ? "active" : null)" type="button"
+                                    @onclick="() => ActivateCropper(category.Key)" disabled="@Busy">
+                                <span>@category.Label</span><small>Carregada</small>
+                            </button>
+                        }
+                    </div>
+                    @foreach (var category in ExtractorCategories.Where(category => ExtractorImages.ContainsKey(category.Key)))
+                    {
+                        <div class="extractor-crop-workspace @(ActiveCropCategory == category.Key ? null : "extractor-crop-hidden")">
+                            <div>
+                                <strong>Ajuste da tabela · @category.Label</strong>
+                                <small>Arraste os pontos 1–4 até os cantos externos da tabela, incluindo o cabeçalho e a legenda inferior.</small>
+                            </div>
+                            <canvas id="@ExtractorCanvasId(category.Key)" aria-label="Ajuste dos quatro cantos da tabela de @category.Label"></canvas>
+                        </div>
+                    }
+                </div>
+            }
             <div class="performance-actions extractor-actions">
-                <small>JPEG, PNG ou WebP, até 5 MB por imagem.</small>
+                <small>@ExtractorImages.Count de 5 imagens carregadas · JPEG, PNG ou WebP, até 5 MB cada. Nenhuma captura é salva no banco.</small>
                 <button class="button button-primary" type="button" @onclick="ExtractImagesAsync"
                         disabled="@(Busy || ExtractorImages.Count != ExtractorCategories.Length || Rows.Count is < 2 or > 8)">
-                    @(Busy ? "Processando..." : "Extrair e revisar")
+                    @(Busy ? "Processando..." : "Extrair todos os dados")
                 </button>
             </div>
         </section>
@@ -395,6 +422,9 @@ else
     private AgeNexus.Application.MatchPerformance.AgeExtractorJsonImportResult? JsonImportResult { get; set; }
     private List<JsonPlayerMapping> JsonMappings { get; } = [];
     private Dictionary<string, ExtractorImageSelection> ExtractorImages { get; } = new(StringComparer.Ordinal);
+    private HashSet<string> PendingCropperInitialization { get; } = new(StringComparer.Ordinal);
+    private string? ActiveCropCategory { get; set; }
+    private string? PendingCropperRefresh { get; set; }
     private bool LoadEvidenceAfterRender { get; set; }
     private bool IsLoading { get; set; } = true;
     private string? LoadError { get; set; }
@@ -481,6 +511,45 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (PendingCropperInitialization.Count > 0)
+        {
+            var pending = PendingCropperInitialization.ToArray();
+            PendingCropperInitialization.Clear();
+            foreach (var category in pending)
+            {
+                try
+                {
+                    await JS.InvokeVoidAsync(
+                        "ageNexusCropper.initialize",
+                        ExtractorCropperKey(category),
+                        ExtractorInputId(category),
+                        ExtractorCanvasId(category));
+                }
+                catch (Microsoft.JSInterop.JSException exception)
+                {
+                    ExtractorImages.Remove(category);
+                    Message = "Não foi possível abrir uma das imagens para ajuste. Selecione-a novamente.";
+                    HasError = true;
+                    Logger.LogWarning(exception, "Failed to initialize web cropper for {Category}", category);
+                    StateHasChanged();
+                }
+            }
+        }
+
+        if (PendingCropperRefresh is not null)
+        {
+            var category = PendingCropperRefresh;
+            PendingCropperRefresh = null;
+            try
+            {
+                await JS.InvokeVoidAsync("ageNexusCropper.refresh", ExtractorCropperKey(category));
+            }
+            catch (Microsoft.JSInterop.JSException exception)
+            {
+                Logger.LogWarning(exception, "Failed to refresh web cropper for {Category}", category);
+            }
+        }
+
         if (!LoadEvidenceAfterRender)
         {
             return;
@@ -675,7 +744,9 @@ else
             using var memory = new MemoryStream();
             await input.CopyToAsync(memory);
             ExtractorImages[category] = new(args.File.Name, memory.ToArray());
-            Message = $"Imagem de {ExtractorCategories.Single(x => x.Key == category).Label} selecionada.";
+            ActiveCropCategory = category;
+            PendingCropperInitialization.Add(category);
+            Message = $"Imagem de {ExtractorCategories.Single(x => x.Key == category).Label} carregada. Ajuste os quatro cantos da tabela.";
             HasError = false;
         }
         catch (IOException)
@@ -691,7 +762,18 @@ else
     }
 
     private string ExtractorFileName(string category) =>
-        ExtractorImages.TryGetValue(category, out var image) ? image.FileName : "Nenhuma imagem selecionada";
+        ExtractorImages.TryGetValue(category, out var image) ? $"✓ {image.FileName}" : "Nenhuma imagem selecionada";
+
+    private string ExtractorInputId(string category) => $"agextractor-input-{category}";
+    private string ExtractorCanvasId(string category) => $"agextractor-canvas-{category}";
+    private string ExtractorCropperPrefix => $"{MatchId:N}:";
+    private string ExtractorCropperKey(string category) => $"{ExtractorCropperPrefix}{category}";
+
+    private void ActivateCropper(string category)
+    {
+        ActiveCropCategory = category;
+        PendingCropperRefresh = category;
+    }
 
     private async Task ExtractImagesAsync()
     {
@@ -707,9 +789,18 @@ else
         HasError = false;
         try
         {
-            var images = ExtractorCategories.Select(category =>
-                new AgeNexus.Application.MatchPerformance.AgeExtractorImage(
-                    category.Key, ExtractorImages[category.Key].Content)).ToArray();
+            var images = new List<AgeNexus.Application.MatchPerformance.AgeExtractorImage>();
+            foreach (var category in ExtractorCategories)
+            {
+                var points = await JS.InvokeAsync<double[][]>(
+                    "ageNexusCropper.getPoints", ExtractorCropperKey(category.Key));
+                var corners = points.Select(point =>
+                    new AgeNexus.Application.MatchPerformance.AgeExtractorPoint(point[0], point[1])).ToArray();
+                images.Add(new(
+                    category.Key,
+                    ExtractorImages[category.Key].Content,
+                    corners));
+            }
             var result = await AgeExtractorService.ExtractAsync(Rows.Count, images);
             if (!result.Succeeded || string.IsNullOrWhiteSpace(result.Json))
             {
@@ -728,12 +819,20 @@ else
             JsonText = string.Empty;
             JsonFileContent = result.Json;
             JsonFileName = "Resultado do AgeXtractor online";
+            await JS.InvokeVoidAsync("ageNexusCropper.disposeAll", ExtractorCropperPrefix);
             ExtractorImages.Clear();
+            ActiveCropCategory = null;
             AnalyzeJsonImport();
             if (!HasError)
             {
                 Message = "Extração concluída. Revise os valores e associe cada posição ao jogador correto.";
             }
+        }
+        catch (Microsoft.JSInterop.JSException exception)
+        {
+            Message = "Uma das imagens ainda não terminou de carregar para o ajuste. Confira as cinco abas e tente novamente.";
+            HasError = true;
+            Logger.LogWarning(exception, "Failed to read AgeXtractor crop regions");
         }
         finally
         {
@@ -1089,6 +1188,18 @@ else
 
     private sealed record ExtractorCategory(string Key, string Label);
     private sealed record ExtractorImageSelection(string FileName, byte[] Content);
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("ageNexusCropper.disposeAll", ExtractorCropperPrefix);
+        }
+        catch (Microsoft.JSInterop.JSDisconnectedException)
+        {
+            // O circuito já encerrou; o navegador descartará os object URLs com a página.
+        }
+    }
 
     public sealed class EraTimeForm
     {

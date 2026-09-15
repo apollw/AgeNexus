@@ -12,7 +12,7 @@ RUN dotnet publish src/AgeNexus.Web/AgeNexus.Web.csproj \
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS final
 
-ARG AGEXTRACTOR_COMMIT=214a03e34a76efd1dfbca3fb50fb954a2b8307d1
+ARG AGEXTRACTOR_COMMIT=71104fbf60f5b3092abceab14e1187a2809ab76d
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl python3 python3-venv tesseract-ocr \

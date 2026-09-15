@@ -1,8 +1,13 @@
 namespace AgeNexus.Application.MatchPerformance;
 
+public sealed record AgeExtractorPoint(
+    double X,
+    double Y);
+
 public sealed record AgeExtractorImage(
     string Category,
-    byte[] Content);
+    byte[] Content,
+    IReadOnlyCollection<AgeExtractorPoint> TableCorners);
 
 public sealed record AgeExtractorExecutionResult(
     bool Succeeded,
