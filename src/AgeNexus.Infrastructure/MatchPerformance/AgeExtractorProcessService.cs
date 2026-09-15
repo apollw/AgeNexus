@@ -16,22 +16,18 @@ public sealed class AgeExtractorProcessService(
     private static readonly string[] Categories = ["placar", "militar", "economia", "tecnologia", "sociedade"];
     private readonly SemaphoreSlim gate = new(1, 1);
 
-    public async Task<AgeExtractorExecutionResult> ExtractAsync(
+    public async Task<AgeExtractorExecutionResult> ExtractCategoryAsync(
         int playerCount,
-        IReadOnlyCollection<AgeExtractorImage> images,
+        AgeExtractorImage image,
         IProgress<AgeExtractorProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        if (playerCount is < 2 or > 8 || images.Count != Categories.Length)
+        if (playerCount is < 2 or > 8 || !Categories.Contains(image.Category, StringComparer.Ordinal))
         {
             return AgeExtractorExecutionResult.Failure("InvalidRequest");
         }
 
-        var byCategory = images.GroupBy(x => x.Category, StringComparer.Ordinal)
-            .ToDictionary(x => x.Key, x => x.ToArray(), StringComparer.Ordinal);
-        if (Categories.Any(category => !byCategory.TryGetValue(category, out var matches) ||
-                                       matches.Length != 1 || !IsSupportedImage(matches[0].Content) ||
-                                       !IsValidRegion(matches[0].TableCorners)))
+        if (!IsSupportedImage(image.Content) || !IsValidRegion(image.TableCorners))
         {
             return AgeExtractorExecutionResult.Failure("InvalidImage");
         }
@@ -54,18 +50,15 @@ public sealed class AgeExtractorProcessService(
             }
 
             Directory.CreateDirectory(temporaryDirectory);
-            foreach (var category in Categories)
-            {
-                await File.WriteAllBytesAsync(
-                    Path.Combine(temporaryDirectory, $"{category}.jpeg"),
-                    byCategory[category][0].Content,
-                    cancellationToken);
-            }
+            await File.WriteAllBytesAsync(
+                Path.Combine(temporaryDirectory, $"{image.Category}.jpeg"),
+                image.Content,
+                cancellationToken);
             var regionsPath = Path.Combine(temporaryDirectory, "regioes.json");
-            var regions = Categories.ToDictionary(
-                category => category,
-                category => byCategory[category][0].TableCorners.Select(point => new[] { point.X, point.Y }).ToArray(),
-                StringComparer.Ordinal);
+            var regions = new Dictionary<string, double[][]>(StringComparer.Ordinal)
+            {
+                [image.Category] = image.TableCorners.Select(point => new[] { point.X, point.Y }).ToArray()
+            };
             await File.WriteAllTextAsync(
                 regionsPath,
                 JsonSerializer.Serialize(regions),
@@ -86,6 +79,8 @@ public sealed class AgeExtractorProcessService(
             startInfo.ArgumentList.Add(temporaryDirectory);
             startInfo.ArgumentList.Add("--jogadores");
             startInfo.ArgumentList.Add(playerCount.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            startInfo.ArgumentList.Add("--categoria");
+            startInfo.ArgumentList.Add(image.Category);
             startInfo.ArgumentList.Add("--regioes");
             startInfo.ArgumentList.Add(regionsPath);
             startInfo.Environment["PYTHONPATH"] = workingDirectory;

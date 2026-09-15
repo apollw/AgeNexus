@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddSingleton<IPvePointCalculator, PvePointCalculator>();
         services.AddSingleton<IPerformanceCalculator, PerformanceCalculator>();
         services.AddSingleton<AgeExtractorJsonImporter>();
+        services.AddSingleton<AgeExtractorJsonComposer>();
         return services;
     }
 }
