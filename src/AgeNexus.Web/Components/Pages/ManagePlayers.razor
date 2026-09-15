@@ -31,7 +31,7 @@
                 @foreach (var claim in Claims)
                 {
                     <article class="managed-player-row profile-claim-row" @key="claim.ClaimId">
-                        <span class="avatar">@claim.DisplayName[..1].ToUpperInvariant()</span>
+                        <PlayerAvatar DisplayName="@claim.DisplayName" Size="list" />
                         <div>
                             <strong>@claim.DisplayName</strong>
                             <small>@claim.AccountEmail</small>
@@ -103,16 +103,7 @@
                 @foreach (var profile in Profiles)
                 {
                     <article class="managed-player-row" @key="profile.Id">
-                        <div>
-                            @if (!string.IsNullOrWhiteSpace(profile.AvatarUrl))
-                            {
-                                <img class="avatar" src="@profile.AvatarUrl" alt="" />
-                            }
-                            else
-                            {
-                                <span class="avatar">@profile.DisplayName[..1].ToUpperInvariant()</span>
-                            }
-                        </div>
+                        <PlayerAvatar DisplayName="@profile.DisplayName" Url="@profile.AvatarUrl" Size="list" />
                         <div>
                             <strong>@profile.DisplayName</strong>
                             <small>@(profile.HasUserAccount ? "Perfil vinculado a uma conta" : "Participante manual · disponível para vinculação")</small>

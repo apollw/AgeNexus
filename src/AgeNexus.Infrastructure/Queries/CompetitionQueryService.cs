@@ -314,9 +314,10 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             select statistic).ToArrayAsync(cancellationToken);
 
         var playerIds = rows.Select(x => x.PlayerProfileId).Distinct().ToArray();
-        var names = await database.PlayerProfiles.AsNoTracking()
+        var playersById = await database.PlayerProfiles.AsNoTracking()
             .Where(x => playerIds.Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
+            .Select(x => new PlayerIdentity(x.Id, x.DisplayName, x.AvatarUrl))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
 
         GeneralStatisticBoard Total(
             string key, string category, string title, string description,
@@ -360,10 +361,12 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 })
                 .Where(x => x.Values.Length > 0);
             var ordered = descending
-                ? values.OrderByDescending(x => aggregate(x.Values)).ThenBy(x => names.GetValueOrDefault(x.PlayerId))
-                : values.OrderBy(x => aggregate(x.Values)).ThenBy(x => names.GetValueOrDefault(x.PlayerId));
+                ? values.OrderByDescending(x => aggregate(x.Values)).ThenBy(x => playersById.GetValueOrDefault(x.PlayerId)?.DisplayName)
+                : values.OrderBy(x => aggregate(x.Values)).ThenBy(x => playersById.GetValueOrDefault(x.PlayerId)?.DisplayName);
             var entries = ordered.Take(leadersPerBoard).Select((x, index) => new GeneralStatisticEntry(
-                index + 1, x.PlayerId, names.GetValueOrDefault(x.PlayerId, "Jogador"),
+                index + 1, x.PlayerId,
+                playersById.GetValueOrDefault(x.PlayerId)?.DisplayName ?? "Jogador",
+                playersById.GetValueOrDefault(x.PlayerId)?.AvatarUrl,
                 aggregate(x.Values), x.Matches)).ToArray();
             return new GeneralStatisticBoard(key, category, title, description, valueKind, entries);
         }
@@ -625,11 +628,12 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             .Concat(lineups.Values.SelectMany(x => x.Members).Select(x => x.PlayerProfileId))
             .Distinct()
             .ToArray();
-        var playerNames = playerIds.Length == 0
-            ? new Dictionary<Guid, string>()
+        var players = playerIds.Length == 0
+            ? new Dictionary<Guid, PlayerIdentity>()
             : await database.PlayerProfiles.AsNoTracking()
                 .Where(x => playerIds.Contains(x.Id))
-                .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
+                .Select(x => new PlayerIdentity(x.Id, x.DisplayName, x.AvatarUrl))
+                .ToDictionaryAsync(x => x.Id, cancellationToken);
 
         var clanIds = clanRows.Select(x => x.Id).ToArray();
         var clanDetails = clanIds.Length == 0
@@ -642,13 +646,13 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
 
         string LineupName(Guid id) => lineups.TryGetValue(id, out var lineup)
             ? string.Join(" + ", lineup.Members.OrderBy(x => x.Position)
-                .Select(x => playerNames.GetValueOrDefault(x.PlayerProfileId, "Jogador")))
+                .Select(x => players.GetValueOrDefault(x.PlayerProfileId)?.DisplayName ?? "Jogador"))
             : "Equipe";
 
         return new RankingDashboard(
-            ToEntries(generalRows, id => playerNames.GetValueOrDefault(id, "Jogador"), 10),
-            ToEntries(careerRows, id => playerNames.GetValueOrDefault(id, "Jogador"), 1),
-            ToEntries(pveRows, id => playerNames.GetValueOrDefault(id, "Jogador"), 1),
+            ToPlayerEntries(generalRows, players, 10),
+            ToPlayerEntries(careerRows, players, 1),
+            ToPlayerEntries(pveRows, players, 1),
             ToEntries(teamRows, LineupName, 5),
             ToEntries(clanRows, id => clanNames.GetValueOrDefault(id, "Clã"), 5));
     }
@@ -671,6 +675,20 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             x.Matches,
             x.Matches < provisionalThreshold)).ToArray();
 
+    private static IReadOnlyCollection<RankingEntry> ToPlayerEntries(
+        IReadOnlyCollection<RankingAggregate> rows,
+        IReadOnlyDictionary<Guid, PlayerIdentity> players,
+        int provisionalThreshold) => rows.Select((x, index) => new RankingEntry(
+            index + 1,
+            x.Id,
+            players.GetValueOrDefault(x.Id)?.DisplayName ?? "Jogador",
+            x.Score,
+            x.Matches,
+            x.Matches < provisionalThreshold)
+        {
+            AvatarUrl = players.GetValueOrDefault(x.Id)?.AvatarUrl
+        }).ToArray();
+
     private async Task<IReadOnlyCollection<RankingEntry>> GetPlayerRatingRankingAsync(
         RatingScopeKind scope,
         Guid? seasonId,
@@ -683,12 +701,13 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 on ratingEvent.BeneficiaryId equals player.Id
             where ratingEvent.Scope == scope &&
                   (!seasonId.HasValue || ratingEvent.SeasonId == seasonId)
-            group ratingEvent by new { ratingEvent.BeneficiaryId, player.DisplayName }
+            group ratingEvent by new { ratingEvent.BeneficiaryId, player.DisplayName, player.AvatarUrl }
             into events
             select new
             {
                 Id = events.Key.BeneficiaryId,
                 events.Key.DisplayName,
+                events.Key.AvatarUrl,
                 Score = ScoringRuleSet.InitialRating + events.Sum(e => e.Delta),
                 Matches = events.Sum(e => e.Kind == ScoringEventKind.Award ? 1 : -1)
             })
@@ -702,7 +721,10 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             x.DisplayName,
             x.Score,
             x.Matches,
-            x.Matches < 10)).ToArray();
+            x.Matches < 10)
+        {
+            AvatarUrl = x.AvatarUrl
+        }).ToArray();
     }
 
     private async Task<IReadOnlyCollection<RankingEntry>> GetPlayerPointRankingAsync(
@@ -827,18 +849,24 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         CancellationToken cancellationToken)
     {
         var ids = aggregates.Select(x => x.Id).ToArray();
-        var names = await database.PlayerProfiles.AsNoTracking().Where(x => ids.Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
+        var players = await database.PlayerProfiles.AsNoTracking().Where(x => ids.Contains(x.Id))
+            .Select(x => new PlayerIdentity(x.Id, x.DisplayName, x.AvatarUrl))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
         return aggregates.Select((x, index) => new RankingEntry(
             index + 1,
             x.Id,
-            names.GetValueOrDefault(x.Id, "Jogador"),
+            players.GetValueOrDefault(x.Id)?.DisplayName ?? "Jogador",
             x.Score,
             x.Matches,
-            x.Matches < provisionalThreshold)).ToArray();
+            x.Matches < provisionalThreshold)
+        {
+            AvatarUrl = players.GetValueOrDefault(x.Id)?.AvatarUrl
+        }).ToArray();
     }
 
     private sealed record RankingAggregate(Guid Id, decimal Score, int Matches);
+
+    private sealed record PlayerIdentity(Guid Id, string DisplayName, string? AvatarUrl);
 
     private sealed record ClanName(Guid Id, string Tag, string Name);
 

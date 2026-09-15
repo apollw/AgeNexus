@@ -36,3 +36,7 @@ As correções foram integradas pelos PRs #33 e #34. O catálogo passou a ter in
 ### Lição de validação
 
 Build e testes automatizados confirmam regras e regressões conhecidas, mas não reproduzem sozinhos latência de rede, limites do plano hospedado, crescimento real dos dados e uso contínuo do Blazor Server. Mudanças em caminhos críticos devem combinar testes com uma verificação manual após o deploy. Relatos de aumento progressivo, horário aproximado e tela afetada são evidências de diagnóstico e devem ser correlacionados com os avisos de desempenho do servidor.
+
+## Avatares
+
+As listagens usam um componente único com dimensões reservadas, decodificação assíncrona e carregamento tardio para imagens fora da área visível. Avatares locais possuem URL versionada pelo conteúdo, cache imutável no navegador por um ano e cache de seis horas em memória no servidor. Assim, navegar entre jogadores, rankings e recordes não repete uma leitura do PostgreSQL para cada foto. O cache em memória aceita apenas a versão hexadecimal presente na URL e contabiliza o tamanho das imagens no limite global da aplicação.

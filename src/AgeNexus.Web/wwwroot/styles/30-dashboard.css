@@ -46,12 +46,18 @@
 .versus small { color: var(--muted); font-size: var(--font-sm); }
 
 .avatar { display: inline-grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; color: #fff; border: 2px solid var(--surface); border-radius: 50%; background: #5b5c56; font-size: var(--font-caption); font-weight: 800; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+.avatar:is(img) { object-fit: cover; }
+.avatar-list { width: 42px; height: 42px; font-size: var(--font-caption); }
+.avatar-compact { width: 32px; height: 32px; font-size: var(--font-sm); }
+.avatar-directory { width: 52px; height: 52px; border-width: 3px; font-size: var(--font-control); }
+.avatar-hero { width: 76px; height: 76px; border-width: 4px; font: 700 17px "Unbounded"; }
+.avatar-profile { width: 112px; height: 112px; border-width: 4px; font: 700 20px "Unbounded"; }
 .avatar-gold { background: #9a7135; }.avatar-blue { background: #42677d; }.avatar-purple { background: #6b567b; }.avatar-red { background: #91473e; }.avatar-green { background: #47715e; }.avatar-orange { background: #a2663e; }.avatar-dark { background: #343632; }
 .avatar-xl { width: 64px; height: 64px; font-size: var(--font-lead); border-width: 3px; }
 .avatar-xxl { width: 82px; height: 82px; font: 700 18px "Unbounded"; border-width: 4px; }
 
 .leaderboard { padding: 0 22px 10px; }
-.leader { display: grid; grid-template-columns: 22px 38px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 14px 4px; border-top: 1px solid #e8e3d9; }
+.leader { display: grid; grid-template-columns: 22px 42px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 14px 4px; border-top: 1px solid #e8e3d9; }
 .leader-first { margin-bottom: 4px; padding: 15px 10px; border: 1px solid #ead9b4; border-radius: 6px; background: #fbf3df; }
 .leader .rank { color: #918a7c; font: 700 var(--font-copy) "Unbounded"; text-align: center; }
 .leader div { display: flex; flex-direction: column; }

@@ -77,7 +77,8 @@
                 {
                     <div class="leader @(player.Position == 1 ? "leader-first" : "")">
                         <span class="rank">@player.Position</span>
-                        <span class="avatar @(player.Position == 1 ? "avatar-gold" : "avatar-dark")">@Initials(player.DisplayName)</span>
+                        <PlayerAvatar DisplayName="@player.DisplayName" Url="@player.AvatarUrl" Size="list"
+                                      Class="@(player.Position == 1 ? "avatar-gold" : "avatar-dark")" />
                         <div><strong>@player.DisplayName</strong><small>@player.ValidatedMatches partida(s) validada(s)</small></div>
                         <span class="rating"><small> Elo </small><strong>@player.Score.ToString("N0")</strong></span>
                     </div>
@@ -145,9 +146,4 @@
         _ => "pending"
     };
 
-    private static string Initials(string name) => string.Concat(name
-        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-        .Take(2)
-        .Select(x => char.ToUpperInvariant(x[0])));
 }
-
