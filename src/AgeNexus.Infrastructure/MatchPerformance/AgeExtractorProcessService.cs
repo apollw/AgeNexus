@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AgeNexus.Application.MatchPerformance;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,7 @@ public sealed class AgeExtractorProcessService(
     public async Task<AgeExtractorExecutionResult> ExtractAsync(
         int playerCount,
         IReadOnlyCollection<AgeExtractorImage> images,
+        IProgress<AgeExtractorProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         if (playerCount is < 2 or > 8 || images.Count != Categories.Length)
@@ -97,17 +99,30 @@ public sealed class AgeExtractorProcessService(
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromMinutes(5));
+            AgeExtractorProgress? lastProgress = null;
             var stdoutTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
-            var stderrTask = process.StandardError.ReadToEndAsync(timeout.Token);
+            var diagnosticsTask = ReadDiagnosticsAsync(
+                process.StandardError,
+                value =>
+                {
+                    lastProgress = value;
+                    progress?.Report(value);
+                },
+                timeout.Token);
             try
             {
                 await process.WaitForExitAsync(timeout.Token);
                 var output = await stdoutTask;
-                _ = await stderrTask;
+                var diagnosticError = await diagnosticsTask;
                 if (process.ExitCode != 0)
                 {
                     logger.LogWarning("AgeXtractor exited with code {ExitCode}.", process.ExitCode);
-                    return AgeExtractorExecutionResult.Failure("Failed");
+                    var detail = diagnosticError ?? (lastProgress is null
+                        ? $"O processo foi encerrado pelo servidor com o código {process.ExitCode}."
+                        : $"{lastProgress.Message} → o processo foi encerrado pelo servidor com o código {process.ExitCode}.");
+                    return AgeExtractorExecutionResult.Failure(
+                        "Failed",
+                        SanitizeDiagnostic(detail, temporaryDirectory));
                 }
 
                 if (string.IsNullOrWhiteSpace(output) || output.Length > MaximumJsonCharacters)
@@ -127,7 +142,10 @@ public sealed class AgeExtractorProcessService(
             {
                 Kill(process);
                 logger.LogWarning("AgeXtractor exceeded the five-minute processing limit.");
-                return AgeExtractorExecutionResult.Failure("Timeout");
+                var detail = lastProgress is null
+                    ? "Nenhuma etapa foi concluída antes do limite de cinco minutos."
+                    : $"Última etapa: {lastProgress.Message}.";
+                return AgeExtractorExecutionResult.Failure("Timeout", detail);
             }
         }
         catch (OperationCanceledException)
@@ -177,6 +195,72 @@ public sealed class AgeExtractorProcessService(
         corners.Count == 4 && corners.All(point =>
             double.IsFinite(point.X) && double.IsFinite(point.Y) &&
             point.X >= 0 && point.Y >= 0 && point.X <= 100_000 && point.Y <= 100_000);
+
+    private static async Task<string?> ReadDiagnosticsAsync(
+        StreamReader reader,
+        Action<AgeExtractorProgress> reportProgress,
+        CancellationToken cancellationToken)
+    {
+        string? error = null;
+        while (await reader.ReadLineAsync(cancellationToken) is { } line)
+        {
+            var diagnostic = ParseDiagnostic(line);
+            if (diagnostic?.Type == "progresso" &&
+                diagnostic.Completed is >= 0 && diagnostic.Total is > 0 &&
+                diagnostic.Percentage is >= 0 and <= 100 &&
+                !string.IsNullOrWhiteSpace(diagnostic.Message))
+            {
+                reportProgress(new(
+                    diagnostic.Completed.Value,
+                    diagnostic.Total.Value,
+                    diagnostic.Percentage.Value,
+                    SanitizeDiagnostic(diagnostic.Message, null)));
+            }
+            else if (diagnostic?.Type == "erro" && !string.IsNullOrWhiteSpace(diagnostic.Message))
+            {
+                error = SanitizeDiagnostic(diagnostic.Message, null);
+            }
+        }
+
+        return error;
+    }
+
+    internal static AgeExtractorDiagnostic? ParseDiagnostic(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line) || line.Length > 4096)
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<AgeExtractorDiagnostic>(line);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string SanitizeDiagnostic(string value, string? temporaryDirectory)
+    {
+        var sanitized = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        if (!string.IsNullOrWhiteSpace(temporaryDirectory))
+        {
+            sanitized = sanitized.Replace(temporaryDirectory, "arquivo temporário", StringComparison.Ordinal);
+        }
+
+        return sanitized.Length <= 600 ? sanitized : sanitized[..600] + "…";
+    }
+
+    internal sealed record AgeExtractorDiagnostic(
+        [property: JsonPropertyName("tipo")] string? Type,
+        [property: JsonPropertyName("concluidas")] int? Completed,
+        [property: JsonPropertyName("total")] int? Total,
+        [property: JsonPropertyName("percentual")] decimal? Percentage,
+        [property: JsonPropertyName("mensagem")] string? Message,
+        [property: JsonPropertyName("etapa")] string? Stage,
+        [property: JsonPropertyName("codigo")] string? Code);
 
     private static void Kill(Process? process)
     {
