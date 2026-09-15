@@ -7,7 +7,6 @@ namespace AgeNexus.Domain.Tests;
 
 public sealed class AgeExtractorProcessServiceTests
 {
-    private static readonly string[] Categories = ["placar", "militar", "economia", "tecnologia", "sociedade"];
     private static readonly AgeExtractorPoint[] Corners =
     [
         new(10, 10), new(900, 10), new(900, 600), new(10, 600)
@@ -17,22 +16,20 @@ public sealed class AgeExtractorProcessServiceTests
     public async Task Rejects_missing_or_forged_images_before_starting_python()
     {
         using var service = CreateService();
-        var missing = await service.ExtractAsync(2, []);
+        var missing = await service.ExtractCategoryAsync(2, new("desconhecida", [], Corners));
         Assert.Equal("InvalidRequest", missing.ErrorCode);
 
-        var forged = Categories.Select(x => new AgeExtractorImage(x, "not an image"u8.ToArray(), Corners)).ToArray();
-        var invalid = await service.ExtractAsync(2, forged);
+        var invalid = await service.ExtractCategoryAsync(
+            2, new("placar", "not an image"u8.ToArray(), Corners));
         Assert.Equal("InvalidImage", invalid.ErrorCode);
     }
 
     [Fact]
-    public async Task Accepts_five_supported_image_signatures_before_checking_runtime()
+    public async Task Accepts_a_supported_image_signature_before_checking_runtime()
     {
         using var service = CreateService();
         byte[] png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-        var images = Categories.Select(x => new AgeExtractorImage(x, png, Corners)).ToArray();
-
-        var result = await service.ExtractAsync(2, images);
+        var result = await service.ExtractCategoryAsync(2, new("placar", png, Corners));
 
         Assert.Equal("Unavailable", result.ErrorCode);
     }
@@ -43,9 +40,7 @@ public sealed class AgeExtractorProcessServiceTests
         using var service = CreateService();
         byte[] png = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
         var invalidCorners = new[] { new AgeExtractorPoint(10, 10) };
-        var images = Categories.Select(x => new AgeExtractorImage(x, png, invalidCorners)).ToArray();
-
-        var result = await service.ExtractAsync(2, images);
+        var result = await service.ExtractCategoryAsync(2, new("placar", png, invalidCorners));
 
         Assert.Equal("InvalidImage", result.ErrorCode);
     }

@@ -28,9 +28,9 @@ public sealed record AgeExtractorExecutionResult(
 
 public interface IAgeExtractorService
 {
-    Task<AgeExtractorExecutionResult> ExtractAsync(
+    Task<AgeExtractorExecutionResult> ExtractCategoryAsync(
         int playerCount,
-        IReadOnlyCollection<AgeExtractorImage> images,
+        AgeExtractorImage image,
         IProgress<AgeExtractorProgress>? progress = null,
         CancellationToken cancellationToken = default);
 }

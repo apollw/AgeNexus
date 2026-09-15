@@ -5,6 +5,7 @@
 @implements IAsyncDisposable
 @inject AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService PerformanceService
 @inject AgeNexus.Application.MatchPerformance.AgeExtractorJsonImporter JsonImporter
+@inject AgeNexus.Application.MatchPerformance.AgeExtractorJsonComposer JsonComposer
 @inject AgeNexus.Application.MatchPerformance.IAgeExtractorService AgeExtractorService
 @inject AgeNexus.Application.Evidence.IMatchEvidenceService EvidenceService
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
@@ -105,7 +106,7 @@ else
                         {
                             <button class="@(ActiveCropCategory == category.Key ? "active" : null)" type="button"
                                     @onclick="() => ActivateCropper(category.Key)" disabled="@Busy">
-                                <span>@category.Label</span><small>Carregada</small>
+                                <span>@category.Label</span><small class="@ExtractorCategoryStatusClass(category.Key)">@ExtractorCategoryStatus(category.Key)</small>
                             </button>
                         }
                     </div>
@@ -129,14 +130,27 @@ else
                         <span>@ExtractorProgress.Percentage.ToString("N1")%</span>
                     </div>
                     <progress max="100" value="@ExtractorProgress.Percentage">@ExtractorProgress.Percentage%</progress>
-                    <small>@ExtractorProgress.Completed de @ExtractorProgress.Total etapas concluídas</small>
+                    <small>@ExtractorProgress.Completed de @ExtractorProgress.Total categorias concluídas</small>
+                </div>
+            }
+            @if (ExtractorCategoryErrors.Count > 0)
+            {
+                <div class="extractor-category-errors" role="alert">
+                    @foreach (var category in ExtractorCategories.Where(category => ExtractorCategoryErrors.ContainsKey(category.Key)))
+                    {
+                        <div><strong>@category.Label</strong><span>@ExtractorCategoryErrors[category.Key]</span></div>
+                    }
                 </div>
             }
             <div class="performance-actions extractor-actions">
-                <small>@ExtractorImages.Count de 5 imagens carregadas · JPEG, PNG ou WebP, até 5 MB cada. Nenhuma captura é salva no banco.</small>
+                <small>@ExtractorImages.Count de 5 imagens carregadas · @ExtractorCategoryResults.Count de 5 categorias concluídas. Nenhuma captura é salva no banco.</small>
+                @if (ExtractorCategoryResults.Count > 0 || ExtractorCategoryErrors.Count > 0)
+                {
+                    <button class="button button-secondary" type="button" @onclick="ResetExtractorResults" disabled="@Busy">Descartar resultados e recomeçar</button>
+                }
                 <button class="button button-primary" type="button" @onclick="ExtractImagesAsync"
                         disabled="@(Busy || ExtractorImages.Count != ExtractorCategories.Length || Rows.Count is < 2 or > 8)">
-                    @(Busy ? "Processando..." : "Extrair todos os dados")
+                    @(Busy ? "Processando..." : ExtractorCategoryResults.Count > 0 ? "Continuar categorias pendentes" : "Extrair todos os dados")
                 </button>
             </div>
         </section>
@@ -434,6 +448,8 @@ else
     private AgeNexus.Application.MatchPerformance.AgeExtractorJsonImportResult? JsonImportResult { get; set; }
     private List<JsonPlayerMapping> JsonMappings { get; } = [];
     private Dictionary<string, ExtractorImageSelection> ExtractorImages { get; } = new(StringComparer.Ordinal);
+    private Dictionary<string, string> ExtractorCategoryResults { get; } = new(StringComparer.Ordinal);
+    private Dictionary<string, string> ExtractorCategoryErrors { get; } = new(StringComparer.Ordinal);
     private HashSet<string> PendingCropperInitialization { get; } = new(StringComparer.Ordinal);
     private string? ActiveCropCategory { get; set; }
     private string? PendingCropperRefresh { get; set; }
@@ -757,6 +773,8 @@ else
             using var memory = new MemoryStream();
             await input.CopyToAsync(memory);
             ExtractorImages[category] = new(args.File.Name, memory.ToArray());
+            ExtractorCategoryResults.Remove(category);
+            ExtractorCategoryErrors.Remove(category);
             ActiveCropCategory = category;
             PendingCropperInitialization.Add(category);
             ExtractorProgress = null;
@@ -766,6 +784,8 @@ else
         catch (IOException)
         {
             ExtractorImages.Remove(category);
+            ExtractorCategoryResults.Remove(category);
+            ExtractorCategoryErrors.Remove(category);
             Message = "A imagem ultrapassa 5 MB ou não pôde ser lida.";
             HasError = true;
         }
@@ -778,6 +798,14 @@ else
     private string ExtractorFileName(string category) =>
         ExtractorImages.TryGetValue(category, out var image) ? $"✓ {image.FileName}" : "Nenhuma imagem selecionada";
 
+    private string ExtractorCategoryStatus(string category) =>
+        ExtractorCategoryResults.ContainsKey(category) ? "Concluída" :
+        ExtractorCategoryErrors.ContainsKey(category) ? "Falhou · ajuste e tente novamente" : "Carregada";
+
+    private string ExtractorCategoryStatusClass(string category) =>
+        ExtractorCategoryResults.ContainsKey(category) ? "extractor-status-success" :
+        ExtractorCategoryErrors.ContainsKey(category) ? "extractor-status-error" : string.Empty;
+
     private string ExtractorInputId(string category) => $"agextractor-input-{category}";
     private string ExtractorCanvasId(string category) => $"agextractor-canvas-{category}";
     private string ExtractorCropperPrefix => $"{MatchId:N}:";
@@ -787,6 +815,15 @@ else
     {
         ActiveCropCategory = category;
         PendingCropperRefresh = category;
+    }
+
+    private void ResetExtractorResults()
+    {
+        ExtractorCategoryResults.Clear();
+        ExtractorCategoryErrors.Clear();
+        ExtractorProgress = null;
+        Message = "Resultados parciais descartados. As imagens e delimitações foram mantidas para uma nova extração.";
+        HasError = false;
     }
 
     private async Task ExtractImagesAsync()
@@ -799,69 +836,123 @@ else
         }
 
         Busy = true;
-        Message = "O AgeXtractor está lendo as imagens. Esse processo pode levar alguns minutos.";
+        Message = ExtractorCategoryResults.Count == 0
+            ? "O AgeXtractor está lendo as imagens. Cada categoria concluída será preservada."
+            : "Retomando somente as categorias pendentes.";
         HasError = false;
-        ExtractorProgress = new(0, 1, 0, "Preparando as imagens");
+        ExtractorProgress = new(
+            ExtractorCategoryResults.Count,
+            ExtractorCategories.Length,
+            100m * ExtractorCategoryResults.Count / ExtractorCategories.Length,
+            "Preparando as categorias pendentes");
         try
         {
-            var images = new List<AgeNexus.Application.MatchPerformance.AgeExtractorImage>();
-            foreach (var category in ExtractorCategories)
+            foreach (var category in ExtractorCategories.Where(category => !ExtractorCategoryResults.ContainsKey(category.Key)))
             {
-                var points = await JS.InvokeAsync<double[][]>(
-                    "ageNexusCropper.getPoints", ExtractorCropperKey(category.Key));
+                double[][] points;
+                try
+                {
+                    points = await JS.InvokeAsync<double[][]>(
+                        "ageNexusCropper.getPoints", ExtractorCropperKey(category.Key));
+                }
+                catch (Microsoft.JSInterop.JSException exception)
+                {
+                    ExtractorCategoryErrors[category.Key] = "A imagem ainda não terminou de carregar para o ajuste.";
+                    Logger.LogWarning(exception, "Failed to read AgeXtractor crop region for {Category}", category.Key);
+                    continue;
+                }
+
                 var corners = points.Select(point =>
                     new AgeNexus.Application.MatchPerformance.AgeExtractorPoint(point[0], point[1])).ToArray();
-                images.Add(new(
+                var image = new AgeNexus.Application.MatchPerformance.AgeExtractorImage(
                     category.Key,
                     ExtractorImages[category.Key].Content,
-                    corners));
-            }
-            var progress = new Progress<AgeNexus.Application.MatchPerformance.AgeExtractorProgress>(value =>
-            {
-                ExtractorProgress = value;
-                _ = InvokeAsync(StateHasChanged);
-            });
-            var result = await AgeExtractorService.ExtractAsync(Rows.Count, images, progress);
-            if (!result.Succeeded || string.IsNullOrWhiteSpace(result.Json))
-            {
-                var summary = result.ErrorCode switch
+                    corners);
+                var completedBefore = ExtractorCategoryResults.Count;
+                ExtractorCategoryErrors.Remove(category.Key);
+                var progress = new Progress<AgeNexus.Application.MatchPerformance.AgeExtractorProgress>(value =>
                 {
-                    "Busy" => "O AgeXtractor já está processando outra partida. Tente novamente em instantes.",
-                    "Timeout" => "A extração ultrapassou o limite de cinco minutos. Confira as imagens e tente novamente.",
-                    "Unavailable" => "O AgeXtractor ainda não está disponível neste servidor.",
-                    "InvalidImage" => "Uma das imagens não é um JPEG, PNG ou WebP válido de até 5 MB.",
-                    _ => "Não foi possível extrair as estatísticas. Confira as cinco telas e tente novamente."
-                };
-                Message = string.IsNullOrWhiteSpace(result.ErrorMessage)
-                    ? summary
-                    : $"{summary} Detalhe: {result.ErrorMessage}";
-                HasError = true;
+                    var overallPercentage = 100m * (completedBefore + value.Percentage / 100m) / ExtractorCategories.Length;
+                    ExtractorProgress = new(completedBefore, ExtractorCategories.Length, overallPercentage, value.Message);
+                    _ = InvokeAsync(StateHasChanged);
+                });
+                var result = await AgeExtractorService.ExtractCategoryAsync(Rows.Count, image, progress);
+                if (result.Succeeded && !string.IsNullOrWhiteSpace(result.Json))
+                {
+                    ExtractorCategoryResults[category.Key] = result.Json;
+                    ExtractorProgress = new(
+                        ExtractorCategoryResults.Count,
+                        ExtractorCategories.Length,
+                        100m * ExtractorCategoryResults.Count / ExtractorCategories.Length,
+                        $"{category.Label} concluída");
+                    continue;
+                }
+
+                ExtractorCategoryErrors[category.Key] = ExtractorFailureMessage(result);
+                if (result.ErrorCode is "Busy" or "Timeout" or "Unavailable")
+                {
+                    break;
+                }
+            }
+
+            if (ExtractorCategoryResults.Count != ExtractorCategories.Length)
+            {
+                var pending = ExtractorCategories
+                    .Where(category => !ExtractorCategoryResults.ContainsKey(category.Key))
+                    .Select(category => category.Label);
+                Message = $"{ExtractorCategoryResults.Count} de 5 categorias concluídas. Ajuste e tente novamente: {string.Join(", ", pending)}.";
+                HasError = ExtractorCategoryErrors.Count > 0;
                 return;
             }
 
+            var composition = JsonComposer.Compose(ExtractorCategoryResults.Values.ToArray());
+            if (!composition.Succeeded || string.IsNullOrWhiteSpace(composition.Json))
+            {
+                Message = $"Não foi possível consolidar os resultados: {composition.Error}";
+                HasError = true;
+                return;
+            }
             JsonText = string.Empty;
-            JsonFileContent = result.Json;
+            JsonFileContent = composition.Json;
             JsonFileName = "Resultado do AgeXtractor online";
             await JS.InvokeVoidAsync("ageNexusCropper.disposeAll", ExtractorCropperPrefix);
             ExtractorImages.Clear();
+            ExtractorCategoryResults.Clear();
+            ExtractorCategoryErrors.Clear();
             ActiveCropCategory = null;
             AnalyzeJsonImport();
             if (!HasError)
             {
-                ExtractorProgress = new(1, 1, 100, "Extração concluída");
+                ExtractorProgress = new(5, 5, 100, "Extração concluída");
                 Message = "Extração concluída. Revise os valores e associe cada posição ao jogador correto.";
             }
         }
-        catch (Microsoft.JSInterop.JSException exception)
+        catch (Exception exception)
         {
-            Message = "Uma das imagens ainda não terminou de carregar para o ajuste. Confira as cinco abas e tente novamente.";
+            Message = "A extração incremental foi interrompida inesperadamente. Os resultados já concluídos foram preservados.";
             HasError = true;
-            Logger.LogWarning(exception, "Failed to read AgeXtractor crop regions");
+            Logger.LogError(exception, "Failed to run incremental AgeXtractor extraction");
         }
         finally
         {
             Busy = false;
         }
+    }
+
+    private static string ExtractorFailureMessage(
+        AgeNexus.Application.MatchPerformance.AgeExtractorExecutionResult result)
+    {
+        var summary = result.ErrorCode switch
+        {
+            "Busy" => "O AgeXtractor já está processando outra partida.",
+            "Timeout" => "A categoria ultrapassou o limite de cinco minutos.",
+            "Unavailable" => "O AgeXtractor não está disponível neste servidor.",
+            "InvalidImage" => "A imagem ou delimitação é inválida.",
+            _ => "Não foi possível extrair esta categoria."
+        };
+        return string.IsNullOrWhiteSpace(result.ErrorMessage)
+            ? summary
+            : $"{summary} {result.ErrorMessage}";
     }
 
     private void AnalyzeJsonImport()
