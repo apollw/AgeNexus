@@ -85,17 +85,27 @@ else
                 <div><span class="eyebrow">AgeXtractor online</span><h2>Extrair estatísticas das capturas</h2></div>
                 <span class="extractor-player-count">@Rows.Count jogador(es)</span>
             </header>
-            <p>Selecione as cinco telas finais da mesma partida. Depois, ajuste os quatro cantos para manter somente a tabela de cada imagem. As capturas são temporárias e o resultado sempre será exibido para revisão.</p>
+            <p>Carregue e extraia as telas uma por vez ou em conjunto. Ajuste os quatro cantos para manter somente a tabela de cada imagem. O JSON só será criado após as cinco categorias serem concluídas.</p>
             <div class="extractor-file-grid">
                 @foreach (var category in ExtractorCategories)
                 {
-                    <label class="extractor-file-picker @(ExtractorImages.ContainsKey(category.Key) ? "extractor-file-ready" : null)">
-                        <span>@category.Label</span>
-                        <InputFile OnChange="@(args => ReadExtractorImageAsync(args, category.Key))"
-                                   id="@ExtractorInputId(category.Key)"
-                                   accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled="@Busy" />
-                        <small>@ExtractorFileName(category.Key)</small>
-                    </label>
+                    <div class="extractor-file-card">
+                        <label class="extractor-file-picker @(ExtractorImages.ContainsKey(category.Key) ? "extractor-file-ready" : null)">
+                            <span>@category.Label</span>
+                            <InputFile @key="ExtractorInputVersion(category.Key)"
+                                       OnChange="@(args => ReadExtractorImageAsync(args, category.Key))"
+                                       id="@ExtractorInputId(category.Key)"
+                                       accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" disabled="@Busy" />
+                            <small>@ExtractorFileName(category.Key)</small>
+                        </label>
+                        @if (ExtractorImages.ContainsKey(category.Key))
+                        {
+                            <button class="extractor-remove-image" type="button"
+                                    @onclick="() => RemoveExtractorImageAsync(category.Key)" disabled="@Busy">
+                                Remover imagem
+                            </button>
+                        }
+                    </div>
                 }
             </div>
             @if (ExtractorImages.Count > 0)
@@ -118,6 +128,13 @@ else
                                 <small>Arraste os pontos 1–4 até os cantos externos da tabela, incluindo o cabeçalho e a legenda inferior.</small>
                             </div>
                             <canvas id="@ExtractorCanvasId(category.Key)" aria-label="Ajuste dos quatro cantos da tabela de @category.Label"></canvas>
+                            <div class="extractor-category-actions">
+                                <button class="button button-primary" type="button"
+                                        @onclick="() => ExtractSingleImageAsync(category.Key)"
+                                        disabled="@(Busy || Rows.Count is < 2 or > 8)">
+                                    @(ExtractorCategoryResults.ContainsKey(category.Key) ? $"Extrair {category.Label} novamente" : $"Extrair {category.Label}")
+                                </button>
+                            </div>
                         </div>
                     }
                 </div>
@@ -148,9 +165,9 @@ else
                 {
                     <button class="button button-secondary" type="button" @onclick="ResetExtractorResults" disabled="@Busy">Descartar resultados e recomeçar</button>
                 }
-                <button class="button button-primary" type="button" @onclick="ExtractImagesAsync"
-                        disabled="@(Busy || ExtractorImages.Count != ExtractorCategories.Length || Rows.Count is < 2 or > 8)">
-                    @(Busy ? "Processando..." : ExtractorCategoryResults.Count > 0 ? "Continuar categorias pendentes" : "Extrair todos os dados")
+                <button class="button button-primary" type="button" @onclick="ExtractLoadedImagesAsync"
+                        disabled="@(Busy || !HasLoadedPendingCategories || Rows.Count is < 2 or > 8)">
+                    @(Busy ? "Processando..." : "Extrair imagens carregadas")
                 </button>
             </div>
         </section>
@@ -450,10 +467,12 @@ else
     private Dictionary<string, ExtractorImageSelection> ExtractorImages { get; } = new(StringComparer.Ordinal);
     private Dictionary<string, string> ExtractorCategoryResults { get; } = new(StringComparer.Ordinal);
     private Dictionary<string, string> ExtractorCategoryErrors { get; } = new(StringComparer.Ordinal);
+    private Dictionary<string, int> ExtractorInputVersions { get; } = new(StringComparer.Ordinal);
     private HashSet<string> PendingCropperInitialization { get; } = new(StringComparer.Ordinal);
     private string? ActiveCropCategory { get; set; }
     private string? PendingCropperRefresh { get; set; }
     private AgeNexus.Application.MatchPerformance.AgeExtractorProgress? ExtractorProgress { get; set; }
+    private bool HasLoadedPendingCategories => ExtractorImages.Keys.Any(category => !ExtractorCategoryResults.ContainsKey(category));
     private bool LoadEvidenceAfterRender { get; set; }
     private bool IsLoading { get; set; } = true;
     private string? LoadError { get; set; }
@@ -807,6 +826,7 @@ else
         ExtractorCategoryErrors.ContainsKey(category) ? "extractor-status-error" : string.Empty;
 
     private string ExtractorInputId(string category) => $"agextractor-input-{category}";
+    private string ExtractorInputVersion(string category) => $"{category}:{ExtractorInputVersions.GetValueOrDefault(category)}";
     private string ExtractorCanvasId(string category) => $"agextractor-canvas-{category}";
     private string ExtractorCropperPrefix => $"{MatchId:N}:";
     private string ExtractorCropperKey(string category) => $"{ExtractorCropperPrefix}{category}";
@@ -826,19 +846,79 @@ else
         HasError = false;
     }
 
-    private async Task ExtractImagesAsync()
+    private async Task RemoveExtractorImageAsync(string category)
     {
-        if (ExtractorImages.Count != ExtractorCategories.Length || Rows.Count is < 2 or > 8)
+        try
         {
-            Message = "Selecione as cinco imagens da partida antes de iniciar a extração.";
+            await JS.InvokeVoidAsync("ageNexusCropper.dispose", ExtractorCropperKey(category));
+        }
+        catch (Microsoft.JSInterop.JSException exception)
+        {
+            Logger.LogDebug(exception, "AgeXtractor cropper was already unavailable for {Category}", category);
+        }
+
+        ExtractorImages.Remove(category);
+        var discardedResult = ExtractorCategoryResults.Remove(category);
+        ExtractorCategoryErrors.Remove(category);
+        PendingCropperInitialization.Remove(category);
+        if (PendingCropperRefresh == category)
+        {
+            PendingCropperRefresh = null;
+        }
+        ExtractorInputVersions[category] = ExtractorInputVersions.GetValueOrDefault(category) + 1;
+        if (ActiveCropCategory == category)
+        {
+            ActiveCropCategory = ExtractorCategories
+                .Select(item => item.Key)
+                .FirstOrDefault(ExtractorImages.ContainsKey);
+            if (ActiveCropCategory is not null)
+            {
+                PendingCropperRefresh = ActiveCropCategory;
+            }
+        }
+        ExtractorProgress = null;
+        var label = ExtractorCategories.Single(item => item.Key == category).Label;
+        Message = discardedResult
+            ? $"Imagem de {label} removida. O resultado dessa categoria também foi descartado."
+            : $"Imagem de {label} removida. Você já pode selecionar outra.";
+        HasError = false;
+    }
+
+    private Task ExtractLoadedImagesAsync() => ExtractImagesAsync();
+
+    private Task ExtractSingleImageAsync(string category) => ExtractImagesAsync(category);
+
+    private async Task ExtractImagesAsync(string? onlyCategory = null)
+    {
+        if (Rows.Count is < 2 or > 8)
+        {
+            Message = "A partida precisa ter entre 2 e 8 participantes humanos para usar o extrator.";
             HasError = true;
             return;
         }
 
+        var categories = ExtractorCategories
+            .Where(category => ExtractorImages.ContainsKey(category.Key) &&
+                (category.Key == onlyCategory || onlyCategory is null && !ExtractorCategoryResults.ContainsKey(category.Key)))
+            .ToArray();
+        if (categories.Length == 0)
+        {
+            Message = onlyCategory is null
+                ? "Carregue ao menos uma imagem pendente para iniciar a extração."
+                : "Carregue a imagem desta categoria antes de extraí-la.";
+            HasError = true;
+            return;
+        }
+
+        if (onlyCategory is not null)
+        {
+            ExtractorCategoryResults.Remove(onlyCategory);
+            ExtractorCategoryErrors.Remove(onlyCategory);
+        }
         Busy = true;
-        Message = ExtractorCategoryResults.Count == 0
-            ? "O AgeXtractor está lendo as imagens. Cada categoria concluída será preservada."
-            : "Retomando somente as categorias pendentes.";
+        Message = categories.Length == 1
+            ? $"O AgeXtractor está lendo {categories[0].Label}."
+            : "O AgeXtractor está lendo as imagens carregadas. Cada categoria concluída será preservada.";
         HasError = false;
         ExtractorProgress = new(
             ExtractorCategoryResults.Count,
@@ -847,7 +927,7 @@ else
             "Preparando as categorias pendentes");
         try
         {
-            foreach (var category in ExtractorCategories.Where(category => !ExtractorCategoryResults.ContainsKey(category.Key)))
+            foreach (var category in categories)
             {
                 double[][] points;
                 try
