@@ -54,6 +54,16 @@ public sealed class ScoringRuleSetTests
         Assert.Equal(52.5m, points);
     }
 
+    [Fact]
+    public void Supports_extreme_ai_difficulty()
+    {
+        var rule = _rules.GetAiRule(6);
+
+        Assert.Equal(100, rule.VictoryPoints);
+        Assert.Equal(10, rule.ValidDefeatPoints);
+        Assert.Equal(1600m, rule.EquivalentRating);
+    }
+
     [Theory]
     [InlineData(0, "1")]
     [InlineData(2, "1")]

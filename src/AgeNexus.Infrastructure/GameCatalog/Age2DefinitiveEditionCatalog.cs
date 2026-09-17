@@ -4,6 +4,16 @@ internal static class Age2DefinitiveEditionCatalog
 {
     public const string SourceVersion = "101.103.48987.0";
 
+    public static readonly IReadOnlyCollection<AiDifficultyCatalogItem> AiDifficulties =
+    [
+        new("Mais Fácil", 1),
+        new("Padrão", 2),
+        new("Moderado", 3),
+        new("Difícil", 4),
+        new("Muito Difícil", 5),
+        new("Extremo", 6),
+    ];
+
     public static readonly IReadOnlyCollection<CatalogItem> Civilizations =
     [
         new("achaemenids", "Aquemênidas"),
@@ -280,4 +290,5 @@ internal static class Age2DefinitiveEditionCatalog
     ];
 
     internal sealed record CatalogItem(string Slug, string Name);
+    internal sealed record AiDifficultyCatalogItem(string Name, int InternalLevel);
 }

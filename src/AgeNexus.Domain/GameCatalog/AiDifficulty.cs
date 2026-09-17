@@ -21,9 +21,9 @@ public sealed class AiDifficulty
             throw new DomainRuleException("Difficulty name is required.");
         }
 
-        if (internalLevel is < 1 or > 5)
+        if (internalLevel is < 1 or > 6)
         {
-            throw new DomainRuleException("AI internal level must be between 1 and 5.");
+            throw new DomainRuleException("AI internal level must be between 1 and 6.");
         }
 
         Id = id;
@@ -37,4 +37,3 @@ public sealed class AiDifficulty
     public string Name { get; private set; }
     public int InternalLevel { get; private set; }
 }
-

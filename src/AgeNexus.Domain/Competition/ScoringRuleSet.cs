@@ -22,7 +22,8 @@ public sealed class ScoringRuleSet
             [2] = new(2, 15, 2, 800m),
             [3] = new(3, 30, 4, 1000m),
             [4] = new(4, 50, 6, 1200m),
-            [5] = new(5, 75, 8, 1400m)
+            [5] = new(5, 75, 8, 1400m),
+            [6] = new(6, 100, 10, 1600m)
         };
 
     public const string CurrentVersion = "2026.09";
@@ -36,7 +37,7 @@ public sealed class ScoringRuleSet
     public AiScoringRule GetAiRule(int internalLevel) =>
         AiRules.TryGetValue(internalLevel, out var rule)
             ? rule
-            : throw new ArgumentOutOfRangeException(nameof(internalLevel), "AI level must be between 1 and 5.");
+            : throw new ArgumentOutOfRangeException(nameof(internalLevel), "AI level must be between 1 and 6.");
 
     public int GetPvpCareerBase(int largestHumanTeamSize, ScoringResult result)
     {

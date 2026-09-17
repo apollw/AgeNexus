@@ -86,6 +86,10 @@ public sealed class CatalogSetupService(AgeNexusDbContext database) : ICatalogSe
             .Where(x => x.GameEditionId == target.EditionId)
             .Select(x => x.Slug)
             .ToArrayAsync(cancellationToken)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var existingDifficulties = (await database.AiDifficulties
+            .Where(x => x.GameEditionId == target.EditionId)
+            .Select(x => x.Name)
+            .ToArrayAsync(cancellationToken)).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var civilizationsToAdd = Age2DefinitiveEditionCatalog.Civilizations
             .Where(x => !existingCivilizations.Contains(x.Slug))
@@ -95,9 +99,14 @@ public sealed class CatalogSetupService(AgeNexusDbContext database) : ICatalogSe
             .Where(x => !existingMaps.Contains(x.Slug))
             .Select(x => new MapDefinition(Guid.NewGuid(), target.EditionId, x.Name, x.Slug))
             .ToArray();
+        var difficultiesToAdd = Age2DefinitiveEditionCatalog.AiDifficulties
+            .Where(x => !existingDifficulties.Contains(x.Name))
+            .Select(x => new AiDifficulty(Guid.NewGuid(), target.EditionId, x.Name, x.InternalLevel))
+            .ToArray();
 
         database.Factions.AddRange(civilizationsToAdd);
         database.MapDefinitions.AddRange(mapsToAdd);
+        database.AiDifficulties.AddRange(difficultiesToAdd);
         try
         {
             await database.SaveChangesAsync(cancellationToken);
@@ -105,8 +114,10 @@ public sealed class CatalogSetupService(AgeNexusDbContext database) : ICatalogSe
                 target.EditionId,
                 civilizationsToAdd.Length,
                 mapsToAdd.Length,
+                difficultiesToAdd.Length,
                 existingCivilizations.Count + civilizationsToAdd.Length,
-                existingMaps.Count + mapsToAdd.Length);
+                existingMaps.Count + mapsToAdd.Length,
+                existingDifficulties.Count + difficultiesToAdd.Length);
         }
         catch (DbUpdateException)
         {

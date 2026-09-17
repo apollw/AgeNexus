@@ -553,7 +553,7 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
 
                     b.ToTable("ai_difficulties", "public", t =>
                         {
-                            t.HasCheckConstraint("ck_ai_difficulties_internal_level", "internal_level BETWEEN 1 AND 5");
+                            t.HasCheckConstraint("ck_ai_difficulties_internal_level", "internal_level BETWEEN 1 AND 6");
                         });
                 });
 

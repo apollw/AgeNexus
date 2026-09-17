@@ -9,7 +9,7 @@ internal sealed class AiDifficultyConfiguration : IEntityTypeConfiguration<AiDif
     public void Configure(EntityTypeBuilder<AiDifficulty> builder)
     {
         builder.ToTable("ai_difficulties", table =>
-            table.HasCheckConstraint("ck_ai_difficulties_internal_level", "internal_level BETWEEN 1 AND 5"));
+            table.HasCheckConstraint("ck_ai_difficulties_internal_level", "internal_level BETWEEN 1 AND 6"));
         builder.HasKey(x => x.Id).HasName("pk_ai_difficulties");
 
         builder.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
