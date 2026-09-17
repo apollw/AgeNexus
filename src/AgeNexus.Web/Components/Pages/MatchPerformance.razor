@@ -19,7 +19,7 @@
     <div>
         <span class="eyebrow">Relatório pós-jogo</span>
         <h1>Desempenho e MVP</h1>
-        <p>Preencha as estatísticas manualmente ou importe o JSON do AgeExtractor. O replay é armazenado separadamente para download e não altera os dados do relatório.</p>
+        <p>Preencha as estatísticas, extraia os dados das capturas ou importe um arquivo do AgeExtractor. O replay fica disponível apenas para download.</p>
     </div>
     <a class="button button-secondary" href="/partidas">Voltar</a>
 </section>
@@ -52,9 +52,9 @@ else
     }
 
     <section class="panel performance-summary">
-        <div><span class="eyebrow">Partida</span><strong>@View.Category</strong><small>Status: @View.MatchStatus</small></div>
-        <div><span class="eyebrow">Relatório</span><strong>@(View.Status?.ToString() ?? "Não criado")</strong><small>Origem: @(View.Source?.ToString() ?? "a definir")</small></div>
-        <div><span class="eyebrow">Completude</span><strong>@(View.IsComplete ? "Completo" : "Pendente")</strong><small>@View.ConfirmedTeamIds.Count equipe(s) confirmaram</small></div>
+        <div><span class="eyebrow">Partida</span><strong>@CategoryLabel(View.Category)</strong><small>Status: @MatchStatusLabel(View.MatchStatus)</small></div>
+        <div><span class="eyebrow">Relatório</span><strong>@ReportStatusLabel(View.Status)</strong><small>Preenchimento: @SourceLabel(View.Source)</small></div>
+        <div><span class="eyebrow">Preenchimento</span><strong>@(View.IsComplete ? "Completo" : "Pendente")</strong><small>@View.ConfirmedTeamIds.Count equipe(s) confirmaram</small></div>
     </section>
 
     <section class="panel profile-form-card replay-import replay-file-upload">
@@ -161,7 +161,7 @@ else
                 </div>
             }
             <div class="performance-actions extractor-actions">
-                <small>@ExtractorImages.Count de 5 imagens carregadas · @ExtractorCategoryResults.Count de 5 categorias concluídas. Nenhuma captura é salva no banco.</small>
+                <small>@ExtractorImages.Count de 5 imagens carregadas · @ExtractorCategoryResults.Count de 5 categorias concluídas. As imagens são usadas somente durante a extração.</small>
                 @if (ExtractorCategoryResults.Count > 0 || ExtractorCategoryErrors.Count > 0)
                 {
                     <button class="button button-secondary" type="button" @onclick="ResetExtractorResults" disabled="@Busy">Descartar resultados e recomeçar</button>
@@ -191,7 +191,7 @@ else
                 <span class="json-import-or">ou</span>
                 <label class="form-field json-paste-field">
                     <span>Colar JSON</span>
-                    <InputTextArea @bind-Value="JsonText" placeholder="Cole aqui o conteúdo completo, incluindo quantidade_jogadores e jogadores." disabled="@Busy" />
+                    <InputTextArea @bind-Value="JsonText" placeholder="Cole aqui todo o conteúdo do arquivo gerado pelo AgeExtractor." disabled="@Busy" />
                 </label>
             </div>
             <div class="performance-actions json-import-actions">
@@ -202,7 +202,7 @@ else
             {
                 <div class="json-import-summary json-import-@JsonImportResult.Status.ToString().ToLowerInvariant()">
                     <strong>@JsonImportSummary</strong>
-                    <span>@JsonImportResult.Players.Count jogador(es) identificado(s) · @JsonImportResult.Issues.Count problema(s) · @JsonImportResult.Normalizations.Count normalização(ões)</span>
+                    <span>@JsonImportResult.Players.Count jogador(es) identificado(s) · @JsonImportResult.Issues.Count problema(s) · @JsonImportResult.Normalizations.Count ajuste(s) automático(s)</span>
                 </div>
 
                 @if (JsonImportResult.CanApply)
@@ -265,11 +265,11 @@ else
                             @foreach (var issue in JsonImportResult.Issues)
                             {
                                 <article class="json-issue json-issue-@issue.Severity.ToString().ToLowerInvariant()">
-                                    <strong>@(issue.PlayerNumber.HasValue ? $"Jogador {issue.PlayerNumber}" : "Documento") · @issue.Path</strong>
+                                    <strong>@(issue.PlayerNumber.HasValue ? $"Jogador {issue.PlayerNumber}" : "Arquivo importado")</strong>
                                     <span>@issue.Reason @issue.Effect</span>
                                     @if (!string.IsNullOrWhiteSpace(issue.OriginalValue))
                                     {
-                                        <code>@issue.OriginalValue</code>
+                                        <small>Valor recebido: <code>@issue.OriginalValue</code></small>
                                     }
                                 </article>
                             }
@@ -282,10 +282,10 @@ else
         <EditForm Model="Rows">
         <section class="panel profile-form-card">
             <header class="panel-header">
-                <div><span class="eyebrow">Entrada alternativa</span><h2>Estatísticas finais</h2></div>
+                <div><span class="eyebrow">Preenchimento</span><h2>Estatísticas finais</h2></div>
                 <InputSelect @bind-Value="Source" disabled="@(View.Source is AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Replay or AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.ReplayWithManualCompletion)">
-                    <option value="@AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Manual">Manual confirmada</option>
-                    <option value="@AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.ScreenshotTranscription">Transcrição de capturas</option>
+                    <option value="@AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Manual">Preenchimento manual</option>
+                    <option value="@AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.ScreenshotTranscription">Leitura das capturas</option>
                     @if (Source == AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.JsonImport)
                     {
                         <option value="@AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.JsonImport">JSON do AgeExtractor</option>
@@ -298,7 +298,7 @@ else
             {
                 <article class="performance-player" @key="row.MatchParticipantId">
                     <header class="performance-player-header">
-                        <div><span class="eyebrow">@row.TeamResult · equipe @row.TeamPosition</span><h3>@row.DisplayName</h3></div>
+                        <div><span class="eyebrow">@TeamResultLabel(row.TeamResult) · equipe @row.TeamPosition</span><h3>@row.DisplayName</h3></div>
                         @if (!row.IsAi)
                         {
                             <label class="mvp-choice">
@@ -375,7 +375,7 @@ else
                 @foreach (var player in View.Players.OrderByDescending(x => x.PerformanceIndex ?? -1m))
                 {
                     <div class="performance-result">
-                        <div><strong>@player.DisplayName</strong><small>@player.TeamResult</small></div>
+                        <div><strong>@player.DisplayName</strong><small>@TeamResultLabel(player.TeamResult)</small></div>
                         <span>@(player.AiDifficultyId.HasValue ? "Estatísticas registradas" : player.PerformanceIndex?.ToString("P1") ?? "Aguardando cálculo")</span>
                         <b>@AwardLabel(player.AwardType) @(player.BonusPoints > 0 ? $"+{player.BonusPoints}" : "")</b>
                     </div>
@@ -432,7 +432,7 @@ else
 
         <div class="evidence-upload-row">
             <InputFile OnChange="UploadScreenshotsAsync" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple disabled="@Busy" />
-            <small>Os arquivos são enviados ao Supabase Storage e não ocupam o banco PostgreSQL.</small>
+            <small>As capturas ficam disponíveis como comprovação da partida.</small>
         </div>
 
         @if (EvidenceScreenshots.Count > 0)
@@ -532,12 +532,12 @@ else
         }
         catch (OperationCanceledException)
         {
-            LoadError = "O servidor demorou mais de 30 segundos para responder. Tente novamente.";
+            LoadError = "O carregamento demorou mais do que o esperado. Tente novamente.";
             Logger.LogWarning("Timed out loading performance page for match {MatchId}", MatchId);
         }
         catch (Exception exception)
         {
-            LoadError = "O servidor encontrou um erro ao consultar os dados. Tente novamente.";
+            LoadError = "Não foi possível consultar os dados agora. Tente novamente.";
             Logger.LogError(exception, "Failed to load performance page for match {MatchId}", MatchId);
         }
         finally
@@ -726,8 +726,8 @@ else
             "DuplicateScreenshot" => "Esta captura já foi enviada.",
             "InvalidReplay" => "Use um replay .aoe2record, .mgz ou .mgx válido, com até 50 MB.",
             "DuplicateReplay" => "Este mesmo replay já está armazenado em outra partida.",
-            "ReplayUploadFailed" => "Não foi possível enviar o replay ao Supabase Storage.",
-            "EvidenceStorageNotConfigured" => "O Supabase Storage ainda não foi configurado no servidor.",
+            "ReplayUploadFailed" => "Não foi possível enviar o replay agora. Tente novamente.",
+            "EvidenceStorageNotConfigured" => "O envio de arquivos está temporariamente indisponível.",
             "EvidenceNotAuthorized" => "Você não pode alterar as evidências desta partida.",
             "EvidenceNotFound" => "A evidência já não existe.",
             "MatchNotFound" => "A partida não foi encontrada.",
@@ -1034,7 +1034,7 @@ else
         {
             "Busy" => "O AgeXtractor já está processando outra partida.",
             "Timeout" => "A categoria ultrapassou o limite de cinco minutos.",
-            "Unavailable" => "O AgeXtractor não está disponível neste servidor.",
+            "Unavailable" => "A extração online está temporariamente indisponível.",
             "InvalidImage" => "A imagem ou delimitação é inválida.",
             _ => "Não foi possível extrair esta categoria."
         };
@@ -1263,9 +1263,58 @@ else
                 "ReportIsIncomplete" => "Preencha todos os campos obrigatórios de todos os jogadores antes de calcular.",
                 "ReportMustBeConfirmed" => "O relatório ainda não está confirmado.",
                 "TeamMvpRequired" => "Selecione exatamente um MVP em cada equipe antes de enviar.",
-                _ => $"Não foi possível concluir: {result.ErrorCode}."
+                _ => "Não foi possível concluir a operação. Atualize a página e tente novamente."
             };
     }
+
+    private static string CategoryLabel(string category) => category switch
+    {
+        "PurePvp" => "Jogadores contra jogadores",
+        "HybridPvp" => "Partida mista",
+        "PurePve" => "Jogadores contra IA",
+        "Ineligible" => "Não vale para classificação",
+        _ => "Categoria não definida"
+    };
+
+    private static string MatchStatusLabel(string status) => status switch
+    {
+        "Draft" => "Rascunho",
+        "Submitted" => "Enviada",
+        "AwaitingConfirmation" => "Aguardando confirmação",
+        "Confirmed" => "Confirmada",
+        "Disputed" => "Contestada",
+        "Validated" => "Validada",
+        "Voided" => "Anulada",
+        _ => "Em análise"
+    };
+
+    private static string ReportStatusLabel(AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus? status) => status switch
+    {
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft => "Rascunho",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted => "Enviado para confirmação",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed => "Confirmado",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Awarded => "Concluído",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Rejected => "Contestado",
+        _ => "Ainda não iniciado"
+    };
+
+    private static string SourceLabel(AgeNexus.Domain.MatchPerformance.MatchStatisticsSource? source) => source switch
+    {
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Replay => "Replay",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.ReplayWithManualCompletion => "Replay revisado",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.ScreenshotTranscription => "Leitura das capturas",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Manual => "Preenchimento manual",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.JsonImport => "Importação do AgeExtractor",
+        _ => "A definir"
+    };
+
+    private static string TeamResultLabel(AgeNexus.Domain.Matches.TeamResult result) => result switch
+    {
+        AgeNexus.Domain.Matches.TeamResult.Victory => "Vitória",
+        AgeNexus.Domain.Matches.TeamResult.Draw => "Empate",
+        AgeNexus.Domain.Matches.TeamResult.Defeat => "Derrota",
+        _ => "Resultado pendente"
+    };
 
     private static string AwardLabel(AgeNexus.Domain.MatchPerformance.PerformanceAwardType? award) => award switch
     {

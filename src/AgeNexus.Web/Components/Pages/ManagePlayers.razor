@@ -9,9 +9,9 @@
 
 <section class="page-heading compact-heading">
     <div>
-        <span class="eyebrow">Administração local</span>
+        <span class="eyebrow">Gestão da comunidade</span>
         <h1>Participantes</h1>
-        <p>Cadastre quem joga com você. Esses perfis aparecem nas partidas, mas não possuem acesso ao sistema.</p>
+        <p>Cadastre jogadores que participam das partidas, mesmo que ainda não tenham uma conta.</p>
     </div>
     <a class="button button-secondary" href="/jogadores">Ver jogadores</a>
 </section>
@@ -52,7 +52,7 @@
     <section class="panel profile-form-card">
         <header class="panel-header">
             <div>
-                <span class="eyebrow">@(Form.Id.HasValue ? "Editar perfil manual" : "Novo perfil manual")</span>
+                <span class="eyebrow">@(Form.Id.HasValue ? "Editar jogador" : "Novo jogador")</span>
                 <h2>@(Form.Id.HasValue ? Form.DisplayName : "Adicionar jogador")</h2>
             </div>
         </header>
@@ -71,7 +71,7 @@
                     <InputText @bind-Value="Form.Location" maxlength="100" placeholder="Cidade ou região (opcional)" />
                 </label>
                 <label class="form-field">
-                    <span>URL do avatar</span>
+                    <span>Link da foto</span>
                     <InputText @bind-Value="Form.AvatarUrl" maxlength="500" placeholder="https://... (opcional)" />
                 </label>
             </div>
@@ -108,7 +108,7 @@
                         <PlayerAvatar DisplayName="@profile.DisplayName" Url="@profile.AvatarUrl" Size="list" />
                         <div>
                             <strong>@profile.DisplayName</strong>
-                            <small>@(profile.HasUserAccount ? "Perfil vinculado a uma conta" : "Participante manual · disponível para vinculação")</small>
+                            <small>@(profile.HasUserAccount ? "Perfil vinculado a uma conta" : "Ainda não vinculado a uma conta")</small>
                             @if (!string.IsNullOrWhiteSpace(profile.Location))
                             {
                                 <small>@profile.Location</small>
@@ -185,7 +185,7 @@
             ? (editing ? "Perfil atualizado." : "Participante adicionado e pronto para entrar em partidas.")
             : result.ErrorCodes.Contains("DuplicateDisplayName")
                 ? "Já existe um jogador com esse nome."
-                : "Não foi possível salvar. Revise o nome e a URL do avatar.";
+                : "Não foi possível salvar. Revise o nome e o link da foto.";
         if (result.Succeeded)
         {
             ResetForm();
