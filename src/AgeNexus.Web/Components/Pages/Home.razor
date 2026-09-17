@@ -32,7 +32,7 @@
             <div class="home-match-list">
                 @foreach (var match in RecentMatches)
                 {
-                    <a class="home-match-row" href="/partidas/@match.MatchId/desempenho">
+                    <a class="home-match-row" href="/partidas/@match.MatchId">
                         <div class="home-match-meta">
                             <span class="status-badge @StatusClass(match.Status)">@StatusLabel(match.Status)</span>
                             <time datetime="@match.PlayedAtUtc.ToString("O")">@match.PlayedAtUtc.ToLocalTime().ToString("dd MMM · HH:mm")</time>
@@ -41,7 +41,7 @@
                             <div class="home-match-teams">
                                 @foreach (var team in match.Teams)
                                 {
-                                    <strong class="@(IsWinner(team) ? "winner" : null)"><span>@TeamResultMark(team)</span>@TeamLabel(team)</strong>
+                                    <strong class="@(team.Result == AgeNexus.Domain.Matches.TeamResult.Victory ? "winner" : null)"><span>@TeamResultMark(team.Result)</span>@string.Join(" + ", team.Participants)</strong>
                                 }
                             </div>
                             <span class="home-match-versus">VS</span>
@@ -114,35 +114,36 @@
             limit: 5);
     }
 
-    private static string TeamLabel(string value)
+    private static string TeamResultMark(AgeNexus.Domain.Matches.TeamResult result) => result switch
     {
-        var resultIndex = value.LastIndexOf(" (", StringComparison.Ordinal);
-        return resultIndex > 0 ? value[..resultIndex] : value;
-    }
-
-    private static bool IsWinner(string value) => value.EndsWith("(Victory)", StringComparison.Ordinal);
-    private static string TeamResultMark(string value) => IsWinner(value) ? "◆" : "◇";
-
-    private static string CategoryLabel(string value) => value switch
-    {
-        "PurePvp" => "PvP competitivo",
-        "PurePve" => "Humanos contra IA",
-        "HybridPvp" => "Partida híbrida",
-        _ => value
+        AgeNexus.Domain.Matches.TeamResult.Victory => "◆",
+        AgeNexus.Domain.Matches.TeamResult.Draw => "●",
+        _ => "◇"
     };
 
-    private static string StatusLabel(string value) => value switch
+    private static string CategoryLabel(AgeNexus.Domain.Matches.MatchScoringCategory value) => value switch
     {
-        "Validated" => "Validada",
-        "Confirmed" => "Confirmada",
-        "AwaitingConfirmation" => "Pendente",
-        _ => value
+        AgeNexus.Domain.Matches.MatchScoringCategory.PurePvp => "PvP competitivo",
+        AgeNexus.Domain.Matches.MatchScoringCategory.PurePve => "Humanos contra IA",
+        AgeNexus.Domain.Matches.MatchScoringCategory.HybridPvp => "PvP com IA",
+        _ => "Partida não ranqueada"
     };
 
-    private static string StatusClass(string value) => value switch
+    private static string StatusLabel(AgeNexus.Domain.Matches.MatchStatus value) => value switch
     {
-        "Validated" => "validated",
-        "Confirmed" => "confirmed",
+        AgeNexus.Domain.Matches.MatchStatus.Validated => "Validada",
+        AgeNexus.Domain.Matches.MatchStatus.Confirmed => "Confirmada",
+        AgeNexus.Domain.Matches.MatchStatus.AwaitingConfirmation => "Aguardando confirmação",
+        AgeNexus.Domain.Matches.MatchStatus.Disputed => "Em análise",
+        AgeNexus.Domain.Matches.MatchStatus.Voided => "Anulada",
+        AgeNexus.Domain.Matches.MatchStatus.Submitted => "Registrada",
+        _ => "Rascunho"
+    };
+
+    private static string StatusClass(AgeNexus.Domain.Matches.MatchStatus value) => value switch
+    {
+        AgeNexus.Domain.Matches.MatchStatus.Validated => "validated",
+        AgeNexus.Domain.Matches.MatchStatus.Confirmed => "confirmed",
         _ => "pending"
     };
 

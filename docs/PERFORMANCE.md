@@ -4,6 +4,8 @@ A revisão do código identificou uma ineficiência: salvar partidas ou estatís
 
 A listagem já limita o resultado antes de buscar participantes. As estatísticas são filtradas pela partida/relatório; não foi identificada leitura de todo o histórico nesse formulário. Sete partidas, por si só, não explicam uma degradação grave. A correção remove trabalho desnecessário, mas não comprova a causa completa observada em produção.
 
+O histórico público usa paginação no servidor com 10 partidas por página. Filtros de período e jogador são aplicados antes de `Count`, `Skip` e `Take`; participantes e evidências são consultados somente para os identificadores da página atual. A tela de detalhes carrega as estatísticas de uma única partida e não expõe relatórios incompletos.
+
 ## Verificação após deploy
 
 Compare abrir `/partidas`, abrir o cadastro, salvar uma partida e abrir/preencher as estatísticas. Registre duração aproximada e horário UTC, sem dados pessoais. Não crie partidas fictícias em produção apenas para testar.
