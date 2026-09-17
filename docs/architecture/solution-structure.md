@@ -15,3 +15,5 @@ tests/
 Os namespaces serão subdivididos por módulo: `Identity`, `Players`, `GameCatalog`, `Matches`, `MatchPerformance`, `EvidenceAndModeration`, `Ratings`, `Statistics`, `Clans` e `Achievements`. Web e Infrastructure dependem de Application; Application depende de Domain; Domain não depende das demais camadas.
 
 O núcleo atual cobre catálogo configurável, identidade, partidas com equipes arbitrárias, evidências e decisões de verificação, relatórios pós-jogo por replay ou entrada manual, desempenho/MVP, clãs, livros imutáveis de rating/pontos, consultas de rankings e estatísticas e telas Blazor iniciais. Os fluxos transacionais ficam em `Infrastructure`, implementando contratos de `Application`; as fórmulas puras permanecem em `Application` e as invariantes em `Domain`.
+
+Na interface, os textos devem explicar ao usuário o que aconteceu e qual ação ele pode tomar. Nomes de provedores, detalhes de banco de dados, códigos internos, enums em inglês e campos estruturais de arquivos não devem ser exibidos; essas informações permanecem apenas nos logs técnicos.

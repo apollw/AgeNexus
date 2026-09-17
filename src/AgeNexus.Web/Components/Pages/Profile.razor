@@ -187,7 +187,7 @@
         Message = result.Succeeded ? success : result.ErrorCodes.FirstOrDefault() switch
         {
             "InvalidAvatar" => "Use uma imagem JPEG, PNG ou WebP válida, com até 2 MB.",
-            "AvatarStorageNotConfigured" => "O armazenamento de imagens ainda não está configurado.",
+            "AvatarStorageNotConfigured" => "O envio de fotos está temporariamente indisponível.",
             _ => "Não foi possível atualizar a foto agora."
         };
     }

@@ -18,7 +18,7 @@
 
 @if (Catalog is null || CurrentProfile is null)
 {
-    <section class="panel panel-empty page-empty"><strong>Carregando catálogo...</strong></section>
+    <section class="panel panel-empty page-empty"><strong>Preparando dados da partida...</strong></section>
 }
 else if (Catalog.GameEditions.Count == 0)
 {
@@ -26,7 +26,7 @@ else if (Catalog.GameEditions.Count == 0)
         <div class="catalog-setup-copy">
             <span class="eyebrow">Configuração inicial</span>
             <h2>Cadastre o primeiro jogo</h2>
-            <p>O catálogo está vazio. Informe o jogo e a edição que sua comunidade realmente utiliza. Nenhum dado de demonstração será criado.</p>
+            <p>Informe o jogo e a edição usados pela sua comunidade para começar a registrar partidas.</p>
         </div>
 
         <EditForm Model="SetupForm" OnValidSubmit="SetupCatalogAsync" class="account-form catalog-setup-form">
@@ -46,7 +46,7 @@ else if (Catalog.GameEditions.Count == 0)
                 <ValidationMessage For="() => SetupForm.EditionName" />
             </label>
             <button class="button button-primary" type="submit" disabled="@SettingUpCatalog">
-                @(SettingUpCatalog ? "Salvando..." : "Criar catálogo e continuar")
+                @(SettingUpCatalog ? "Salvando..." : "Salvar jogo e continuar")
             </button>
         </EditForm>
     </section>
@@ -57,11 +57,11 @@ else
     {
         <section class="catalog-sync-banner">
             <div>
-                <strong>Catálogo do Age II: DE incompleto</strong>
+                <strong>Dados do Age II: DE incompletos</strong>
                 <span>Carregue as 59 civilizações, os 193 mapas e todas as 6 dificuldades de IA.</span>
             </div>
             <button class="button button-secondary" type="button" @onclick="SyncAge2CatalogAsync" disabled="@SyncingCatalog">
-                @(SyncingCatalog ? "Sincronizando..." : "Completar catálogo")
+                @(SyncingCatalog ? "Carregando..." : "Carregar dados do jogo")
             </button>
         </section>
     }
@@ -75,7 +75,7 @@ else
         <section class="catalog-sync-banner">
             <div>
                 <strong>Cadastre pelo menos mais um participante</strong>
-                <span>Crie perfis manuais, sem login, para selecioná-los nas equipes.</span>
+                <span>Adicione jogadores que ainda não possuem conta para selecioná-los nas equipes.</span>
             </div>
             <a class="button button-secondary" href="/jogadores/gerenciar">Adicionar jogadores</a>
         </section>
@@ -230,7 +230,7 @@ else
         var authentication = await AuthenticationStateTask;
         if (!await Accounts.IsAdministratorAsync(authentication.User))
         {
-            SetupError = "Sua conta não possui permissão para alterar o catálogo.";
+            SetupError = "Sua conta não possui permissão para alterar os dados do jogo.";
             return;
         }
 
@@ -243,7 +243,7 @@ else
             {
                 SetupError = result.ErrorCode switch
                 {
-                    "AlreadyInitialized" or "ConcurrentSetup" => "O catálogo foi inicializado por outra sessão. Atualize a página.",
+                    "AlreadyInitialized" or "ConcurrentSetup" => "O jogo foi configurado em outra sessão. Atualize a página.",
                     _ => "Informe nomes válidos, com no máximo 120 caracteres."
                 };
                 return;
@@ -263,7 +263,7 @@ else
         var authentication = await AuthenticationStateTask;
         if (!await Accounts.IsAdministratorAsync(authentication.User))
         {
-            SetupError = "Sua conta não possui permissão para alterar o catálogo.";
+            SetupError = "Sua conta não possui permissão para alterar os dados do jogo.";
             return;
         }
 
@@ -275,8 +275,8 @@ else
             var result = await CatalogSetup.SyncAge2DefinitiveEditionAsync(Form.GameEditionId);
             CatalogSyncFailed = !result.Succeeded;
             CatalogMessage = result.Succeeded
-                ? $"Catálogo atualizado: {result.TotalCivilizations} civilizações, {result.TotalMaps} mapas e {result.TotalAiDifficulties} dificuldades de IA disponíveis."
-                : "Não foi possível sincronizar o catálogo. Atualize a página e tente novamente.";
+                ? $"Dados atualizados: {result.TotalCivilizations} civilizações, {result.TotalMaps} mapas e {result.TotalAiDifficulties} dificuldades de IA disponíveis."
+                : "Não foi possível carregar os dados do jogo. Atualize a página e tente novamente.";
             if (result.Succeeded)
             {
                 Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(Form.GameEditionId);
@@ -369,7 +369,12 @@ else
             return;
         }
 
-        Error = result.ErrorCode;
+        Error = result.ErrorCode switch
+        {
+            "NotAuthorized" => "sua conta não possui permissão para registrar esta partida.",
+            "InvalidMatch" => "revise as equipes, os participantes e o resultado informado.",
+            _ => "ocorreu um problema inesperado. Revise os dados e tente novamente."
+        };
     }
 
     private sealed class MatchForm
