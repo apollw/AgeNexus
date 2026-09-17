@@ -389,8 +389,9 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         GeneralStatisticBoard Total(
             string key, string category, string title, string description,
             Func<Domain.MatchPerformance.PlayerMatchStatistics, decimal?> selector,
-            GeneralStatisticValueKind valueKind = GeneralStatisticValueKind.Integer) =>
-            Board(key, category, title, description, valueKind, selector, values => values.Sum(), descending: true);
+            GeneralStatisticValueKind valueKind = GeneralStatisticValueKind.Integer,
+            bool isNegative = false) =>
+            Board(key, category, title, description, valueKind, selector, values => values.Sum(), descending: true, isNegative: isNegative);
 
         GeneralStatisticBoard Average(
             string key, string category, string title, string description,
@@ -411,7 +412,8 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             GeneralStatisticValueKind valueKind,
             Func<Domain.MatchPerformance.PlayerMatchStatistics, decimal?> selector,
             Func<IReadOnlyCollection<decimal>, decimal> aggregate,
-            bool descending)
+            bool descending,
+            bool isNegative = false)
         {
             var values = rows
                 .GroupBy(x => x.PlayerProfileId!.Value)
@@ -435,15 +437,15 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 playersById.GetValueOrDefault(x.PlayerId)?.DisplayName ?? "Jogador",
                 playersById.GetValueOrDefault(x.PlayerId)?.AvatarUrl,
                 aggregate(x.Values), x.Matches)).ToArray();
-            return new GeneralStatisticBoard(key, category, title, description, valueKind, entries);
+            return new GeneralStatisticBoard(key, category, title, description, valueKind, entries, isNegative);
         }
 
         var boards = new GeneralStatisticBoard[]
         {
             Total("units-killed", "Combate", "Mais unidades eliminadas", "Total de unidades inimigas eliminadas.", x => x.UnitsKilled),
-            Total("units-lost", "Combate", "Mais unidades perdidas", "Total de unidades perdidas durante as batalhas.", x => x.UnitsLost),
+            Total("units-lost", "Combate", "Mais unidades perdidas", "Total de unidades perdidas durante as batalhas.", x => x.UnitsLost, isNegative: true),
             Total("buildings-destroyed", "Combate", "Mais construções destruídas", "Edifícios inimigos destruídos no histórico.", x => x.BuildingsDestroyed),
-            Total("buildings-lost", "Combate", "Mais construções perdidas", "Edifícios próprios perdidos no histórico.", x => x.BuildingsLost),
+            Total("buildings-lost", "Combate", "Mais construções perdidas", "Edifícios próprios perdidos no histórico.", x => x.BuildingsLost, isNegative: true),
             Total("conversions", "Combate", "Mais conversões", "Unidades convertidas por monges.", x => x.UnitsConverted),
             Record("largest-army", "Combate", "Maior exército", "Maior exército registrado em uma única partida.", x => x.LargestArmy),
 

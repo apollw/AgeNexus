@@ -165,7 +165,8 @@ public sealed record GeneralStatisticBoard(
     string Title,
     string Description,
     GeneralStatisticValueKind ValueKind,
-    IReadOnlyCollection<GeneralStatisticEntry> Entries);
+    IReadOnlyCollection<GeneralStatisticEntry> Entries,
+    bool IsNegative = false);
 
 public sealed record GeneralStatisticsDashboard(
     int MatchesWithStatistics,
