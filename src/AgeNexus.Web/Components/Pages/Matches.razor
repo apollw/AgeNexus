@@ -5,7 +5,7 @@
 <PageTitle>Partidas · Age Nexus</PageTitle>
 
 <section class="page-heading compact-heading">
-    <div><span class="eyebrow">Histórico de batalhas</span><h1>Partidas</h1><p>Resultados, confirmações e evidências da comunidade.</p></div>
+    <div><span class="eyebrow">Histórico de batalhas</span><h1>Partidas</h1><p>Reveja confrontos, resultados e estatísticas da comunidade.</p></div>
     @if (IsAdministrator)
     {
         <a class="button button-primary" href="/partidas/nova"><span>+</span> Nova partida</a>
@@ -17,77 +17,118 @@
     <div class="form-alert @(DeleteSucceeded ? "form-alert-success" : "form-alert-error")" role="status">@DeleteMessage</div>
 }
 
-<section class="panel table-panel">
-    <div class="data-table match-table mobile-card-table">
-        <div class="table-head"><span>Confronto</span><span>Formato</span><span>Categoria</span><span>Status</span><span>Data</span><span>Ações</span></div>
-        @if (RecentMatches.Count == 0)
-        {
-            <div class="panel-empty table-empty">
-                <span class="empty-icon">⚔</span><strong>Nenhuma partida encontrada</strong>
-                <p>Registre a primeira batalha para iniciar o histórico.</p>
-            </div>
-        }
-        else
-        {
-            @foreach (var match in RecentMatches)
+<form class="panel match-history-filters" method="get" action="/partidas">
+    <label>
+        <span>Jogador</span>
+        <select name="jogador">
+            <option value="">Todos os jogadores</option>
+            @foreach (var player in Players)
             {
-                <div class="table-row">
-                    <span data-label="Confronto" data-mobile-wide="true">
+                if (PlayerId == player.Id)
+                {
+                    <option value="@player.Id" selected>@player.Name</option>
+                }
+                else
+                {
+                    <option value="@player.Id">@player.Name</option>
+                }
+            }
+        </select>
+    </label>
+    <label><span>De</span><input type="date" name="inicio" value="@FromDate?.ToString("yyyy-MM-dd")" /></label>
+    <label><span>Até</span><input type="date" name="fim" value="@ToDate?.ToString("yyyy-MM-dd")" /></label>
+    <button class="button button-primary" type="submit">Filtrar</button>
+    @if (HasFilters)
+    {
+        <a class="button button-secondary" href="/partidas">Limpar</a>
+    }
+</form>
+
+<section class="match-history" aria-label="Histórico de partidas">
+    @if (MatchPage.Items.Count == 0)
+    {
+        <div class="panel panel-empty page-empty">
+            <span class="empty-icon">⚔</span><strong>Nenhuma partida encontrada</strong>
+            <p>@(HasFilters ? "Tente alterar os filtros para ampliar a busca." : "Registre a primeira batalha para iniciar o histórico.")</p>
+        </div>
+    }
+    else
+    {
+        <div class="match-history-summary"><strong>@MatchPage.TotalItems partida(s)</strong><span>Página @MatchPage.Page de @MatchPage.TotalPages</span></div>
+
+        @foreach (var match in MatchPage.Items)
+        {
+            <article class="panel match-history-card">
+                <a class="match-history-main" href="/partidas/@match.MatchId" aria-label="Ver detalhes desta partida">
+                    <header>
+                        <div><span class="status-badge @StatusClass(match.Status)">@StatusLabel(match.Status)</span><span class="match-category">@CategoryLabel(match.Category)</span></div>
+                        <time datetime="@match.PlayedAtUtc.ToString("O")">@match.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy · HH:mm")</time>
+                    </header>
+                    <div class="match-history-versus">
+                        @foreach (var team in match.Teams)
+                        {
+                            <div class="match-team-card result-@ResultClass(team.Result)">
+                                <span class="match-result-mark" aria-hidden="true">@ResultMark(team.Result)</span>
+                                <div><small>@ResultLabel(team.Result)</small><strong>@string.Join(" + ", team.Participants)</strong></div>
+                            </div>
+                        }
+                    </div>
+                    <footer><span>@match.Format</span><b>Ver estatísticas <span>→</span></b></footer>
+                </a>
+
+                @if (IsAdministrator || !string.IsNullOrWhiteSpace(match.YouTubeVideoUrl) || match.ScreenshotCount > 0 || match.HasReplay)
+                {
+                    <div class="match-history-actions">
                         @if (IsAdministrator)
                         {
-                            <a href="/partidas/@match.MatchId/desempenho">@string.Join(" × ", match.Teams)</a>
-                        }
-                        else
-                        {
-                            @string.Join(" × ", match.Teams)
-                        }
-                    </span>
-                    <span data-label="Formato">@match.Format</span>
-                    <span data-label="Categoria">@match.Category</span>
-                    <span data-label="Status">@match.Status</span>
-                    <span data-label="Data">@match.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</span>
-                    <div class="match-actions" data-label="Ações" data-mobile-wide="true">
-                        @if (IsAdministrator)
-                        {
-                            <a class="table-action" href="/partidas/@match.MatchId/desempenho">Preencher estatísticas →</a>
+                            <a class="table-action" href="/partidas/@match.MatchId/desempenho">Gerenciar estatísticas</a>
                         }
                         @if (!string.IsNullOrWhiteSpace(match.YouTubeVideoUrl))
                         {
                             <a class="table-action table-action-media" href="@match.YouTubeVideoUrl" target="_blank" rel="noopener noreferrer">▶ YouTube</a>
                         }
-                        @if (match.ScreenshotCount > 0)
+                        @if (match.ScreenshotCount > 0 || match.HasReplay)
                         {
-                            <a class="table-action table-action-media" href="/partidas/@match.MatchId/evidencias">▧ @match.ScreenshotCount captura(s)</a>
-                        }
-                        @if (match.HasReplay)
-                        {
-                            <a class="table-action table-action-media" href="/partidas/@match.MatchId/evidencias">↓ Replay</a>
+                            <a class="table-action table-action-media" href="/partidas/@match.MatchId/evidencias">▧ Evidências</a>
                         }
                         @if (IsAdministrator)
                         {
-                            <form method="post" action="/matches/delete" class="match-delete-form"
-                                  onsubmit="return confirm('Excluir definitivamente esta partida?');">
-                                <AntiforgeryToken />
-                                <input type="hidden" name="matchId" value="@match.MatchId" />
+                            <form method="post" action="/matches/delete" class="match-delete-form" onsubmit="return confirm('Excluir definitivamente esta partida?');">
+                                <AntiforgeryToken /><input type="hidden" name="matchId" value="@match.MatchId" />
                                 <button class="table-action-button table-action-danger" type="submit">Excluir</button>
                             </form>
                         }
                     </div>
-                </div>
-            }
+                }
+            </article>
         }
-    </div>
+
+        @if (MatchPage.TotalPages > 1)
+        {
+            <nav class="pagination" aria-label="Paginação das partidas">
+                <a class="pagination-arrow @(MatchPage.Page == 1 ? "disabled" : null)" href="@(MatchPage.Page == 1 ? null : PageUrl(MatchPage.Page - 1))" aria-label="Página anterior">←</a>
+                @foreach (var page in VisiblePages())
+                {
+                    <a class="@(page == MatchPage.Page ? "active" : null)" href="@PageUrl(page)" aria-current="@(page == MatchPage.Page ? "page" : null)">@page</a>
+                }
+                <a class="pagination-arrow @(MatchPage.Page == MatchPage.TotalPages ? "disabled" : null)" href="@(MatchPage.Page == MatchPage.TotalPages ? null : PageUrl(MatchPage.Page + 1))" aria-label="Próxima página">→</a>
+            </nav>
+        }
+    }
 </section>
 
 @code {
-    [CascadingParameter]
-    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+    [SupplyParameterFromQuery(Name = "exclusao")] private string? DeleteStatus { get; set; }
+    [SupplyParameterFromQuery(Name = "pagina")] private int Page { get; set; } = 1;
+    [SupplyParameterFromQuery(Name = "jogador")] private Guid? PlayerId { get; set; }
+    [SupplyParameterFromQuery(Name = "inicio")] private DateOnly? FromDate { get; set; }
+    [SupplyParameterFromQuery(Name = "fim")] private DateOnly? ToDate { get; set; }
 
-    [SupplyParameterFromQuery(Name = "exclusao")]
-    private string? DeleteStatus { get; set; }
-
-    private IReadOnlyCollection<AgeNexus.Application.Queries.MatchSummary> RecentMatches { get; set; } = [];
+    private AgeNexus.Application.Queries.PagedMatchHistory MatchPage { get; set; } = new([], 1, 10, 0);
+    private IReadOnlyCollection<AgeNexus.Application.Queries.CatalogOption> Players { get; set; } = [];
     private bool IsAdministrator { get; set; }
+    private bool HasFilters => PlayerId.HasValue || FromDate.HasValue || ToDate.HasValue;
     private bool DeleteSucceeded => DeleteStatus == "ok";
     private string? DeleteMessage => DeleteStatus switch
     {
@@ -100,10 +141,72 @@
         _ => "Não foi possível excluir a partida."
     };
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
         var authentication = await AuthenticationStateTask;
         IsAdministrator = await Accounts.IsAdministratorAsync(authentication.User);
-        RecentMatches = await History.GetRecentAsync();
+        Players = await History.GetPlayerOptionsAsync();
+        MatchPage = await History.GetPageAsync(new(Page, 10, FromDate, ToDate, PlayerId));
     }
+
+    private IEnumerable<int> VisiblePages()
+    {
+        var first = Math.Max(1, MatchPage.Page - 2);
+        var last = Math.Min(MatchPage.TotalPages, first + 4);
+        first = Math.Max(1, last - 4);
+        return Enumerable.Range(first, last - first + 1);
+    }
+
+    private string PageUrl(int page)
+    {
+        var parts = new List<string> { $"pagina={page}" };
+        if (PlayerId.HasValue) parts.Add($"jogador={PlayerId.Value}");
+        if (FromDate.HasValue) parts.Add($"inicio={FromDate.Value:yyyy-MM-dd}");
+        if (ToDate.HasValue) parts.Add($"fim={ToDate.Value:yyyy-MM-dd}");
+        return "/partidas?" + string.Join("&", parts);
+    }
+
+    private static string CategoryLabel(AgeNexus.Domain.Matches.MatchScoringCategory value) => value switch
+    {
+        AgeNexus.Domain.Matches.MatchScoringCategory.PurePvp => "PvP competitivo",
+        AgeNexus.Domain.Matches.MatchScoringCategory.HybridPvp => "PvP com IA",
+        AgeNexus.Domain.Matches.MatchScoringCategory.PurePve => "Humanos contra IA",
+        _ => "Partida não ranqueada"
+    };
+
+    private static string StatusLabel(AgeNexus.Domain.Matches.MatchStatus value) => value switch
+    {
+        AgeNexus.Domain.Matches.MatchStatus.Validated => "Validada",
+        AgeNexus.Domain.Matches.MatchStatus.Confirmed => "Confirmada",
+        AgeNexus.Domain.Matches.MatchStatus.AwaitingConfirmation => "Aguardando confirmação",
+        AgeNexus.Domain.Matches.MatchStatus.Disputed => "Em análise",
+        AgeNexus.Domain.Matches.MatchStatus.Voided => "Anulada",
+        AgeNexus.Domain.Matches.MatchStatus.Submitted => "Registrada",
+        _ => "Rascunho"
+    };
+
+    private static string StatusClass(AgeNexus.Domain.Matches.MatchStatus value) => value switch
+    {
+        AgeNexus.Domain.Matches.MatchStatus.Validated => "validated",
+        AgeNexus.Domain.Matches.MatchStatus.Confirmed => "confirmed",
+        _ => "pending"
+    };
+
+    private static string ResultLabel(AgeNexus.Domain.Matches.TeamResult value) => value switch
+    {
+        AgeNexus.Domain.Matches.TeamResult.Victory => "Vitória",
+        AgeNexus.Domain.Matches.TeamResult.Defeat => "Derrota",
+        AgeNexus.Domain.Matches.TeamResult.Draw => "Empate",
+        _ => "Resultado pendente"
+    };
+
+    private static string ResultMark(AgeNexus.Domain.Matches.TeamResult value) => value switch
+    {
+        AgeNexus.Domain.Matches.TeamResult.Victory => "◆",
+        AgeNexus.Domain.Matches.TeamResult.Defeat => "◇",
+        AgeNexus.Domain.Matches.TeamResult.Draw => "●",
+        _ => "○"
+    };
+
+    private static string ResultClass(AgeNexus.Domain.Matches.TeamResult value) => value.ToString().ToLowerInvariant();
 }

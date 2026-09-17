@@ -1,0 +1,154 @@
+@page "/partidas/{MatchId:guid}"
+@inject AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService PerformanceService
+@inject AgeNexus.Application.Evidence.IMatchEvidenceService EvidenceService
+
+<PageTitle>Detalhes da partida · Age Nexus</PageTitle>
+
+<section class="page-heading compact-heading">
+    <div>
+        <span class="eyebrow">Relatório da batalha</span>
+        <h1>Detalhes da partida</h1>
+        @if (View is not null)
+        {
+            <p>@CategoryLabel(View.Category) · @StatusLabel(View.MatchStatus)</p>
+        }
+    </div>
+    <a class="button button-secondary" href="/partidas">Voltar às partidas</a>
+</section>
+
+@if (View is null)
+{
+    <section class="panel panel-empty page-empty"><strong>Partida não encontrada</strong></section>
+}
+else
+{
+    <section class="match-detail-teams">
+        @foreach (var team in View.Players.GroupBy(player => new { player.TeamId, player.TeamResult }))
+        {
+            <article class="panel match-detail-team result-@team.Key.TeamResult.ToString().ToLowerInvariant()">
+                <header>
+                    <span class="match-result-mark">@ResultMark(team.Key.TeamResult)</span>
+                    <div><small>Resultado da equipe</small><h2>@ResultLabel(team.Key.TeamResult)</h2></div>
+                </header>
+                <div class="match-detail-team-players">
+                    @foreach (var player in team)
+                    {
+                        <span>
+                            <span>@player.DisplayName</span>
+                            @if (player.Values.IsTeamMvp)
+                            {
+                                <b>MVP</b>
+                            }
+                        </span>
+                    }
+                </div>
+            </article>
+        }
+    </section>
+
+    @if (!HasPublishedStatistics)
+    {
+        <section class="panel panel-empty page-empty match-statistics-pending">
+            <span class="empty-icon">⌛</span>
+            <strong>Estatísticas ainda não publicadas</strong>
+            <p>O resultado já está disponível, mas o relatório detalhado desta partida ainda está sendo preparado.</p>
+        </section>
+    }
+    else
+    {
+        <section class="match-statistics-heading">
+            <div><span class="eyebrow">Desempenho dos participantes</span><h2>Estatísticas finais</h2></div>
+            @if (HasEvidence)
+            {
+                <a class="button button-secondary" href="/partidas/@MatchId/evidencias">Ver evidências</a>
+            }
+        </section>
+
+        <div class="match-statistics-list">
+            @foreach (var player in View.Players.OrderBy(player => player.TeamResult).ThenByDescending(player => player.Values.TotalScore))
+            {
+                <article class="panel match-player-statistics">
+                    <header>
+                        <div>
+                            <span class="eyebrow">@ResultLabel(player.TeamResult)</span>
+                            <h3>@player.DisplayName</h3>
+                        </div>
+                        @if (player.Values.IsTeamMvp)
+                        {
+                            <span class="match-mvp-badge">★ MVP</span>
+                        }
+                    </header>
+                    <div class="match-stat-highlight">
+                        <small>Pontuação total</small><strong>@Number(player.Values.TotalScore)</strong>
+                    </div>
+                    <div class="match-stat-groups">
+                        <div><small>Militar</small><span><b>@Number(player.Values.UnitsKilled)</b> eliminações</span><span><b>@Number(player.Values.UnitsLost)</b> perdas</span><span><b>@Number(player.Values.LargestArmy)</b> maior exército</span></div>
+                        <div><small>Economia</small><span><b>@Number(ResourceTotal(player.Values))</b> recursos</span><span><b>@Number(player.Values.PeakVillagers)</b> aldeões</span><span><b>@Number(player.Values.TradeGold)</b> ouro comercial</span></div>
+                        <div><small>Tecnologia e sociedade</small><span><b>@Number(player.Values.ResearchCount)</b> pesquisas</span><span><b>@Percent(player.Values.ExploredPercent)</b> explorado</span><span><b>@Number(player.Values.RelicsCaptured)</b> relíquias</span></div>
+                    </div>
+                </article>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public Guid MatchId { get; set; }
+
+    private AgeNexus.Application.MatchPerformance.PerformanceReportView? View { get; set; }
+    private bool HasEvidence { get; set; }
+    private bool HasPublishedStatistics => View?.IsComplete == true &&
+        View.Status is AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed or
+            AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Awarded;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        View = await PerformanceService.GetAsync(MatchId);
+        var evidence = await EvidenceService.GetAsync(MatchId);
+        HasEvidence = evidence?.Items.Count > 0;
+    }
+
+    private static string CategoryLabel(string value) => value switch
+    {
+        "PurePvp" => "PvP competitivo",
+        "HybridPvp" => "PvP com IA",
+        "PurePve" => "Humanos contra IA",
+        _ => "Partida não ranqueada"
+    };
+
+    private static string StatusLabel(string value) => value switch
+    {
+        "Validated" => "Validada",
+        "Confirmed" => "Confirmada",
+        "AwaitingConfirmation" => "Aguardando confirmação",
+        "Disputed" => "Em análise",
+        "Voided" => "Anulada",
+        "Submitted" => "Registrada",
+        _ => "Rascunho"
+    };
+
+    private static string ResultLabel(AgeNexus.Domain.Matches.TeamResult value) => value switch
+    {
+        AgeNexus.Domain.Matches.TeamResult.Victory => "Vitória",
+        AgeNexus.Domain.Matches.TeamResult.Defeat => "Derrota",
+        AgeNexus.Domain.Matches.TeamResult.Draw => "Empate",
+        _ => "Pendente"
+    };
+
+    private static string ResultMark(AgeNexus.Domain.Matches.TeamResult value) => value switch
+    {
+        AgeNexus.Domain.Matches.TeamResult.Victory => "◆",
+        AgeNexus.Domain.Matches.TeamResult.Defeat => "◇",
+        AgeNexus.Domain.Matches.TeamResult.Draw => "●",
+        _ => "○"
+    };
+
+    private static long? ResourceTotal(AgeNexus.Domain.MatchPerformance.MatchStatisticValues values)
+    {
+        if (values.FoodCollected is null && values.WoodCollected is null && values.GoldCollected is null && values.StoneCollected is null) return null;
+        return (values.FoodCollected ?? 0) + (values.WoodCollected ?? 0) + (values.GoldCollected ?? 0) + (values.StoneCollected ?? 0);
+    }
+
+    private static string Number(long? value) => value?.ToString("N0") ?? "—";
+    private static string Percent(decimal? value) => value.HasValue ? $"{value:N0}%" : "—";
+}

@@ -80,7 +80,7 @@ Isso não muda a proteção HTTPS, a revalidação nem a revogação de acesso. 
 
 ## Verificação operacional após deploy
 
-Depois de alterações em consultas ou cadastro de partidas, valide no ambiente publicado: abrir `/partidas`, iniciar um cadastro, salvar e abrir `/partidas/{id}/desempenho`. Use uma partida real ou um fluxo previamente autorizado e anote o horário UTC se houver demora.
+Depois de alterações em consultas ou cadastro de partidas, valide no ambiente publicado: abrir `/partidas`, usar os filtros de jogador e período, navegar entre páginas, abrir o detalhe público em `/partidas/{id}`, iniciar um cadastro, salvar e abrir `/partidas/{id}/desempenho`. Use uma partida real ou um fluxo previamente autorizado e anote o horário UTC se houver demora.
 
 No Render, procure pelos avisos `Slow query group`, `Slow statistics load`, `Slow database command`, `Timed out loading performance page` e `Failed to load performance page`. Compare-os com CPU, memória, reinicializações e conexões do Supabase. Não considere somente o resultado do CI como confirmação de desempenho em produção.
 

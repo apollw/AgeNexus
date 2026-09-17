@@ -13,6 +13,8 @@
 }
 
 @media (max-width: 900px) {
+    .match-history-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }.match-history-filters label:first-child { grid-column: 1 / -1; }
+    .match-player-statistics { grid-template-columns: 1fr 1fr; }.match-stat-groups { grid-column: 1 / -1; }
     .public-profile-grid { grid-template-columns: 1fr; }
     .public-profile-hero { align-items: flex-start; flex-direction: column; }
     .public-profile-favorite { width: 100%; }
@@ -25,6 +27,9 @@
 }
 
 @media (max-width: 760px) {
+    .match-history-filters { grid-template-columns: 1fr; }.match-history-filters label:first-child { grid-column: auto; }.match-history-filters .button { width: 100%; }
+    .match-history-main { padding: 16px; }.match-history-main > header { align-items: flex-start; flex-direction: column; }.match-history-versus, .match-detail-teams { grid-template-columns: 1fr; }.match-history-actions { padding: 11px 16px; }.match-team-card strong { white-space: normal; }
+    .match-statistics-heading { align-items: stretch; flex-direction: column; }.match-statistics-heading .button { width: 100%; }.match-player-statistics { grid-template-columns: 1fr; }.match-stat-groups { grid-column: auto; grid-template-columns: 1fr; }.match-stat-groups > div { border-left: 0; border-top: 1px solid #e7e1d7; }
     .app-shell { display: block; }
     .sidebar { position: fixed; inset: auto 0 0; width: auto; height: calc(68px + env(safe-area-inset-bottom)); padding: 5px 8px calc(5px + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid rgba(255,255,255,.08); }
     .brand, .nav-label, .sidebar-card, .nav-menu > a:nth-of-type(n+5), .nav-menu > a .soon-badge { display: none; }

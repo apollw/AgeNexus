@@ -72,16 +72,77 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             cancellationToken);
     }
 
+    public Task<PagedMatchHistory> GetPageAsync(
+        MatchHistoryFilter filter,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        var normalized = filter with
+        {
+            Page = Math.Max(1, filter.Page),
+            PageSize = Math.Clamp(filter.PageSize, 5, 50)
+        };
+        return GetPageCoreAsync(normalized, cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<CatalogOption>> GetPlayerOptionsAsync(
+        CancellationToken cancellationToken = default) =>
+        await database.PlayerProfiles.AsNoTracking()
+            .OrderBy(player => player.DisplayName)
+            .Select(player => new CatalogOption(player.Id, player.DisplayName))
+            .ToArrayAsync(cancellationToken);
+
     private async Task<IReadOnlyCollection<MatchSummary>> GetRecentCoreAsync(
         int limit,
         CancellationToken cancellationToken)
     {
-        var recentMatches = database.Matches.AsNoTracking()
+        var page = await GetPageCoreAsync(new MatchHistoryFilter(PageSize: limit), cancellationToken);
+        return page.Items;
+    }
+
+    private async Task<PagedMatchHistory> GetPageCoreAsync(
+        MatchHistoryFilter filter,
+        CancellationToken cancellationToken)
+    {
+        var matches = database.Matches.AsNoTracking().AsQueryable();
+
+        if (filter.FromDate.HasValue)
+        {
+            var from = new DateTimeOffset(filter.FromDate.Value.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+            matches = matches.Where(x => x.PlayedAtUtc >= from);
+        }
+
+        if (filter.ToDate.HasValue)
+        {
+            var until = new DateTimeOffset(filter.ToDate.Value.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+            matches = matches.Where(x => x.PlayedAtUtc < until);
+        }
+
+        if (filter.PlayerId.HasValue)
+        {
+            matches = matches.Where(match => match.Teams.Any(team =>
+                team.Participants.Any(participant => participant.PlayerProfileId == filter.PlayerId)));
+        }
+
+        var totalItems = await matches.CountAsync(cancellationToken);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)filter.PageSize));
+        var pageNumber = Math.Min(filter.Page, totalPages);
+        var pageMatchIds = await matches
             .OrderByDescending(x => x.PlayedAtUtc)
-            .Take(limit);
+            .ThenByDescending(x => x.Id)
+            .Skip((pageNumber - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .Select(x => x.Id)
+            .ToArrayAsync(cancellationToken);
+
+        if (pageMatchIds.Length == 0)
+        {
+            return new PagedMatchHistory([], pageNumber, filter.PageSize, totalItems);
+        }
 
         var rows = await (
-            from match in recentMatches
+            from match in database.Matches.AsNoTracking()
+            where pageMatchIds.Contains(match.Id)
             join creator in database.PlayerProfiles.AsNoTracking()
                 on match.CreatedByPlayerProfileId equals creator.Id
             from team in match.Teams
@@ -119,7 +180,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             .ToListAsync(cancellationToken);
         var evidenceByMatch = evidenceRows.GroupBy(item => item.MatchId).ToDictionary(group => group.Key);
 
-        return rows.GroupBy(x => new
+        var summaries = rows.GroupBy(x => new
             {
                 x.MatchId,
                 x.CreatedByPlayerProfileId,
@@ -151,11 +212,14 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 var format = humanCounts.Length >= 2
                     ? string.Join('x', humanCounts)
                     : $"{totalHumans}H x {totalAi}IA";
-                var teamLabels = teams.Select(team =>
-                    $"{string.Join(" + ", team.OrderBy(x => x.ParticipantId).Select(participant =>
+                var teamSummaries = teams.Select(team => new MatchTeamSummary(
+                    team.Key.TeamId,
+                    team.Key.Position,
+                    team.Key.Result,
+                    team.OrderBy(x => x.ParticipantId).Select(participant =>
                         participant.Type == ParticipantType.Human
                             ? participant.ParticipantName ?? "Jogador"
-                            : $"IA {participant.ParticipantName ?? "configurada"}"))} ({team.Key.Result})")
+                            : $"IA {participant.ParticipantName ?? "configurada"}").ToArray()))
                     .ToArray();
 
                 evidenceByMatch.TryGetValue(match.Key.MatchId, out var matchEvidence);
@@ -163,10 +227,10 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     match.Key.MatchId,
                     match.Key.CreatedByPlayerProfileId,
                     match.Key.PlayedAtUtc,
-                    category.ToString(),
+                    category,
                     format,
-                    match.Key.Status.ToString(),
-                    teamLabels)
+                    match.Key.Status,
+                    teamSummaries)
                 {
                     CreatedByApplicationUserId = match.Key.CreatedByApplicationUserId,
                     YouTubeVideoUrl = matchEvidence?
@@ -176,6 +240,8 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 };
             })
             .ToArray();
+
+        return new PagedMatchHistory(summaries, pageNumber, filter.PageSize, totalItems);
     }
 
     public Task<IReadOnlyCollection<PlayerSummary>> GetAsync(

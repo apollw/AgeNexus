@@ -1,3 +1,5 @@
+using AgeNexus.Domain.Matches;
+
 namespace AgeNexus.Application.Queries;
 
 public enum RankingBoard
@@ -46,10 +48,10 @@ public sealed record MatchSummary(
     Guid MatchId,
     Guid CreatedByPlayerProfileId,
     DateTimeOffset PlayedAtUtc,
-    string Category,
+    MatchScoringCategory Category,
     string Format,
-    string Status,
-    IReadOnlyCollection<string> Teams)
+    MatchStatus Status,
+    IReadOnlyCollection<MatchTeamSummary> Teams)
 {
     public Guid? CreatedByApplicationUserId { get; init; }
     public string? YouTubeVideoUrl { get; init; }
@@ -57,8 +59,37 @@ public sealed record MatchSummary(
     public bool HasReplay { get; init; }
 }
 
+public sealed record MatchTeamSummary(
+    Guid TeamId,
+    int Position,
+    TeamResult Result,
+    IReadOnlyCollection<string> Participants);
+
+public sealed record MatchHistoryFilter(
+    int Page = 1,
+    int PageSize = 10,
+    DateOnly? FromDate = null,
+    DateOnly? ToDate = null,
+    Guid? PlayerId = null);
+
+public sealed record PagedMatchHistory(
+    IReadOnlyCollection<MatchSummary> Items,
+    int Page,
+    int PageSize,
+    int TotalItems)
+{
+    public int TotalPages => Math.Max(1, (int)Math.Ceiling(TotalItems / (double)PageSize));
+}
+
 public interface IMatchHistoryQueryService
 {
+    Task<IReadOnlyCollection<CatalogOption>> GetPlayerOptionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<PagedMatchHistory> GetPageAsync(
+        MatchHistoryFilter filter,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyCollection<MatchSummary>> GetRecentAsync(
         int limit = 50,
         CancellationToken cancellationToken = default);
