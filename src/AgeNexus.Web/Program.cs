@@ -108,7 +108,7 @@ if (args.Contains("--sync-aoe2-catalog", StringComparer.OrdinalIgnoreCase))
     var catalog = scope.ServiceProvider.GetRequiredService<AgeNexus.Application.GameCatalog.ICatalogSetupService>();
     var result = await catalog.SyncAge2DefinitiveEditionAsync();
     Console.WriteLine(result.Succeeded
-        ? $"Catálogo AoE II: DE sincronizado: {result.TotalCivilizations} civilizações e {result.TotalMaps} mapas."
+        ? $"Catálogo AoE II: DE sincronizado: {result.TotalCivilizations} civilizações, {result.TotalMaps} mapas e {result.TotalAiDifficulties} dificuldades de IA."
         : $"Falha ao sincronizar catálogo AoE II: DE: {result.ErrorCode}.");
     return;
 }

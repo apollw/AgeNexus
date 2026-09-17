@@ -252,11 +252,11 @@ Delta = K × PesoDaModalidade × FatorHibridoRating × (Resultado - Expectativa)
 PontosDeCarreira = BasePvP × 0,70 × clamp(1,50 - Expectativa, 0,60, 1,40)
 ```
 
-A força esperada de cada lado incorpora a dificuldade das IAs por ratings equivalentes de 600, 800, 1000, 1200 e 1400 para os níveis internos 1 a 5. Assim, vencer com uma IA fraca contra uma forte é tratado como desafio maior, enquanto a presença de IAs reduz a atribuição de habilidade aos humanos. Partidas híbridas nunca entram no ranking puro de PvE.
+A força esperada de cada lado incorpora a dificuldade das IAs por ratings equivalentes de 600, 800, 1000, 1200, 1400 e 1600 para os níveis internos 1 a 6. Assim, vencer com uma IA fraca contra uma forte é tratado como desafio maior, enquanto a presença de IAs reduz a atribuição de habilidade aos humanos. Partidas híbridas nunca entram no ranking puro de PvE.
 
 ### Pontos contra IA
 
-Cada jogo cadastrará seus níveis de dificuldade numa escala interna de 1 a 5. Para Age II, os nomes concretos das dificuldades serão mapeados a essa escala, sem codificá-los na regra geral.
+Cada jogo cadastrará seus níveis de dificuldade numa escala interna de 1 a 6. Para Age II, os nomes concretos das dificuldades serão mapeados a essa escala, sem codificá-los na regra geral.
 
 | Nível interno da IA | Vitória base | Derrota válida |
 | --- | ---: | ---: |
@@ -404,7 +404,7 @@ Partidas anuladas são excluídas. Partidas pendentes podem aparecer apenas em v
 - `Faction`: civilização/facção vinculada à edição.
 - `MapDefinition`: mapa e metadados.
 - `GamePatch`: versão e período de vigência.
-- `AiDifficulty`: nome exibido e nível interno de 1 a 5.
+- `AiDifficulty`: nome exibido e nível interno de 1 a 6; no Age II: DE, cobre de Mais Fácil a Extremo.
 - `RulePreset`: configurações reutilizáveis de partida.
 
 ### Partidas

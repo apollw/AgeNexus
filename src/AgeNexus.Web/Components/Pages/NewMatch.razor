@@ -51,12 +51,12 @@ else if (Catalog.GameEditions.Count == 0)
 }
 else
 {
-    @if (Catalog.Factions.Count < 59 || Catalog.Maps.Count < 193)
+    @if (Catalog.Factions.Count < 59 || Catalog.Maps.Count < 193 || Catalog.AiDifficulties.Count < 6)
     {
         <section class="catalog-sync-banner">
             <div>
                 <strong>Catálogo do Age II: DE incompleto</strong>
-                <span>Carregue as 59 civilizações jogáveis e os 193 mapas da versão atual instalada.</span>
+                <span>Carregue as 59 civilizações, os 193 mapas e todas as 6 dificuldades de IA.</span>
             </div>
             <button class="button button-secondary" type="button" @onclick="SyncAge2CatalogAsync" disabled="@SyncingCatalog">
                 @(SyncingCatalog ? "Sincronizando..." : "Completar catálogo")
@@ -258,7 +258,7 @@ else
         SyncingCatalog = false;
         CatalogSyncFailed = !result.Succeeded;
         CatalogMessage = result.Succeeded
-            ? $"Catálogo atualizado: {result.TotalCivilizations} civilizações e {result.TotalMaps} mapas disponíveis."
+            ? $"Catálogo atualizado: {result.TotalCivilizations} civilizações, {result.TotalMaps} mapas e {result.TotalAiDifficulties} dificuldades de IA disponíveis."
             : "Não foi possível sincronizar o catálogo. Atualize a página e tente novamente.";
         if (result.Succeeded)
         {

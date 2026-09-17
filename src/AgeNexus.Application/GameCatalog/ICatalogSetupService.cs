@@ -17,20 +17,24 @@ public sealed record CatalogSyncResult(
     Guid? GameEditionId,
     int CivilizationsAdded,
     int MapsAdded,
+    int AiDifficultiesAdded,
     int TotalCivilizations,
     int TotalMaps,
+    int TotalAiDifficulties,
     string? ErrorCode)
 {
     public static CatalogSyncResult Success(
         Guid gameEditionId,
         int civilizationsAdded,
         int mapsAdded,
+        int aiDifficultiesAdded,
         int totalCivilizations,
-        int totalMaps) =>
-        new(true, gameEditionId, civilizationsAdded, mapsAdded, totalCivilizations, totalMaps, null);
+        int totalMaps,
+        int totalAiDifficulties) =>
+        new(true, gameEditionId, civilizationsAdded, mapsAdded, aiDifficultiesAdded, totalCivilizations, totalMaps, totalAiDifficulties, null);
 
     public static CatalogSyncResult Failure(string errorCode) =>
-        new(false, null, 0, 0, 0, 0, errorCode);
+        new(false, null, 0, 0, 0, 0, 0, 0, errorCode);
 }
 
 public sealed record CatalogSetupResult(bool Succeeded, Guid? GameEditionId, string? ErrorCode)
