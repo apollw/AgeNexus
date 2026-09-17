@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 
 <PageTitle>Vincular jogador · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@(IsLoading || Busy)" Message="Atualizando seu perfil..." />
 
 <section class="page-heading compact-heading">
     <div>
@@ -91,13 +92,22 @@ else
     private string? Message { get; set; }
     private bool HasError { get; set; }
     private bool Busy { get; set; }
+    private bool IsLoading { get; set; } = true;
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 
     private async Task ReloadAsync()
     {
-        var authentication = await AuthenticationStateTask;
-        View = await Accounts.GetProfileOnboardingAsync(authentication.User);
+        IsLoading = true;
+        try
+        {
+            var authentication = await AuthenticationStateTask;
+            View = await Accounts.GetProfileOnboardingAsync(authentication.User);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private async Task RequestClaimAsync()

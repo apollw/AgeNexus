@@ -8,65 +8,79 @@
     <a class="button button-secondary" href="/pontuacao">Como funciona a pontuação?</a>
 </section>
 
-@foreach (var board in Boards)
-{
-    <section class="panel table-panel ranking-board">
-        <header class="panel-header"><div><span class="eyebrow">@board.Key</span><h2>@GetDescription(board.Key)</h2></div></header>
-        @if (board.Value.Count == 0)
-        {
-            <div class="panel-empty panel-empty-compact"><strong>Nenhum participante elegível</strong></div>
-        }
-        else
-        {
-            <div class="data-table mobile-card-table ranking-mobile-table">
-                <div class="table-head"><span>Posição</span><span>Participante</span><span>Pontuação</span><span>Partidas</span><span>Situação</span></div>
-                @foreach (var entry in board.Value)
-                {
-                    <div class="table-row">
-                        <span data-label="Posição">#@entry.Position</span>
-                        <span class="ranking-player" data-label="Participante">
-                            @if (IsPlayerBoard(board.Key))
-                            {
-                                <PlayerAvatar DisplayName="@entry.DisplayName" Url="@entry.AvatarUrl" Size="list" />
-                                <a href="/jogadores/@entry.BeneficiaryId">@entry.DisplayName</a>
-                            }
-                            else
-                            {
-                                <span>@entry.DisplayName</span>
-                            }
-                        </span>
-                        <span data-label="Pontuação">@entry.Score.ToString("0.##")</span>
-                        <span data-label="Partidas">@entry.ValidatedMatches</span>
-                        <span data-label="Situação" data-mobile-wide="true">@(entry.IsProvisional ? "Provisório" : "Classificado")</span>
-                    </div>
-                }
-            </div>
-        }
-    </section>
-}
+<nav class="ranking-tabs" aria-label="Tipos de ranking">
+    @foreach (var option in RankingOptions)
+    {
+        <a class="@(option.Key == SelectedKey ? "active" : null)" href="/rankings?quadro=@option.Key">@option.Label</a>
+    }
+</nav>
+
+<section class="panel table-panel ranking-board">
+    <header class="panel-header"><div><span class="eyebrow">@SelectedOption.Label</span><h2>@SelectedOption.Description</h2></div></header>
+    @if (Entries.Count == 0)
+    {
+        <div class="panel-empty panel-empty-compact"><strong>Nenhum participante elegível</strong></div>
+    }
+    else
+    {
+        <div class="data-table mobile-card-table ranking-mobile-table">
+            <div class="table-head"><span>Posição</span><span>Participante</span><span>Pontuação</span><span>Partidas</span><span>Situação</span></div>
+            @foreach (var entry in VisibleEntries)
+            {
+                <div class="table-row">
+                    <span data-label="Posição">#@entry.Position</span>
+                    <span class="ranking-player" data-label="Participante">
+                        @if (IsPlayerBoard)
+                        {
+                            <PlayerAvatar DisplayName="@entry.DisplayName" Url="@entry.AvatarUrl" Size="list" />
+                            <a href="/jogadores/@entry.BeneficiaryId">@entry.DisplayName</a>
+                        }
+                        else
+                        {
+                            <span>@entry.DisplayName</span>
+                        }
+                    </span>
+                    <span data-label="Pontuação">@entry.Score.ToString("0.##")</span>
+                    <span data-label="Partidas">@entry.ValidatedMatches</span>
+                    <span data-label="Situação" data-mobile-wide="true">@(entry.IsProvisional ? "Provisório" : "Classificado")</span>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+<PaginationNav CurrentPage="@CurrentPage" TotalItems="@Entries.Count" PageSize="@PageSize"
+               BasePath="/rankings" AdditionalQuery="quadro=@SelectedKey" />
 
 @code {
-    private Dictionary<string, IReadOnlyCollection<AgeNexus.Application.Queries.RankingEntry>> Boards { get; } = [];
+    private const int PageSize = 10;
+    [SupplyParameterFromQuery(Name = "quadro")] private string? BoardKey { get; set; }
+    [SupplyParameterFromQuery(Name = "pagina")] private int Page { get; set; } = 1;
 
-    protected override async Task OnInitializedAsync()
-    {
-        var dashboard = await RankingQueries.GetDashboardAsync();
-        Boards["Geral competitivo"] = dashboard.GeneralCompetitive;
-        Boards["Carreira"] = dashboard.Career;
-        Boards["Domínio contra IA"] = dashboard.Pve;
-        Boards["Equipes fixas"] = dashboard.TeamLineup;
-        Boards["Clãs"] = dashboard.ClanCompetitive;
-    }
+    private IReadOnlyCollection<AgeNexus.Application.Queries.RankingEntry> Entries { get; set; } = [];
+    private string SelectedKey => RankingOptions.Any(option => option.Key == BoardKey) ? BoardKey! : "geral";
+    private RankingOption SelectedOption => RankingOptions.Single(option => option.Key == SelectedKey);
+    private bool IsPlayerBoard => SelectedOption.Board is AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive or
+        AgeNexus.Application.Queries.RankingBoard.Career or AgeNexus.Application.Queries.RankingBoard.Pve;
+    private int CurrentPage => Math.Clamp(Page, 1, Math.Max(1, (int)Math.Ceiling(Entries.Count / (double)PageSize)));
+    private IEnumerable<AgeNexus.Application.Queries.RankingEntry> VisibleEntries =>
+        Entries.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
 
-    private static string GetDescription(string board) => board switch
-    {
-        "Geral competitivo" => "PvP puro e híbrido com peso reduzido",
-        "Carreira" => "Progressão histórica, incluindo 35% do PvE",
-        "Domínio contra IA" => "Somente partidas verificadas ou auditadas",
-        "Equipes fixas" => "Duplas, trios e quartetos pela formação exata",
-        _ => "Prestígio competitivo dos clãs"
-    };
+    protected override async Task OnParametersSetAsync() =>
+        Entries = await RankingQueries.GetAsync(SelectedOption.Board, limit: 500);
 
-    private static bool IsPlayerBoard(string board) =>
-        board is "Geral competitivo" or "Carreira" or "Domínio contra IA";
+    private static readonly RankingOption[] RankingOptions =
+    [
+        new("geral", "Geral competitivo", "PvP puro e híbrido com peso reduzido", AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive),
+        new("carreira", "Carreira", "Progressão histórica, incluindo 35% do PvE", AgeNexus.Application.Queries.RankingBoard.Career),
+        new("ia", "Domínio contra IA", "Somente partidas verificadas ou auditadas", AgeNexus.Application.Queries.RankingBoard.Pve),
+        new("equipes", "Equipes fixas", "Duplas, trios e quartetos pela formação exata", AgeNexus.Application.Queries.RankingBoard.TeamLineup),
+        new("clas", "Clãs", "Prestígio competitivo dos clãs", AgeNexus.Application.Queries.RankingBoard.ClanCompetitive)
+    ];
+
+    private sealed record RankingOption(
+        string Key,
+        string Label,
+        string Description,
+        AgeNexus.Application.Queries.RankingBoard Board);
 }

@@ -19,3 +19,11 @@
 
 .demo-notice { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding: 10px 14px; color: #6e644e; border: 1px dashed #d9c598; border-radius: 6px; background: #fbf4e4; font-size: var(--font-copy); }
 .demo-notice span { padding: 3px 7px; color: #fff9ec; border-radius: 3px; background: var(--gold); font-size: var(--font-sm); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+.loading-overlay { position: fixed; z-index: 10000; inset: 0; display: none; place-items: center; padding: 20px; background: rgba(20,27,23,.48); backdrop-filter: blur(3px); }
+.loading-overlay.visible, .loading-overlay:not(#global-loading-overlay) { display: grid; }
+.loading-card { display: grid; justify-items: center; min-width: 210px; gap: 8px; padding: 27px 30px; color: var(--ink); border: 1px solid #dbc99f; border-radius: 9px; background: #fffdf8; box-shadow: 0 22px 60px rgba(15,22,18,.24); }
+.loading-card strong { font: 700 var(--font-copy) "Unbounded"; }.loading-card small { color: var(--muted); font-size: var(--font-sm); }
+.loading-spinner { width: 36px; height: 36px; margin-bottom: 5px; border: 3px solid #e8deca; border-top-color: var(--gold); border-radius: 50%; animation: loading-spin .75s linear infinite; }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading-spinner { animation-duration: 1.5s; } }

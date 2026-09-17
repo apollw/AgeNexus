@@ -82,6 +82,8 @@ Isso não muda a proteção HTTPS, a revalidação nem a revogação de acesso. 
 
 Depois de alterações em consultas ou cadastro de partidas, valide no ambiente publicado: abrir `/partidas`, usar os filtros de jogador e período, navegar entre páginas, abrir o detalhe público em `/partidas/{id}`, iniciar um cadastro, salvar e abrir `/partidas/{id}/desempenho`. Use uma partida real ou um fluxo previamente autorizado e anote o horário UTC se houver demora.
 
+Confira também a paginação em `/jogadores`, `/rankings`, `/estatisticas/civilizacoes`, `/clas` e `/jogadores/gerenciar`. Ao navegar, salvar ou atualizar dados, a sobreposição de carregamento deve aparecer e desaparecer ao concluir; durante o AgeXtractor, deve permanecer somente a barra de progresso da extração.
+
 No Render, procure pelos avisos `Slow query group`, `Slow statistics load`, `Slow database command`, `Timed out loading performance page` e `Failed to load performance page`. Compare-os com CPU, memória, reinicializações e conexões do Supabase. Não considere somente o resultado do CI como confirmação de desempenho em produção.
 
 A página de desempenho não deve permanecer indefinidamente carregando. Ela encerra a tentativa principal após 30 segundos, registra o erro no servidor e oferece nova tentativa. A leitura usa um único contexto de banco por vez para respeitar a disponibilidade limitada de conexões do ambiente hospedado. Consulte [PERFORMANCE.md](PERFORMANCE.md) para o histórico e os limites desse diagnóstico.

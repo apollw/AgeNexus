@@ -59,6 +59,14 @@
     </div>
 </div>
 
+<div id="global-loading-overlay" class="loading-overlay" role="status" aria-live="polite" aria-busy="true">
+    <div class="loading-card">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <strong>Carregando...</strong>
+        <small>Aguarde um instante</small>
+    </div>
+</div>
+
 @code {
     private static string GetInitial(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "?" : value[..1].ToUpperInvariant();

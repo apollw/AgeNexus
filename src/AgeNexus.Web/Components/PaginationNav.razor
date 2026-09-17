@@ -1,0 +1,65 @@
+@if (TotalPages > 1)
+{
+    <nav class="pagination" aria-label="Paginação">
+        @if (OnPageChanged.HasDelegate)
+        {
+            <button type="button" disabled="@(CurrentPage <= 1)" aria-label="Página anterior" @onclick="() => ChangePage(CurrentPage - 1)">←</button>
+        }
+        else
+        {
+            <a class="@(CurrentPage <= 1 ? "disabled" : null)" href="@(CurrentPage <= 1 ? null : PageUrl(CurrentPage - 1))" aria-label="Página anterior">←</a>
+        }
+
+        @foreach (var pageNumber in VisiblePages())
+        {
+            @if (OnPageChanged.HasDelegate)
+            {
+                <button type="button" class="@(pageNumber == CurrentPage ? "active" : null)" aria-current="@(pageNumber == CurrentPage ? "page" : null)" @onclick="() => ChangePage(pageNumber)">@(pageNumber)</button>
+            }
+            else
+            {
+                <a class="@(pageNumber == CurrentPage ? "active" : null)" href="@PageUrl(pageNumber)" aria-current="@(pageNumber == CurrentPage ? "page" : null)">@(pageNumber)</a>
+            }
+        }
+
+        @if (OnPageChanged.HasDelegate)
+        {
+            <button type="button" disabled="@(CurrentPage >= TotalPages)" aria-label="Próxima página" @onclick="() => ChangePage(CurrentPage + 1)">→</button>
+        }
+        else
+        {
+            <a class="@(CurrentPage >= TotalPages ? "disabled" : null)" href="@(CurrentPage >= TotalPages ? null : PageUrl(CurrentPage + 1))" aria-label="Próxima página">→</a>
+        }
+    </nav>
+}
+
+@code {
+    [Parameter] public int CurrentPage { get; set; } = 1;
+    [Parameter] public int TotalItems { get; set; }
+    [Parameter] public int PageSize { get; set; } = 10;
+    [Parameter] public string BasePath { get; set; } = "/";
+    [Parameter] public string PageParameter { get; set; } = "pagina";
+    [Parameter] public string? AdditionalQuery { get; set; }
+    [Parameter] public EventCallback<int> OnPageChanged { get; set; }
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(TotalItems / (double)Math.Max(1, PageSize)));
+
+    private IEnumerable<int> VisiblePages()
+    {
+        var current = Math.Clamp(CurrentPage, 1, TotalPages);
+        var first = Math.Max(1, current - 2);
+        var last = Math.Min(TotalPages, first + 4);
+        first = Math.Max(1, last - 4);
+        return Enumerable.Range(first, last - first + 1);
+    }
+
+    private Task ChangePage(int page) => OnPageChanged.InvokeAsync(Math.Clamp(page, 1, TotalPages));
+
+    private string PageUrl(int page)
+    {
+        var query = string.IsNullOrWhiteSpace(AdditionalQuery)
+            ? $"{PageParameter}={page}"
+            : $"{AdditionalQuery.TrimStart('?')}&{PageParameter}={page}";
+        return $"{BasePath}?{query}";
+    }
+}

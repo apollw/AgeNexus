@@ -105,14 +105,8 @@
 
         @if (MatchPage.TotalPages > 1)
         {
-            <nav class="pagination" aria-label="Paginação das partidas">
-                <a class="pagination-arrow @(MatchPage.Page == 1 ? "disabled" : null)" href="@(MatchPage.Page == 1 ? null : PageUrl(MatchPage.Page - 1))" aria-label="Página anterior">←</a>
-                @foreach (var page in VisiblePages())
-                {
-                    <a class="@(page == MatchPage.Page ? "active" : null)" href="@PageUrl(page)" aria-current="@(page == MatchPage.Page ? "page" : null)">@(page)</a>
-                }
-                <a class="pagination-arrow @(MatchPage.Page == MatchPage.TotalPages ? "disabled" : null)" href="@(MatchPage.Page == MatchPage.TotalPages ? null : PageUrl(MatchPage.Page + 1))" aria-label="Próxima página">→</a>
-            </nav>
+            <PaginationNav CurrentPage="@MatchPage.Page" TotalItems="@MatchPage.TotalItems" PageSize="@MatchPage.PageSize"
+                           BasePath="/partidas" AdditionalQuery="@FilterQuery()" />
         }
     }
 </section>
@@ -149,21 +143,13 @@
         MatchPage = await History.GetPageAsync(new(Page, 10, FromDate, ToDate, PlayerId));
     }
 
-    private IEnumerable<int> VisiblePages()
+    private string FilterQuery()
     {
-        var first = Math.Max(1, MatchPage.Page - 2);
-        var last = Math.Min(MatchPage.TotalPages, first + 4);
-        first = Math.Max(1, last - 4);
-        return Enumerable.Range(first, last - first + 1);
-    }
-
-    private string PageUrl(int page)
-    {
-        var parts = new List<string> { $"pagina={page}" };
+        var parts = new List<string>();
         if (PlayerId.HasValue) parts.Add($"jogador={PlayerId.Value}");
         if (FromDate.HasValue) parts.Add($"inicio={FromDate.Value:yyyy-MM-dd}");
         if (ToDate.HasValue) parts.Add($"fim={ToDate.Value:yyyy-MM-dd}");
-        return "/partidas?" + string.Join("&", parts);
+        return string.Join("&", parts);
     }
 
     private static string CategoryLabel(AgeNexus.Domain.Matches.MatchScoringCategory value) => value switch

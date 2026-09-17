@@ -40,7 +40,7 @@ else
         </div>
         <div class="data-table mobile-card-table faction-mobile-table">
             <div class="table-head faction-table-row"><span>Pos.</span><span>Civilização</span><span>Usos</span><span>Vitórias</span><span>Derrotas</span><span>Aproveitamento</span><span>Índice</span></div>
-            @foreach (var rankedFaction in Factions.Select((faction, index) => new { Faction = faction, Rank = index + 1 }))
+            @foreach (var rankedFaction in VisibleFactions)
             {
                 <div class="table-row faction-table-row">
                     <strong class="faction-position" data-label="Posição">#@rankedFaction.Rank</strong>
@@ -60,9 +60,19 @@ else
             }
         </div>
     </section>
+    <PaginationNav CurrentPage="@CurrentPage" TotalItems="@Factions.Count" PageSize="@PageSize" BasePath="/estatisticas/civilizacoes" />
 }
 
 @code {
+    private const int PageSize = 12;
+    [SupplyParameterFromQuery(Name = "pagina")] private int Page { get; set; } = 1;
     private IReadOnlyCollection<AgeNexus.Application.Queries.FactionStatistics> Factions { get; set; } = [];
-    protected override async Task OnInitializedAsync() => Factions = await Statistics.GetFactionStatisticsAsync();
+    private int CurrentPage => Math.Clamp(Page, 1, Math.Max(1, (int)Math.Ceiling(Factions.Count / (double)PageSize)));
+    private IEnumerable<RankedFaction> VisibleFactions => Factions
+        .Select((faction, index) => new RankedFaction(faction, index + 1))
+        .Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+
+    protected override async Task OnParametersSetAsync() => Factions = await Statistics.GetFactionStatisticsAsync();
+
+    private sealed record RankedFaction(AgeNexus.Application.Queries.FactionStatistics Faction, int Rank);
 }

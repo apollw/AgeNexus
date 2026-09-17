@@ -6,6 +6,10 @@ A listagem já limita o resultado antes de buscar participantes. As estatística
 
 O histórico público usa paginação no servidor com 10 partidas por página. Filtros de período e jogador são aplicados antes de `Count`, `Skip` e `Take`; participantes e evidências são consultados somente para os identificadores da página atual. A tela de detalhes carrega as estatísticas de uma única partida e não expõe relatórios incompletos.
 
+Diretórios e tabelas extensíveis também são apresentados em páginas: jogadores e civilizações exibem 12 itens, clãs 15, rankings 10 e o elenco administrativo 10 por vez. Rankings carregam apenas o quadro selecionado. Listas naturalmente limitadas — participantes de uma partida, evidências e líderes resumidos — não recebem controles desnecessários.
+
+Navegações, envios de formulário e operações interativas demoradas exibem uma sobreposição padronizada com animação de carregamento, bloqueando novos comandos até a conclusão. A extração de capturas é a exceção: sua barra de progresso detalhada continua sendo o único indicador durante o OCR.
+
 ## Verificação após deploy
 
 Compare abrir `/partidas`, abrir o cadastro, salvar uma partida e abrir/preencher as estatísticas. Registre duração aproximada e horário UTC, sem dados pessoais. Não crie partidas fictícias em produção apenas para testar.

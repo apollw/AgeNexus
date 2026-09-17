@@ -5,6 +5,7 @@
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
 <PageTitle>Gerenciar jogadores · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@(IsLoading || Busy)" Message="Atualizando participantes..." />
 
 <section class="page-heading compact-heading">
     <div>
@@ -28,7 +29,7 @@
                 <div><span class="eyebrow">Vinculações pendentes</span><h2>@Claims.Count solicitação(ões)</h2></div>
             </header>
             <div class="managed-player-list">
-                @foreach (var claim in Claims)
+                @foreach (var claim in VisibleClaims)
                 {
                     <article class="managed-player-row profile-claim-row" @key="claim.ClaimId">
                         <PlayerAvatar DisplayName="@claim.DisplayName" Size="list" />
@@ -44,6 +45,7 @@
                     </article>
                 }
             </div>
+            <PaginationNav CurrentPage="@CurrentClaimsPage" TotalItems="@Claims.Count" PageSize="@ClaimsPageSize" OnPageChanged="SetClaimsPage" />
         </section>
     }
 
@@ -100,7 +102,7 @@
         else
         {
             <div class="managed-player-list">
-                @foreach (var profile in Profiles)
+                @foreach (var profile in VisibleProfiles)
                 {
                     <article class="managed-player-row" @key="profile.Id">
                         <PlayerAvatar DisplayName="@profile.DisplayName" Url="@profile.AvatarUrl" Size="list" />
@@ -119,6 +121,7 @@
                     </article>
                 }
             </div>
+            <PaginationNav CurrentPage="@CurrentProfilesPage" TotalItems="@Profiles.Count" PageSize="@ProfilesPageSize" OnPageChanged="SetProfilesPage" />
         }
     </section>
 </div>
@@ -133,15 +136,37 @@
     private string? Message { get; set; }
     private bool HasError { get; set; }
     private bool Busy { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private int ProfilesPage { get; set; } = 1;
+    private int ClaimsPage { get; set; } = 1;
+    private const int ProfilesPageSize = 10;
+    private const int ClaimsPageSize = 5;
+    private int CurrentProfilesPage => Math.Clamp(ProfilesPage, 1, Math.Max(1, (int)Math.Ceiling(Profiles.Count / (double)ProfilesPageSize)));
+    private int CurrentClaimsPage => Math.Clamp(ClaimsPage, 1, Math.Max(1, (int)Math.Ceiling(Claims.Count / (double)ClaimsPageSize)));
+    private IEnumerable<AgeNexus.Infrastructure.Identity.ManagedPlayerProfile> VisibleProfiles =>
+        Profiles.Skip((CurrentProfilesPage - 1) * ProfilesPageSize).Take(ProfilesPageSize);
+    private IEnumerable<AgeNexus.Infrastructure.Identity.ManagedProfileClaim> VisibleClaims =>
+        Claims.Skip((CurrentClaimsPage - 1) * ClaimsPageSize).Take(ClaimsPageSize);
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 
     private async Task ReloadAsync()
     {
-        var authentication = await AuthenticationStateTask;
-        Profiles = await Accounts.GetManagedProfilesAsync(authentication.User);
-        Claims = await Accounts.GetPendingProfileClaimsAsync(authentication.User);
+        IsLoading = true;
+        try
+        {
+            var authentication = await AuthenticationStateTask;
+            Profiles = await Accounts.GetManagedProfilesAsync(authentication.User);
+            Claims = await Accounts.GetPendingProfileClaimsAsync(authentication.User);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
+
+    private Task SetProfilesPage(int page) { ProfilesPage = page; return Task.CompletedTask; }
+    private Task SetClaimsPage(int page) { ClaimsPage = page; return Task.CompletedTask; }
 
     private async Task SaveAsync()
     {

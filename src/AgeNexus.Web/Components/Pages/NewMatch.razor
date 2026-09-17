@@ -9,6 +9,8 @@
 @inject NavigationManager Navigation
 
 <PageTitle>Nova partida · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@(IsLoading || Saving || SettingUpCatalog || SyncingCatalog || ChangingEdition)"
+                Message="@(Saving ? "Registrando partida..." : "Preparando os dados...")" />
 
 <section class="page-heading compact-heading">
     <div><span class="eyebrow">Novo registro</span><h1>Registrar partida</h1><p>Informe os lados, participantes, civilizações e resultado.</p></div>
@@ -181,17 +183,26 @@ else
     private string? Error { get; set; }
     private string? SetupError { get; set; }
     private bool Saving { get; set; }
+    private bool IsLoading { get; set; } = true;
     private bool SettingUpCatalog { get; set; }
     private bool SyncingCatalog { get; set; }
+    private bool ChangingEdition { get; set; }
     private bool CatalogSyncFailed { get; set; }
     private string? CatalogMessage { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        var authentication = await AuthenticationStateTask;
-        CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
-        Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync();
-        InitializeMatchForm();
+        try
+        {
+            var authentication = await AuthenticationStateTask;
+            CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+            Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync();
+            InitializeMatchForm();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private void InitializeMatchForm(Guid? preferredEditionId = null)
@@ -225,21 +236,26 @@ else
 
         SettingUpCatalog = true;
         SetupError = null;
-        var result = await CatalogSetup.InitializeAsync(SetupForm.GameName, SetupForm.EditionName);
-        SettingUpCatalog = false;
-
-        if (!result.Succeeded)
+        try
         {
-            SetupError = result.ErrorCode switch
+            var result = await CatalogSetup.InitializeAsync(SetupForm.GameName, SetupForm.EditionName);
+            if (!result.Succeeded)
             {
-                "AlreadyInitialized" or "ConcurrentSetup" => "O catálogo foi inicializado por outra sessão. Atualize a página.",
-                _ => "Informe nomes válidos, com no máximo 120 caracteres."
-            };
-            return;
-        }
+                SetupError = result.ErrorCode switch
+                {
+                    "AlreadyInitialized" or "ConcurrentSetup" => "O catálogo foi inicializado por outra sessão. Atualize a página.",
+                    _ => "Informe nomes válidos, com no máximo 120 caracteres."
+                };
+                return;
+            }
 
-        Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(result.GameEditionId);
-        InitializeMatchForm(result.GameEditionId);
+            Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(result.GameEditionId);
+            InitializeMatchForm(result.GameEditionId);
+        }
+        finally
+        {
+            SettingUpCatalog = false;
+        }
     }
 
     private async Task SyncAge2CatalogAsync()
@@ -254,20 +270,27 @@ else
         SyncingCatalog = true;
         CatalogSyncFailed = false;
         CatalogMessage = null;
-        var result = await CatalogSetup.SyncAge2DefinitiveEditionAsync(Form.GameEditionId);
-        SyncingCatalog = false;
-        CatalogSyncFailed = !result.Succeeded;
-        CatalogMessage = result.Succeeded
-            ? $"Catálogo atualizado: {result.TotalCivilizations} civilizações, {result.TotalMaps} mapas e {result.TotalAiDifficulties} dificuldades de IA disponíveis."
-            : "Não foi possível sincronizar o catálogo. Atualize a página e tente novamente.";
-        if (result.Succeeded)
+        try
         {
-            Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(Form.GameEditionId);
+            var result = await CatalogSetup.SyncAge2DefinitiveEditionAsync(Form.GameEditionId);
+            CatalogSyncFailed = !result.Succeeded;
+            CatalogMessage = result.Succeeded
+                ? $"Catálogo atualizado: {result.TotalCivilizations} civilizações, {result.TotalMaps} mapas e {result.TotalAiDifficulties} dificuldades de IA disponíveis."
+                : "Não foi possível sincronizar o catálogo. Atualize a página e tente novamente.";
+            if (result.Succeeded)
+            {
+                Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(Form.GameEditionId);
+            }
+        }
+        finally
+        {
+            SyncingCatalog = false;
         }
     }
 
     private async Task EditionChangedAsync()
     {
+        ChangingEdition = true;
         Form.MapDefinitionId = null;
         Form.SeasonId = null;
         Form.GamePatchId = null;
@@ -277,7 +300,14 @@ else
             participant.AiDifficultyId = null;
         }
 
-        Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(Form.GameEditionId);
+        try
+        {
+            Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(Form.GameEditionId);
+        }
+        finally
+        {
+            ChangingEdition = false;
+        }
     }
 
     private TeamForm CreateTeam(AgeNexus.Domain.Matches.TeamResult result, Guid playerId)

@@ -4,6 +4,7 @@
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
 <PageTitle>Meu perfil · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@(IsLoading || Busy)" Message="Atualizando seu perfil..." />
 
 <section class="profile-page">
     <div class="page-heading compact-heading">
@@ -131,12 +132,20 @@
     private string? Message { get; set; }
     private bool HasError { get; set; }
     private bool Busy { get; set; }
+    private bool IsLoading { get; set; } = true;
 
     protected override async Task OnInitializedAsync()
     {
-        var authenticationState = await AuthenticationStateTask;
-        CurrentProfile = await Accounts.GetProfileAsync(authenticationState.User, CancellationToken.None);
-        Factions = await Accounts.GetFactionOptionsAsync();
+        try
+        {
+            var authenticationState = await AuthenticationStateTask;
+            CurrentProfile = await Accounts.GetProfileAsync(authenticationState.User, CancellationToken.None);
+            Factions = await Accounts.GetFactionOptionsAsync();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private async Task UploadAvatarAsync(InputFileChangeEventArgs args)

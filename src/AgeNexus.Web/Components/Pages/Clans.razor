@@ -16,7 +16,7 @@
     {
         <div class="data-table clan-table mobile-card-table">
             <div class="table-head"><span>Tag</span><span>Clã</span><span>Membros</span></div>
-            @foreach (var clan in ClanItems)
+            @foreach (var clan in VisibleClans)
             {
                 <div class="table-row">
                     <span data-label="Tag">[@clan.Tag]</span>
@@ -27,8 +27,14 @@
         </div>
     }
 </section>
+<PaginationNav CurrentPage="@CurrentPage" TotalItems="@ClanItems.Count" PageSize="@PageSize" BasePath="/clas" />
 
 @code {
+    private const int PageSize = 15;
+    [SupplyParameterFromQuery(Name = "pagina")] private int Page { get; set; } = 1;
     private IReadOnlyCollection<AgeNexus.Application.Queries.ClanSummary> ClanItems { get; set; } = [];
-    protected override async Task OnInitializedAsync() => ClanItems = await ClanQueries.GetAsync();
+    private int CurrentPage => Math.Clamp(Page, 1, Math.Max(1, (int)Math.Ceiling(ClanItems.Count / (double)PageSize)));
+    private IEnumerable<AgeNexus.Application.Queries.ClanSummary> VisibleClans =>
+        ClanItems.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    protected override async Task OnParametersSetAsync() => ClanItems = await ClanQueries.GetAsync();
 }
