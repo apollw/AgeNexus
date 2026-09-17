@@ -4,7 +4,7 @@ O AgeNexus incorpora o núcleo Python do repositório `apollw/AgeXtractor` no me
 
 ## Fluxo
 
-Na tela de desempenho de uma partida em rascunho, o administrador pode carregar as capturas de Placar, Militar, Economia, Tecnologia e Sociedade uma por vez ou em conjunto. Não é necessário selecionar as cinco para começar. Cada captura é visualizada localmente no navegador para que os quatro cantos externos da tabela sejam ajustados, reproduzindo a correção de perspectiva da interface Windows. A quantidade de jogadores vem dos participantes humanos da partida. Cada imagem pode ter até 5 MB e precisa ser JPEG, PNG ou WebP.
+Na tela de desempenho de uma partida em rascunho, o administrador pode carregar as capturas de Placar, Militar, Economia, Tecnologia e Sociedade uma por vez ou em conjunto. Não é necessário selecionar as cinco para começar. Cada captura é visualizada localmente no navegador para que os quatro cantos externos da tabela sejam ajustados, reproduzindo a correção de perspectiva da interface Windows. A quantidade enviada ao OCR vem de todos os participantes da partida, humanos e IAs; o extrator apenas lê as linhas e não tenta inferir o tipo de jogador. Cada imagem pode ter até 5 MB e precisa ser JPEG, PNG ou WebP.
 
 Ao iniciar a extração individual ou das imagens carregadas, o navegador envia as coordenadas da imagem original junto dos bytes mantidos em memória. Cada categoria é executada isoladamente com `--categoria`; seu fragmento JSON bem-sucedido permanece na memória da página enquanto as demais são processadas. Uma falha não elimina categorias concluídas, e uma nova tentativa executa somente as pendentes. O administrador pode remover uma imagem e selecionar outra; nesse caso, o fragmento daquela categoria também é invalidado. Também pode descartar todos os fragmentos e recomeçar mantendo as imagens e delimitações.
 
@@ -12,7 +12,7 @@ O servidor valida a assinatura do arquivo e os pontos, cria uma pasta temporári
 
 Os eventos estruturados recebidos por `stderr` atualizam a barra de progresso com categoria, jogador e campo em processamento. Em uma falha esperada de reconhecimento, a página apresenta a categoria e o motivo devolvido pelo Python, sem traceback, caminhos internos ou conteúdo das capturas. O JSON final continua isolado em `stdout`.
 
-O JSON passa pelo mesmo `AgeExtractorJsonImporter` usado no upload manual. Leituras ausentes ou duvidosas permanecem visíveis, as posições precisam ser associadas aos jogadores e nada é salvo automaticamente. O administrador revisa os valores antes de preencher e salvar o relatório.
+O JSON passa pelo mesmo `AgeExtractorJsonImporter` usado no upload manual. Leituras ausentes ou duvidosas permanecem visíveis, e cada posição precisa ser associada a um participante da partida. Humanos são vinculados ao perfil; IAs, à dificuldade configurada, sem criar usuário fictício e sem usar a civilização como identidade estatística. Estatísticas de IA são persistidas para análise, mas não recebem Elo, carreira nem MVP. Nada é salvo automaticamente: o administrador revisa os valores antes de preencher e salvar o relatório.
 
 ## Build e atualização
 

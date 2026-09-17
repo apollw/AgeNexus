@@ -1,4 +1,5 @@
 using AgeNexus.Domain.MatchPerformance;
+using AgeNexus.Domain.GameCatalog;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Domain.Players;
 using Microsoft.EntityFrameworkCore;
@@ -45,13 +46,18 @@ internal sealed class PlayerMatchStatisticsConfiguration : IEntityTypeConfigurat
         {
             table.HasCheckConstraint("ck_player_match_statistics_explored", "explored_percent IS NULL OR (explored_percent >= 0 AND explored_percent <= 100)");
             table.HasCheckConstraint("ck_player_match_statistics_research", "research_percent IS NULL OR (research_percent >= 0 AND research_percent <= 100)");
+            table.HasCheckConstraint("ck_player_match_statistics_identity",
+                "(player_profile_id IS NOT NULL AND ai_difficulty_id IS NULL) OR " +
+                "(player_profile_id IS NULL AND ai_difficulty_id IS NOT NULL)");
         });
         builder.HasKey(x => x.Id).HasName("pk_player_match_statistics");
         builder.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
         builder.Property(x => x.ReportId).HasColumnName("report_id");
         builder.Property(x => x.MatchId).HasColumnName("match_id");
         builder.Property(x => x.TeamId).HasColumnName("team_id");
+        builder.Property(x => x.MatchParticipantId).HasColumnName("match_participant_id");
         builder.Property(x => x.PlayerProfileId).HasColumnName("player_profile_id");
+        builder.Property(x => x.AiDifficultyId).HasColumnName("ai_difficulty_id");
         builder.Property(x => x.Origin).HasColumnName("origin").HasConversion<string>().HasMaxLength(24);
         MapValues(builder);
         builder.HasOne<MatchStatisticsReport>().WithMany().HasForeignKey(x => x.ReportId)
@@ -60,10 +66,18 @@ internal sealed class PlayerMatchStatisticsConfiguration : IEntityTypeConfigurat
             .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_player_match_statistics_match");
         builder.HasOne<MatchTeam>().WithMany().HasForeignKey(x => x.TeamId)
             .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_player_match_statistics_team");
+        builder.HasOne<MatchParticipant>().WithMany().HasForeignKey(x => x.MatchParticipantId)
+            .OnDelete(DeleteBehavior.Cascade).HasConstraintName("fk_player_match_statistics_participant");
         builder.HasOne<PlayerProfile>().WithMany().HasForeignKey(x => x.PlayerProfileId)
             .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_player_match_statistics_player");
-        builder.HasIndex(x => new { x.ReportId, x.PlayerProfileId }).IsUnique()
-            .HasDatabaseName("ux_player_match_statistics_report_player");
+        builder.HasOne<AiDifficulty>().WithMany().HasForeignKey(x => x.AiDifficultyId)
+            .OnDelete(DeleteBehavior.Restrict).HasConstraintName("fk_player_match_statistics_ai_difficulty");
+        builder.HasIndex(x => x.AiDifficultyId)
+            .HasDatabaseName("ix_player_match_statistics_ai_difficulty");
+        builder.HasIndex(x => x.MatchParticipantId)
+            .HasDatabaseName("ix_player_match_statistics_match_participant");
+        builder.HasIndex(x => new { x.ReportId, x.MatchParticipantId }).IsUnique()
+            .HasDatabaseName("ux_player_match_statistics_report_participant");
     }
 
     private static void MapValues(EntityTypeBuilder<PlayerMatchStatistics> builder)

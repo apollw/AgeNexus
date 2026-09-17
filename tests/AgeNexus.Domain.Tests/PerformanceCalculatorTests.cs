@@ -83,7 +83,7 @@ public sealed class PerformanceCalculatorTests
     public void Complete_statistics_require_every_core_field()
     {
         var statistic = new PlayerMatchStatistics(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null,
             StatisticValueOrigin.Manual,
             new MatchStatisticValues(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1));
 
@@ -103,7 +103,7 @@ public sealed class PerformanceCalculatorTests
             RelicsCaptured: 3);
 
         var statistic = new PlayerMatchStatistics(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null,
             StatisticValueOrigin.Manual, values);
 
         Assert.Equal(values, statistic.ToValues());
@@ -115,7 +115,7 @@ public sealed class PerformanceCalculatorTests
     public void Research_percentage_must_be_between_zero_and_one_hundred(int percentage)
     {
         Assert.Throws<DomainRuleException>(() => new PlayerMatchStatistics(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null,
             StatisticValueOrigin.Manual,
             new MatchStatisticValues(ResearchPercent: percentage)));
     }
@@ -124,12 +124,25 @@ public sealed class PerformanceCalculatorTests
     public void Manual_team_mvp_is_preserved_with_the_statistics()
     {
         var statistic = new PlayerMatchStatistics(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null,
             StatisticValueOrigin.Manual,
             new MatchStatisticValues(IsTeamMvp: true));
 
         Assert.True(statistic.IsTeamMvp);
         Assert.True(statistic.ToValues().IsTeamMvp);
+    }
+
+    [Fact]
+    public void Ai_statistics_are_linked_to_difficulty_and_cannot_be_mvp()
+    {
+        var statistic = new PlayerMatchStatistics(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(),
+            StatisticValueOrigin.JsonImport, new MatchStatisticValues(TotalScore: 1000));
+
+        Assert.Null(statistic.PlayerProfileId);
+        Assert.NotNull(statistic.AiDifficultyId);
+        Assert.Throws<DomainRuleException>(() => statistic.Apply(
+            new MatchStatisticValues(IsTeamMvp: true), StatisticValueOrigin.Manual));
     }
 
     [Fact]

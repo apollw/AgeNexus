@@ -47,21 +47,32 @@ public sealed class PlayerMatchStatistics
         Guid reportId,
         Guid matchId,
         Guid teamId,
-        Guid playerProfileId,
+        Guid matchParticipantId,
+        Guid? playerProfileId,
+        Guid? aiDifficultyId,
         StatisticValueOrigin origin,
         MatchStatisticValues values)
     {
         if (id == Guid.Empty || reportId == Guid.Empty || matchId == Guid.Empty ||
-            teamId == Guid.Empty || playerProfileId == Guid.Empty)
+            teamId == Guid.Empty || matchParticipantId == Guid.Empty ||
+            (playerProfileId.HasValue == aiDifficultyId.HasValue) ||
+            playerProfileId == Guid.Empty || aiDifficultyId == Guid.Empty)
         {
-            throw new DomainRuleException("Player statistics require report, match, team and player ids.");
+            throw new DomainRuleException("Participant statistics require one human or AI identity.");
+        }
+
+        if (aiDifficultyId.HasValue && values.IsTeamMvp)
+        {
+            throw new DomainRuleException("An AI participant cannot be a team MVP.");
         }
 
         Id = id;
         ReportId = reportId;
         MatchId = matchId;
         TeamId = teamId;
+        MatchParticipantId = matchParticipantId;
         PlayerProfileId = playerProfileId;
+        AiDifficultyId = aiDifficultyId;
         Apply(values, origin);
     }
 
@@ -69,7 +80,9 @@ public sealed class PlayerMatchStatistics
     public Guid ReportId { get; private set; }
     public Guid MatchId { get; private set; }
     public Guid TeamId { get; private set; }
-    public Guid PlayerProfileId { get; private set; }
+    public Guid MatchParticipantId { get; private set; }
+    public Guid? PlayerProfileId { get; private set; }
+    public Guid? AiDifficultyId { get; private set; }
     public StatisticValueOrigin Origin { get; private set; }
     public int? UnitsKilled { get; private set; }
     public int? UnitsLost { get; private set; }
@@ -113,6 +126,10 @@ public sealed class PlayerMatchStatistics
     public void Apply(MatchStatisticValues values, StatisticValueOrigin origin)
     {
         ArgumentNullException.ThrowIfNull(values);
+        if (AiDifficultyId.HasValue && values.IsTeamMvp)
+        {
+            throw new DomainRuleException("An AI participant cannot be a team MVP.");
+        }
         Validate(values);
         Origin = origin;
         UnitsKilled = values.UnitsKilled;

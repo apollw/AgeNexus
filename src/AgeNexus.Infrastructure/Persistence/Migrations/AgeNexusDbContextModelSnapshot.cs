@@ -808,6 +808,10 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AgeNexus.Domain.MatchPerformance.PlayerMatchStatistics", b =>
                 {
+                    b.Property<Guid?>("AiDifficultyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("ai_difficulty_id");
+
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
@@ -871,6 +875,10 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("match_id");
 
+                    b.Property<Guid>("MatchParticipantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("match_participant_id");
+
                     b.Property<int?>("MilitaryScore")
                         .HasColumnType("integer")
                         .HasColumnName("military_score");
@@ -885,7 +893,7 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("peak_villagers");
 
-                    b.Property<Guid>("PlayerProfileId")
+                    b.Property<Guid?>("PlayerProfileId")
                         .HasColumnType("uuid")
                         .HasColumnName("player_profile_id");
 
@@ -971,16 +979,24 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("MatchId");
 
+                    b.HasIndex("AiDifficultyId")
+                        .HasDatabaseName("ix_player_match_statistics_ai_difficulty");
+
+                    b.HasIndex("MatchParticipantId")
+                        .HasDatabaseName("ix_player_match_statistics_match_participant");
+
                     b.HasIndex("PlayerProfileId");
 
                     b.HasIndex("TeamId");
 
-                    b.HasIndex("ReportId", "PlayerProfileId")
+                    b.HasIndex("ReportId", "MatchParticipantId")
                         .IsUnique()
-                        .HasDatabaseName("ux_player_match_statistics_report_player");
+                        .HasDatabaseName("ux_player_match_statistics_report_participant");
 
                     b.ToTable("player_match_statistics", "public", t =>
                         {
+                            t.HasCheckConstraint("ck_player_match_statistics_identity", "(player_profile_id IS NOT NULL AND ai_difficulty_id IS NULL) OR (player_profile_id IS NULL AND ai_difficulty_id IS NOT NULL)");
+
                             t.HasCheckConstraint("ck_player_match_statistics_explored", "explored_percent IS NULL OR (explored_percent >= 0 AND explored_percent <= 100)");
 
                             t.HasCheckConstraint("ck_player_match_statistics_research", "research_percent IS NULL OR (research_percent >= 0 AND research_percent <= 100)");
@@ -1930,6 +1946,12 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AgeNexus.Domain.MatchPerformance.PlayerMatchStatistics", b =>
                 {
+                    b.HasOne("AgeNexus.Domain.GameCatalog.AiDifficulty", null)
+                        .WithMany()
+                        .HasForeignKey("AiDifficultyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_player_match_statistics_ai_difficulty");
+
                     b.HasOne("AgeNexus.Domain.Matches.Match", null)
                         .WithMany()
                         .HasForeignKey("MatchId")
@@ -1941,8 +1963,14 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("PlayerProfileId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_player_match_statistics_player");
+
+                    b.HasOne("AgeNexus.Domain.Matches.MatchParticipant", null)
+                        .WithMany()
+                        .HasForeignKey("MatchParticipantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_player_match_statistics_participant");
 
                     b.HasOne("AgeNexus.Domain.MatchPerformance.MatchStatisticsReport", null)
                         .WithMany()
