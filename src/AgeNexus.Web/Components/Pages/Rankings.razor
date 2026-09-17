@@ -50,7 +50,7 @@
 </section>
 
 <PaginationNav CurrentPage="@CurrentPage" TotalItems="@Entries.Count" PageSize="@PageSize"
-               BasePath="/rankings" AdditionalQuery="quadro=@SelectedKey" />
+               BasePath="/rankings" AdditionalQuery="@RankingQuery" />
 
 @code {
     private const int PageSize = 10;
@@ -60,6 +60,7 @@
     private IReadOnlyCollection<AgeNexus.Application.Queries.RankingEntry> Entries { get; set; } = [];
     private string SelectedKey => RankingOptions.Any(option => option.Key == BoardKey) ? BoardKey! : "geral";
     private RankingOption SelectedOption => RankingOptions.Single(option => option.Key == SelectedKey);
+    private string RankingQuery => $"quadro={SelectedKey}";
     private bool IsPlayerBoard => SelectedOption.Board is AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive or
         AgeNexus.Application.Queries.RankingBoard.Career or AgeNexus.Application.Queries.RankingBoard.Pve;
     private int CurrentPage => Math.Clamp(Page, 1, Math.Max(1, (int)Math.Ceiling(Entries.Count / (double)PageSize)));
