@@ -85,7 +85,7 @@ else
                 <div><span class="eyebrow">AgeXtractor online</span><h2>Extrair estatísticas das capturas</h2></div>
                 <span class="extractor-player-count">@Rows.Count jogador(es)</span>
             </header>
-            <p>Carregue e extraia as telas uma por vez ou em conjunto. Ajuste os quatro cantos para manter somente a tabela de cada imagem. O JSON só será criado após as cinco categorias serem concluídas.</p>
+            <p>Carregue e extraia as telas uma por vez ou em conjunto. Todos os participantes visíveis, humanos e IAs, serão lidos. Ajuste os quatro cantos para manter somente a tabela de cada imagem.</p>
             <div class="extractor-file-grid">
                 @foreach (var category in ExtractorCategories)
                 {
@@ -243,11 +243,11 @@ else
                         {
                             <label class="form-field">
                                 <span>Jogador @mapping.PlayerNumber</span>
-                                <InputSelect @bind-Value="mapping.PlayerProfileId">
+                                <InputSelect @bind-Value="mapping.MatchParticipantId">
                                     <option value="">Selecione um participante</option>
                                     @foreach (var row in Rows)
                                     {
-                                        <option value="@row.PlayerProfileId">@row.DisplayName · equipe @row.TeamPosition</option>
+                                        <option value="@row.MatchParticipantId">@row.DisplayName · equipe @row.TeamPosition</option>
                                     }
                                 </InputSelect>
                             </label>
@@ -291,18 +291,25 @@ else
                     }
                 </InputSelect>
             </header>
-            <p class="performance-guidance">Marque exatamente um MVP por equipe, conforme indicado pelo jogo. O Age Nexus usa essa escolha manual ao conceder os bônus.</p>
+            <p class="performance-guidance">Revise todos os participantes. As IAs são identificadas pela dificuldade e guardam estatísticas próprias, sem entrar em Elo, carreira ou MVP.</p>
 
             @foreach (var row in Rows)
             {
-                <article class="performance-player" @key="row.PlayerProfileId">
+                <article class="performance-player" @key="row.MatchParticipantId">
                     <header class="performance-player-header">
                         <div><span class="eyebrow">@row.TeamResult · equipe @row.TeamPosition</span><h3>@row.DisplayName</h3></div>
-                        <label class="mvp-choice">
-                            <input type="radio" name="mvp-@row.TeamId" checked="@row.IsTeamMvp"
-                                   @onchange="() => SetTeamMvp(row.TeamId, row.PlayerProfileId)" />
-                            <span>MVP da equipe</span>
-                        </label>
+                        @if (!row.IsAi)
+                        {
+                            <label class="mvp-choice">
+                                <input type="radio" name="mvp-@row.TeamId" checked="@row.IsTeamMvp"
+                                       @onchange="() => SetTeamMvp(row.TeamId, row.MatchParticipantId)" />
+                                <span>MVP da equipe</span>
+                            </label>
+                        }
+                        else
+                        {
+                            <span class="mvp-choice">Participante controlado pela IA</span>
+                        }
                     </header>
                     <div class="performance-fields">
                         <fieldset><legend>Militar</legend>
@@ -355,7 +362,7 @@ else
                 <button class="button button-secondary" type="button" @onclick="SaveAsync" disabled="@Busy">Salvar rascunho</button>
                 <button class="button button-primary" type="button" @onclick="SubmitAsync" disabled="@Busy">Salvar e enviar para confirmação</button>
             </div>
-            <small>* Campos obrigatórios para o cálculo do MVP.</small>
+            <small>* Campos obrigatórios para concluir o relatório; somente humanos participam do cálculo de desempenho e MVP.</small>
         </section>
         </EditForm>
     }
@@ -368,7 +375,7 @@ else
                 {
                     <div class="performance-result">
                         <div><strong>@player.DisplayName</strong><small>@player.TeamResult</small></div>
-                        <span>@(player.PerformanceIndex?.ToString("P1") ?? "Aguardando cálculo")</span>
+                        <span>@(player.AiDifficultyId.HasValue ? "Estatísticas registradas" : player.PerformanceIndex?.ToString("P1") ?? "Aguardando cálculo")</span>
                         <b>@AwardLabel(player.AwardType) @(player.BonusPoints > 0 ? $"+{player.BonusPoints}" : "")</b>
                     </div>
                 }
@@ -892,7 +899,7 @@ else
     {
         if (Rows.Count is < 2 or > 8)
         {
-            Message = "A partida precisa ter entre 2 e 8 participantes humanos para usar o extrator.";
+            Message = "A partida precisa ter entre 2 e 8 participantes no total para usar o extrator.";
             HasError = true;
             return;
         }
@@ -1056,7 +1063,7 @@ else
                 new JsonPlayerMapping
                 {
                     PlayerNumber = player.PlayerNumber,
-                    PlayerProfileId = index < Rows.Count ? Rows[index].PlayerProfileId : null
+                    MatchParticipantId = index < Rows.Count ? Rows[index].MatchParticipantId : null
                 }));
         }
         HasError = JsonImportResult.Status == AgeNexus.Application.MatchPerformance.JsonImportStatus.Invalid;
@@ -1071,12 +1078,12 @@ else
         }
         if (JsonImportResult.PlayerCount != Rows.Count)
         {
-            Message = $"O JSON contém {JsonImportResult.PlayerCount} jogadores, mas a partida possui {Rows.Count} participantes humanos.";
+            Message = $"O JSON contém {JsonImportResult.PlayerCount} jogadores, mas a partida possui {Rows.Count} participantes no total.";
             HasError = true;
             return;
         }
-        if (JsonMappings.Any(x => !x.PlayerProfileId.HasValue) ||
-            JsonMappings.Select(x => x.PlayerProfileId).Distinct().Count() != JsonMappings.Count)
+        if (JsonMappings.Any(x => !x.MatchParticipantId.HasValue) ||
+            JsonMappings.Select(x => x.MatchParticipantId).Distinct().Count() != JsonMappings.Count)
         {
             Message = "Associe cada posição a um participante diferente da partida.";
             HasError = true;
@@ -1086,7 +1093,7 @@ else
         foreach (var imported in JsonImportResult.Players)
         {
             var mapping = JsonMappings.Single(x => x.PlayerNumber == imported.PlayerNumber);
-            Rows.Single(x => x.PlayerProfileId == mapping.PlayerProfileId).Apply(imported.Values);
+            Rows.Single(x => x.MatchParticipantId == mapping.MatchParticipantId).Apply(imported.Values);
         }
 
         Source = AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.JsonImport;
@@ -1159,7 +1166,7 @@ else
             CurrentProfile.Id,
             Source,
             Rows.Select(x => new AgeNexus.Application.MatchPerformance.SavePlayerStatistics(
-                x.PlayerProfileId, x.ToValues(), AgeNexus.Domain.MatchPerformance.StatisticValueOrigin.Manual)).ToArray(),
+                x.MatchParticipantId, x.ToValues(), AgeNexus.Domain.MatchPerformance.StatisticValueOrigin.Manual)).ToArray(),
             JsonImportDetails));
         SetResult(result, "Rascunho salvo.");
         await ReloadAsync();
@@ -1236,11 +1243,11 @@ else
         Busy = false;
     }
 
-    private void SetTeamMvp(Guid teamId, Guid playerProfileId)
+    private void SetTeamMvp(Guid teamId, Guid matchParticipantId)
     {
-        foreach (var player in Rows.Where(x => x.TeamId == teamId))
+        foreach (var player in Rows.Where(x => x.TeamId == teamId && !x.IsAi))
         {
-            player.IsTeamMvp = player.PlayerProfileId == playerProfileId;
+            player.IsTeamMvp = player.MatchParticipantId == matchParticipantId;
         }
     }
 
@@ -1269,7 +1276,10 @@ else
 
     private sealed class PlayerForm
     {
-        public Guid PlayerProfileId { get; init; }
+        public Guid MatchParticipantId { get; init; }
+        public Guid? PlayerProfileId { get; init; }
+        public Guid? AiDifficultyId { get; init; }
+        public bool IsAi => AiDifficultyId.HasValue;
         public Guid TeamId { get; init; }
         public string DisplayName { get; init; } = "";
         public AgeNexus.Domain.Matches.TeamResult TeamResult { get; init; }
@@ -1313,7 +1323,8 @@ else
             var value = view.Values;
             return new PlayerForm
             {
-                PlayerProfileId = view.PlayerProfileId, TeamId = view.TeamId, DisplayName = view.DisplayName,
+                MatchParticipantId = view.MatchParticipantId, PlayerProfileId = view.PlayerProfileId,
+                AiDifficultyId = view.AiDifficultyId, TeamId = view.TeamId, DisplayName = view.DisplayName,
                 TeamResult = view.TeamResult, TeamPosition = teamPosition,
                 UnitsKilled = value.UnitsKilled, UnitsLost = value.UnitsLost,
                 BuildingsDestroyed = value.BuildingsDestroyed, BuildingsLost = value.BuildingsLost,
@@ -1369,7 +1380,7 @@ else
     private sealed class JsonPlayerMapping
     {
         public int PlayerNumber { get; init; }
-        public Guid? PlayerProfileId { get; set; }
+        public Guid? MatchParticipantId { get; set; }
     }
 
     private static readonly ExtractorCategory[] ExtractorCategories =

@@ -412,6 +412,7 @@ Partidas anuladas são excluídas. Partidas pendentes podem aparecer apenas em v
 - `Match`: agregado principal.
 - `MatchTeam`: um lado participante e seu resultado.
 - `MatchParticipant`: jogador humano, convidado ou IA pertencente a uma equipe.
+- `PlayerMatchStatistics`: estatísticas normalizadas por participante; humanos se vinculam ao perfil e IAs à dificuldade, independentemente da civilização usada.
 - `MatchSettings`: configurações específicas.
 - `MatchSeries`: agrupamento de partidas.
 - `MatchEvidence`: vídeo, imagem, replay ou link.

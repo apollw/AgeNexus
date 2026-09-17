@@ -35,7 +35,7 @@ public sealed record SavePerformanceReportRequest(
     string? ImportDetails = null);
 
 public sealed record SavePlayerStatistics(
-    Guid PlayerProfileId,
+    Guid MatchParticipantId,
     MatchStatisticValues Values,
     StatisticValueOrigin Origin = StatisticValueOrigin.Manual);
 
@@ -69,7 +69,9 @@ public sealed record PerformanceReportView(
     IReadOnlyCollection<Guid> ConfirmedTeamIds);
 
 public sealed record PerformancePlayerView(
-    Guid PlayerProfileId,
+    Guid MatchParticipantId,
+    Guid? PlayerProfileId,
+    Guid? AiDifficultyId,
     Guid TeamId,
     string DisplayName,
     TeamResult TeamResult,

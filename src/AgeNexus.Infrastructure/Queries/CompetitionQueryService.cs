@@ -313,7 +313,8 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                    report.Status == Domain.MatchPerformance.MatchStatisticsStatus.Awarded)
             select statistic).ToArrayAsync(cancellationToken);
 
-        var playerIds = rows.Select(x => x.PlayerProfileId).Distinct().ToArray();
+        rows = rows.Where(x => x.PlayerProfileId.HasValue).ToArray();
+        var playerIds = rows.Select(x => x.PlayerProfileId!.Value).Distinct().ToArray();
         var playersById = await database.PlayerProfiles.AsNoTracking()
             .Where(x => playerIds.Contains(x.Id))
             .Select(x => new PlayerIdentity(x.Id, x.DisplayName, x.AvatarUrl))
@@ -347,7 +348,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             bool descending)
         {
             var values = rows
-                .GroupBy(x => x.PlayerProfileId)
+                .GroupBy(x => x.PlayerProfileId!.Value)
                 .Select(group =>
                 {
                     var available = group.Select(selector).Where(x => x.HasValue)

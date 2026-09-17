@@ -32,17 +32,17 @@ internal sealed class GeneralStatisticsQueryService(
             join match in database.Matches.AsNoTracking()
                 on statistic.MatchId equals match.Id
             join player in database.PlayerProfiles.AsNoTracking()
-                on statistic.PlayerProfileId equals player.Id
-            where match.Status == MatchStatus.Validated &&
+                on statistic.PlayerProfileId equals (Guid?)player.Id
+            where statistic.PlayerProfileId.HasValue && match.Status == MatchStatus.Validated &&
                   (report.Status == MatchStatisticsStatus.Confirmed ||
                    report.Status == MatchStatisticsStatus.Awarded)
-            select new { Statistic = statistic, player.DisplayName, player.AvatarUrl };
+            select new { Statistic = statistic, PlayerId = player.Id, player.DisplayName, player.AvatarUrl };
 
         var rows = await source
-            .GroupBy(x => new { x.Statistic.PlayerProfileId, x.DisplayName, x.AvatarUrl })
+            .GroupBy(x => new { x.PlayerId, x.DisplayName, x.AvatarUrl })
             .Select(group => new GeneralStatisticsAggregate
             {
-                PlayerId = group.Key.PlayerProfileId,
+                PlayerId = group.Key.PlayerId,
                 DisplayName = group.Key.DisplayName,
                 AvatarUrl = group.Key.AvatarUrl,
                 RowCount = group.Count(),

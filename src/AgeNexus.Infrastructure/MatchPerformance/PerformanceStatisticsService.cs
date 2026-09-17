@@ -53,14 +53,19 @@ public sealed class PerformanceStatisticsService(
             return null;
         }
 
-        var humans = match.Teams.OrderBy(team => team.Position).SelectMany(team => team.Participants
-            .Where(x => x.Type == ParticipantType.Human)
-            .Select(x => new { Team = team, PlayerId = x.PlayerProfileId!.Value })).ToArray();
-        var playerIds = humans.Select(x => x.PlayerId).ToArray();
+        var participants = match.Teams.OrderBy(team => team.Position).SelectMany(team => team.Participants
+            .Select(participant => new { Team = team, Participant = participant })).ToArray();
+        var playerIds = participants.Where(x => x.Participant.PlayerProfileId.HasValue)
+            .Select(x => x.Participant.PlayerProfileId!.Value).ToArray();
+        var aiDifficultyIds = participants.Where(x => x.Participant.AiDifficultyId.HasValue)
+            .Select(x => x.Participant.AiDifficultyId!.Value).ToArray();
         var report = await readDatabase.MatchStatisticsReports.AsNoTracking()
             .SingleOrDefaultAsync(x => x.MatchId == matchId, cancellationToken);
         var names = await readDatabase.PlayerProfiles.AsNoTracking().Where(x => playerIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
+        var difficultyNames = await readDatabase.AiDifficulties.AsNoTracking()
+            .Where(x => aiDifficultyIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
         var statistics = report is null
             ? []
             : await readDatabase.PlayerMatchStatistics.AsNoTracking()
@@ -74,16 +79,24 @@ public sealed class PerformanceStatisticsService(
             : await readDatabase.StatisticsConfirmations.AsNoTracking()
                 .Where(x => x.ReportId == report.Id && x.Decision == StatisticsConfirmationDecision.Confirmed)
                 .Select(x => x.TeamId).ToArrayAsync(cancellationToken);
-        var statisticLookup = statistics.ToDictionary(x => x.PlayerProfileId);
+        var statisticLookup = statistics.ToDictionary(x => x.MatchParticipantId);
         var scoreLookup = scores.ToDictionary(x => x.PlayerProfileId);
-        var players = humans.Select(x =>
+        var players = participants.Select(x =>
         {
-            statisticLookup.TryGetValue(x.PlayerId, out var statistic);
-            scoreLookup.TryGetValue(x.PlayerId, out var score);
+            var participant = x.Participant;
+            statisticLookup.TryGetValue(participant.Id, out var statistic);
+            var score = participant.PlayerProfileId.HasValue
+                ? scoreLookup.GetValueOrDefault(participant.PlayerProfileId.Value)
+                : null;
+            var displayName = participant.PlayerProfileId.HasValue
+                ? names.GetValueOrDefault(participant.PlayerProfileId.Value, "Jogador")
+                : $"IA {difficultyNames.GetValueOrDefault(participant.AiDifficultyId!.Value, "Configurada")}";
             return new PerformancePlayerView(
-                x.PlayerId,
+                participant.Id,
+                participant.PlayerProfileId,
+                participant.AiDifficultyId,
                 x.Team.Id,
-                names.GetValueOrDefault(x.PlayerId, "Jogador"),
+                displayName,
                 x.Team.Result,
                 statistic?.Origin,
                 statistic?.ToValues() ?? new MatchStatisticValues(),
@@ -122,12 +135,12 @@ public sealed class PerformanceStatisticsService(
             return PerformanceOperationResult.Failure("NotAuthorized");
         }
 
-        var participantTeams = HumanParticipantTeams(match);
-        if (request.Players.Count != participantTeams.Count ||
-            request.Players.Select(x => x.PlayerProfileId).Distinct().Count() != request.Players.Count ||
-            request.Players.Any(x => !participantTeams.ContainsKey(x.PlayerProfileId)))
+        var participants = MatchParticipants(match);
+        if (request.Players.Count != participants.Count ||
+            request.Players.Select(x => x.MatchParticipantId).Distinct().Count() != request.Players.Count ||
+            request.Players.Any(x => !participants.ContainsKey(x.MatchParticipantId)))
         {
-            return PerformanceOperationResult.Failure("StatisticsMustIncludeEveryHuman");
+            return PerformanceOperationResult.Failure("StatisticsMustIncludeEveryParticipant");
         }
 
         try
@@ -159,24 +172,25 @@ public sealed class PerformanceStatisticsService(
 
             var existing = await database.PlayerMatchStatistics
                 .Where(x => x.ReportId == report.Id)
-                .ToDictionaryAsync(x => x.PlayerProfileId, cancellationToken);
+                .ToDictionaryAsync(x => x.MatchParticipantId, cancellationToken);
             foreach (var submitted in request.Players)
             {
+                var participant = participants[submitted.MatchParticipantId];
                 var origin = request.Source switch
                 {
                     MatchStatisticsSource.ScreenshotTranscription => StatisticValueOrigin.Screenshot,
                     MatchStatisticsSource.JsonImport => StatisticValueOrigin.JsonImport,
                     _ => submitted.Origin
                 };
-                if (existing.TryGetValue(submitted.PlayerProfileId, out var statistic))
+                if (existing.TryGetValue(submitted.MatchParticipantId, out var statistic))
                 {
                     statistic.Apply(submitted.Values, origin);
                 }
                 else
                 {
                     database.PlayerMatchStatistics.Add(new PlayerMatchStatistics(
-                        Guid.NewGuid(), report.Id, match.Id, participantTeams[submitted.PlayerProfileId],
-                        submitted.PlayerProfileId, origin, submitted.Values));
+                        Guid.NewGuid(), report.Id, match.Id, participant.TeamId, participant.ParticipantId,
+                        participant.PlayerProfileId, participant.AiDifficultyId, origin, submitted.Values));
                 }
             }
 
@@ -216,11 +230,11 @@ public sealed class PerformanceStatisticsService(
             return PerformanceOperationResult.Failure("NotAuthorized");
         }
 
-        var humanCount = HumanParticipantTeams(match).Count;
+        var participantCount = MatchParticipants(match).Count;
         var statistics = await database.PlayerMatchStatistics.Where(x => x.ReportId == reportId).ToArrayAsync(cancellationToken);
         var humanTeamIds = match.Teams.Where(x => x.HumanCount > 0).Select(x => x.Id).ToArray();
         if (SingleAdministratorMode && humanTeamIds.Any(teamId =>
-                statistics.Count(x => x.TeamId == teamId && x.IsTeamMvp) != 1))
+                statistics.Count(x => x.TeamId == teamId && x.PlayerProfileId.HasValue && x.IsTeamMvp) != 1))
         {
             return PerformanceOperationResult.Failure("TeamMvpRequired");
         }
@@ -228,7 +242,7 @@ public sealed class PerformanceStatisticsService(
         try
         {
             var now = DateTimeOffset.UtcNow;
-            report.Submit(now, statistics.Length == humanCount && statistics.All(x => x.IsComplete));
+            report.Submit(now, statistics.Length == participantCount && statistics.All(x => x.IsComplete));
             if (SingleAdministratorMode)
             {
                 report.MarkConfirmed(now);
@@ -385,19 +399,25 @@ public sealed class PerformanceStatisticsService(
             return PerformanceOperationResult.Failure("ReportIsIncomplete");
         }
 
+        var humanStatistics = statistics.Where(x => x.PlayerProfileId.HasValue).ToArray();
+        if (humanStatistics.Length == 0)
+        {
+            return PerformanceOperationResult.Failure("ReportIsIncomplete");
+        }
+
         var teams = match.Teams.ToDictionary(x => x.Id);
         var calculation = calculator.Calculate(new PerformanceCalculationRequest(
             match.ScoringCategory,
             match.Teams.Max(x => x.HumanCount),
-            statistics.Select(x => new PerformancePlayerInput(
-                x.PlayerProfileId,
+            humanStatistics.Select(x => new PerformancePlayerInput(
+                x.PlayerProfileId!.Value,
                 x.TeamId,
                 teams[x.TeamId].Result,
                 x.MilitaryScore!.Value,
                 x.EconomyScore!.Value,
                 x.TechnologyScore!.Value,
                 x.SocietyScore!.Value)).ToArray()));
-        var statisticByPlayer = statistics.ToDictionary(x => x.PlayerProfileId);
+        var statisticByPlayer = humanStatistics.ToDictionary(x => x.PlayerProfileId!.Value);
         var mvpBonus = match.ScoringCategory switch
         {
             MatchScoringCategory.PurePvp => 2,
@@ -494,6 +514,21 @@ public sealed class PerformanceStatisticsService(
             .Where(x => x.Type == ParticipantType.Human)
             .Select(x => new { PlayerId = x.PlayerProfileId!.Value, TeamId = team.Id }))
             .ToDictionary(x => x.PlayerId, x => x.TeamId);
+
+    private static Dictionary<Guid, MatchParticipantReference> MatchParticipants(Match match) =>
+        match.Teams.SelectMany(team => team.Participants.Select(participant =>
+                new MatchParticipantReference(
+                    participant.Id,
+                    team.Id,
+                    participant.PlayerProfileId,
+                    participant.AiDifficultyId)))
+            .ToDictionary(x => x.ParticipantId);
+
+    private sealed record MatchParticipantReference(
+        Guid ParticipantId,
+        Guid TeamId,
+        Guid? PlayerProfileId,
+        Guid? AiDifficultyId);
 
     private bool SingleAdministratorMode =>
         configuration.GetValue("OperatingMode:SingleAdministrator", true);
