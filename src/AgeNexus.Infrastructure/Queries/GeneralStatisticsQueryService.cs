@@ -109,7 +109,8 @@ internal sealed class GeneralStatisticsQueryService(
             GeneralStatisticValueKind valueKind,
             Func<GeneralStatisticsAggregate, decimal?> value,
             Func<GeneralStatisticsAggregate, int> matches,
-            bool descending = true)
+            bool descending = true,
+            bool isNegative = false)
         {
             var available = rows.Where(x => matches(x) > 0 && value(x).HasValue);
             var ordered = descending
@@ -119,15 +120,15 @@ internal sealed class GeneralStatisticsQueryService(
                 .Select((x, index) => new GeneralStatisticEntry(
                     index + 1, x.PlayerId, x.DisplayName, x.AvatarUrl, value(x)!.Value, matches(x)))
                 .ToArray();
-            return new GeneralStatisticBoard(key, category, title, description, valueKind, entries);
+            return new GeneralStatisticBoard(key, category, title, description, valueKind, entries, isNegative);
         }
 
         var boards = new[]
         {
             Board("units-killed", "Combate", "O Ceifador", "Maior total de unidades inimigas eliminadas.", GeneralStatisticValueKind.Integer, x => x.UnitsKilled, x => x.UnitsKilledMatches),
-            Board("units-lost", "Combate", "O Doador de Experiência", "Maior total de unidades próprias perdidas em batalha.", GeneralStatisticValueKind.Integer, x => x.UnitsLost, x => x.UnitsLostMatches),
+            Board("units-lost", "Combate", "O Doador de Experiência", "Maior total de unidades próprias perdidas em batalha.", GeneralStatisticValueKind.Integer, x => x.UnitsLost, x => x.UnitsLostMatches, isNegative: true),
             Board("buildings-destroyed", "Combate", "O Demolidor", "Maior total de edifícios inimigos destruídos.", GeneralStatisticValueKind.Integer, x => x.BuildingsDestroyed, x => x.BuildingsDestroyedMatches),
-            Board("buildings-lost", "Combate", "O Sem-Teto", "Maior total de edifícios próprios perdidos.", GeneralStatisticValueKind.Integer, x => x.BuildingsLost, x => x.BuildingsLostMatches),
+            Board("buildings-lost", "Combate", "O Sem-Teto", "Maior total de edifícios próprios perdidos.", GeneralStatisticValueKind.Integer, x => x.BuildingsLost, x => x.BuildingsLostMatches, isNegative: true),
             Board("conversions", "Combate", "O Inquisidor", "Maior total de unidades convertidas por monges.", GeneralStatisticValueKind.Integer, x => x.UnitsConverted, x => x.UnitsConvertedMatches),
             Board("largest-army", "Combate", "O Senhor das Hostes", "Maior exército registrado em uma única partida.", GeneralStatisticValueKind.Integer, x => x.LargestArmy, x => x.LargestArmyMatches),
             Board("food", "Economia", "O Mestre das Provisões", "Maior soma de comida coletada.", GeneralStatisticValueKind.Integer, x => x.FoodCollected, x => x.FoodCollectedMatches),

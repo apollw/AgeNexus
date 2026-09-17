@@ -1,4 +1,5 @@
 @page "/estatisticas/gerais"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Application.Queries.IGeneralStatisticsQueryService Statistics
 
 <PageTitle>Estatísticas gerais · Age Nexus</PageTitle>
@@ -43,7 +44,7 @@ else
                                   Class="records-master-avatar" Lazy="false" />
                     <div>
                         <h2>@master.DisplayName</h2>
-                        <p>Ocupa o primeiro lugar em <strong>@master.FirstPlaces</strong> categorias.</p>
+                        <p>Ocupa o primeiro lugar em <strong>@master.FirstPlaces</strong> recordes positivos.</p>
                     </div>
                 </div>
             }
@@ -54,7 +55,7 @@ else
                     <div class="records-podium-place records-podium-@leader.Position">
                         <span>@Roman(leader.Position)</span>
                         <PlayerAvatar DisplayName="@leader.DisplayName" Url="@leader.AvatarUrl" Size="compact" />
-                        <div><strong>@leader.DisplayName</strong><small>@leader.FirstPlaces liderança(s)</small></div>
+                        <div><strong>@leader.DisplayName</strong><small>@leader.FirstPlaces liderança(s) positiva(s)</small></div>
                     </div>
                 }
             </div>
@@ -73,25 +74,49 @@ else
         @foreach (var board in FeaturedBoards)
         {
             var champion = board.Entries.First();
-            <a href="/estatisticas/gerais#@CategoryId(board.Category)" class="records-feature">
+            <button type="button" class="records-feature" @onclick="() => SelectCategory(board.Category, false)">
                 <span class="records-feature-mark">@ShortMark(board.Key)</span>
                 <div><small>@board.Title</small><strong>@champion.DisplayName</strong></div>
                 <b>@FormatValue(champion.Value, board.ValueKind)</b>
-            </a>
+            </button>
         }
     </section>
 
-    <nav class="records-category-nav" aria-label="Categorias de recordes">
-        <span>Ir para</span>
-        @foreach (var category in Categories)
+    <div class="record-kind-tabs records-kind-tabs" role="tablist" aria-label="Tipos de recordes gerais">
+        <button class="record-kind-positive @(!ShowNegativeRecords ? "active" : null)" type="button"
+                role="tab" aria-selected="@(!ShowNegativeRecords)" @onclick="() => SelectRecordKind(false)">
+            <span>✦</span><strong>Marcas positivas</strong><small>@PositiveRecordCount conquistas monitoradas</small>
+        </button>
+        <button class="record-kind-negative @(ShowNegativeRecords ? "active" : null)" type="button"
+                role="tab" aria-selected="@ShowNegativeRecords" @onclick="() => SelectRecordKind(true)">
+            <span>↓</span><strong>Marcas negativas</strong><small>@NegativeRecordCount marcas inglórias monitoradas</small>
+        </button>
+    </div>
+
+    <nav class="records-category-nav" aria-label="Categorias dos recordes">
+        <span>Categoria</span>
+        @foreach (var category in ActiveCategories)
         {
-            <a href="/estatisticas/gerais#@CategoryId(category)"><b>@CategoryNumber(category)</b>@category</a>
+            <button class="@(SelectedCategory == category ? "active" : null)" type="button"
+                    aria-expanded="@(SelectedCategory == category)"
+                    @onclick="() => SelectCategory(category, ShowNegativeRecords)"><b>@CategoryNumber(category)</b>@category</button>
         }
     </nav>
 
-    @foreach (var category in Categories)
+    @if (SelectedCategory is null)
     {
-        var categoryBoards = Dashboard.Boards.Where(x => x.Category == category).ToArray();
+        <section class="records-category-prompt">
+            <span>◇</span>
+            <div>
+                <strong>Abra uma categoria para consultar seus recordes</strong>
+                <p>Somente a categoria escolhida será exibida. Ao voltar a ela, o conteúdo já estará pronto na memória.</p>
+            </div>
+        </section>
+    }
+    else
+    {
+        var category = SelectedCategory!;
+        var categoryBoards = ActiveCategoryBoards;
         <section class="records-category records-category-@CategoryClass(category)" id="@CategoryId(category)">
             <header class="records-category-heading">
                 <div class="records-category-number">@CategoryNumber(category)</div>
@@ -103,66 +128,77 @@ else
                 <span class="records-category-count">@categoryBoards.Length marcas</span>
             </header>
 
-            <div class="records-board-grid">
-                @foreach (var indexed in categoryBoards.Select((board, index) => new { Board = board, Index = index + 1 }))
-                {
-                    var board = indexed.Board;
-                    <article class="record-board @(IsNegativeRecord(board.Key) ? "record-board-negative" : null)">
-                        <header class="record-board-heading">
-                            <span>@indexed.Index.ToString("00")</span>
-                            <div><h3>@board.Title</h3><p>@board.Description</p></div>
-                        </header>
+            @if (CategoryCache.ContainsKey(CategoryCacheKey(category, ShowNegativeRecords)))
+            {
+                <div class="records-board-grid">
+                    @foreach (var indexed in categoryBoards.Select((board, index) => new { Board = board, Index = index + 1 }))
+                    {
+                        var board = indexed.Board;
+                        <article class="record-board @(board.IsNegative ? "record-board-negative" : null)">
+                            <header class="record-board-heading">
+                                <span>@indexed.Index.ToString("00")</span>
+                                <div><h3>@board.Title</h3><p>@board.Description</p></div>
+                            </header>
 
-                        @if (board.Entries.Count == 0)
-                        {
-                            <div class="record-board-empty">Aguardando dados</div>
-                        }
-                        else
-                        {
-                            var champion = board.Entries.First();
-                            <div class="record-board-champion">
-                                <span class="record-crown">♛</span>
-                                <PlayerAvatar DisplayName="@champion.DisplayName" Url="@champion.AvatarUrl" Size="list"
-                                              Class="record-avatar" />
-                                <div>
-                                    <small>@(IsNegativeRecord(board.Key) ? "Marca inglória" : "Recordista atual")</small>
-                                    <strong>@champion.DisplayName</strong>
-                                    <span>@champion.Matches partida(s) contabilizada(s)</span>
-                                </div>
-                                <b>@FormatValue(champion.Value, board.ValueKind)</b>
-                            </div>
-
-                            @if (board.Entries.Count > 1)
+                            @if (board.Entries.Count == 0)
                             {
-                                <ol class="record-board-ranking">
-                                    @foreach (var entry in board.Entries.Skip(1))
-                                    {
-                                        <li>
-                                            <span>@entry.Position</span>
-                                            <PlayerAvatar DisplayName="@entry.DisplayName" Url="@entry.AvatarUrl" Size="compact" />
-                                            <strong>@entry.DisplayName</strong>
-                                            <small>@entry.Matches jogo(s)</small>
-                                            <b>@FormatValue(entry.Value, board.ValueKind)</b>
-                                        </li>
-                                    }
-                                </ol>
+                                <div class="record-board-empty">Aguardando dados</div>
                             }
-                        }
-                    </article>
-                }
-            </div>
+                            else
+                            {
+                                var champion = board.Entries.First();
+                                <div class="record-board-champion">
+                                    <span class="record-crown">♛</span>
+                                    <PlayerAvatar DisplayName="@champion.DisplayName" Url="@champion.AvatarUrl" Size="list"
+                                                  Class="record-avatar" />
+                                    <div>
+                                        <small>@(board.IsNegative ? "Marca inglória" : "Recordista atual")</small>
+                                        <strong>@champion.DisplayName</strong>
+                                        <span>@champion.Matches partida(s) contabilizada(s)</span>
+                                    </div>
+                                    <b>@FormatValue(champion.Value, board.ValueKind)</b>
+                                </div>
+
+                                @if (board.Entries.Count > 1)
+                                {
+                                    <ol class="record-board-ranking">
+                                        @foreach (var entry in board.Entries.Skip(1))
+                                        {
+                                            <li>
+                                                <span>@entry.Position</span>
+                                                <PlayerAvatar DisplayName="@entry.DisplayName" Url="@entry.AvatarUrl" Size="compact" />
+                                                <strong>@entry.DisplayName</strong>
+                                                <small>@entry.Matches jogo(s)</small>
+                                                <b>@FormatValue(entry.Value, board.ValueKind)</b>
+                                            </li>
+                                        }
+                                    </ol>
+                                }
+                            }
+                        </article>
+                    }
+                </div>
+            }
         </section>
     }
 }
 
 @code {
     private AgeNexus.Application.Queries.GeneralStatisticsDashboard? Dashboard { get; set; }
+    private Dictionary<string, AgeNexus.Application.Queries.GeneralStatisticBoard[]> CategoryCache { get; } = [];
+    private bool ShowNegativeRecords { get; set; }
+    private string? SelectedCategory { get; set; }
 
-    private IReadOnlyCollection<string> Categories => Dashboard?.Boards
-        .Select(x => x.Category).Distinct().ToArray() ?? [];
+    private IReadOnlyCollection<string> ActiveCategories => Dashboard?.Boards
+        .Where(board => board.IsNegative == ShowNegativeRecords)
+        .Select(board => board.Category).Distinct().ToArray() ?? [];
+    private AgeNexus.Application.Queries.GeneralStatisticBoard[] ActiveCategoryBoards => SelectedCategory is not null &&
+        CategoryCache.TryGetValue(CategoryCacheKey(SelectedCategory, ShowNegativeRecords), out var boards) ? boards : [];
+    private int PositiveRecordCount => Dashboard?.Boards.Count(board => !board.IsNegative) ?? 0;
+    private int NegativeRecordCount => Dashboard?.Boards.Count(board => board.IsNegative) ?? 0;
 
     private IReadOnlyCollection<RecordLeader> OverallLeaders => Dashboard?.Boards
-        .Where(x => x.Entries.Count > 0)
+        .Where(x => !x.IsNegative && x.Entries.Count > 0)
         .Select(x => x.Entries.First())
         .GroupBy(x => new { x.PlayerId, x.DisplayName, x.AvatarUrl })
         .Select(x => new { x.Key.PlayerId, x.Key.DisplayName, x.Key.AvatarUrl, FirstPlaces = x.Count() })
@@ -177,6 +213,33 @@ else
             new[] { "units-killed", "gold", "fastest-feudal", "total-score" }.Contains(x.Key)).ToArray() ?? [];
 
     protected override async Task OnInitializedAsync() => Dashboard = await Statistics.GetAsync();
+
+    private void SelectRecordKind(bool negative)
+    {
+        ShowNegativeRecords = negative;
+        SelectedCategory = null;
+    }
+
+    private void SelectCategory(string category, bool negative)
+    {
+        if (ShowNegativeRecords == negative && SelectedCategory == category)
+        {
+            SelectedCategory = null;
+            return;
+        }
+
+        ShowNegativeRecords = negative;
+        SelectedCategory = category;
+        var cacheKey = CategoryCacheKey(category, negative);
+        if (!CategoryCache.ContainsKey(cacheKey))
+        {
+            CategoryCache[cacheKey] = Dashboard?.Boards
+                .Where(board => board.Category == category && board.IsNegative == negative)
+                .ToArray() ?? [];
+        }
+    }
+
+    private static string CategoryCacheKey(string category, bool negative) => $"{(negative ? "negative" : "positive")}:{category}";
 
     private static string FormatValue(decimal value, AgeNexus.Application.Queries.GeneralStatisticValueKind kind) => kind switch
     {
@@ -228,8 +291,6 @@ else
         "total-score" => "Σ",
         _ => "•"
     };
-
-    private static bool IsNegativeRecord(string key) => key is "units-lost" or "buildings-lost";
 
     private static string Roman(int value) => value switch { 1 => "I", 2 => "II", _ => "III" };
 

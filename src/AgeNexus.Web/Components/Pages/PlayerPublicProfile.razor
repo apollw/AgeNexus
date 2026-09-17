@@ -1,10 +1,17 @@
 @page "/jogadores/{PlayerId:guid}"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Application.Queries.IPlayerPublicProfileQueryService Profiles
 @inject AgeNexus.Application.Queries.IGeneralStatisticsQueryService GeneralStatistics
 
 <PageTitle>@(Profile is null ? "Jogador" : Profile.DisplayName) · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@(LoadingProfile || LoadingRecords)"
+                Message="@(LoadingRecords ? "Consultando marcas pessoais..." : "Carregando perfil...")" />
 
-@if (Profile is null)
+@if (LoadingProfile)
+{
+    <section class="panel panel-empty page-empty"><strong>Carregando perfil...</strong></section>
+}
+else if (Profile is null)
 {
     <section class="panel panel-empty page-empty"><strong>Jogador não encontrado.</strong><a class="button button-secondary" href="/jogadores">Voltar</a></section>
 }
@@ -59,15 +66,52 @@ else
 
     <div class="public-profile-grid">
         <section class="panel public-profile-section">
-            <header class="panel-header"><div><span class="eyebrow">Marcas pessoais</span><h2>Recordes relevantes</h2></div><span class="evidence-count">@Records.Count marcas</span></header>
-            @if (Records.Count == 0)
+            <header class="panel-header">
+                <div><span class="eyebrow">Marcas pessoais</span><h2>Recordes relevantes</h2></div>
+                <span class="evidence-count">@(RecordsLoaded ? $"{Records.Count} marcas" : "Por categoria")</span>
+            </header>
+
+            <div class="record-kind-tabs" role="tablist" aria-label="Tipos de marcas pessoais">
+                <button class="record-kind-positive @(!ShowNegativeRecords ? "active" : null)" type="button"
+                        role="tab" aria-selected="@(!ShowNegativeRecords)" @onclick="() => SelectRecordKind(false)">
+                    <span>✦</span><strong>Marcas positivas</strong><small>Conquistas e melhores desempenhos</small>
+                </button>
+                <button class="record-kind-negative @(ShowNegativeRecords ? "active" : null)" type="button"
+                        role="tab" aria-selected="@ShowNegativeRecords" @onclick="() => SelectRecordKind(true)">
+                    <span>↓</span><strong>Marcas negativas</strong><small>Perdas e marcas inglórias</small>
+                </button>
+            </div>
+
+            <nav class="profile-record-categories" aria-label="Categorias das marcas pessoais">
+                @foreach (var category in ActiveCategories)
+                {
+                    <button class="@(SelectedCategory == category ? "active" : null)" type="button"
+                            aria-expanded="@(SelectedCategory == category)"
+                            @onclick="() => LoadRecordCategoryAsync(category)">
+                        @category
+                    </button>
+                }
+            </nav>
+
+            @if (SelectedCategory is null)
             {
-                <div class="panel-empty"><p>As marcas aparecerão quando houver estatísticas confirmadas.</p></div>
+                <div class="record-category-prompt">
+                    <span>◇</span>
+                    <div><strong>Escolha uma categoria</strong><p>As marcas serão carregadas somente quando você quiser consultá-las.</p></div>
+                </div>
+            }
+            else if (!RecordCategoryCache.ContainsKey(RecordCategoryKey(SelectedCategory, ShowNegativeRecords)))
+            {
+                <div class="panel-empty"><p>Consultando marcas de @SelectedCategory.ToLowerInvariant()...</p></div>
+            }
+            else if (ActiveRecords.Count == 0)
+            {
+                <div class="panel-empty"><p>Nenhuma marca nesta categoria ainda.</p></div>
             }
             else
             {
                 <div class="profile-record-list">
-                    @foreach (var record in Records)
+                    @foreach (var record in ActiveRecords)
                     {
                         <article class="profile-record @(record.IsNegative ? "profile-record-negative" : null)">
                             <span class="profile-record-rank">#@record.Position</span>
@@ -111,21 +155,81 @@ else
 
     private AgeNexus.Application.Queries.PlayerPublicProfileDashboard? Profile { get; set; }
     private IReadOnlyCollection<PlayerRecord> Records { get; set; } = [];
+    private Dictionary<string, PlayerRecord[]> RecordCategoryCache { get; } = [];
+    private bool RecordsLoaded { get; set; }
+    private bool LoadingProfile { get; set; } = true;
+    private bool LoadingRecords { get; set; }
+    private bool ShowNegativeRecords { get; set; }
+    private string? SelectedCategory { get; set; }
+    private static readonly string[] PositiveCategories = ["Combate", "Economia", "Tecnologia", "Sociedade", "Placar"];
+    private static readonly string[] NegativeCategories = ["Combate"];
+    private IReadOnlyCollection<string> ActiveCategories => ShowNegativeRecords ? NegativeCategories : PositiveCategories;
+    private IReadOnlyCollection<PlayerRecord> ActiveRecords => SelectedCategory is not null &&
+        RecordCategoryCache.TryGetValue(RecordCategoryKey(SelectedCategory, ShowNegativeRecords), out var records) ? records : [];
 
     protected override async Task OnParametersSetAsync()
     {
-        Profile = await Profiles.GetAsync(PlayerId);
-        if (Profile is null) return;
+        LoadingProfile = true;
+        try
+        {
+            Profile = await Profiles.GetAsync(PlayerId);
+            Records = [];
+            RecordsLoaded = false;
+            RecordCategoryCache.Clear();
+            ShowNegativeRecords = false;
+            SelectedCategory = null;
+        }
+        finally
+        {
+            LoadingProfile = false;
+        }
+    }
 
-        var dashboard = await GeneralStatistics.GetAsync(5);
-        Records = dashboard.Boards.SelectMany(board => board.Entries
+    private void SelectRecordKind(bool negative)
+    {
+        ShowNegativeRecords = negative;
+        SelectedCategory = null;
+    }
+
+    private async Task LoadRecordCategoryAsync(string category)
+    {
+        if (SelectedCategory == category)
+        {
+            SelectedCategory = null;
+            return;
+        }
+
+        SelectedCategory = category;
+        var negative = ShowNegativeRecords;
+        var categoryKey = RecordCategoryKey(category, negative);
+        if (RecordCategoryCache.ContainsKey(categoryKey)) return;
+
+        LoadingRecords = true;
+        try
+        {
+            if (!RecordsLoaded)
+            {
+                var dashboard = await GeneralStatistics.GetAsync(5);
+                Records = dashboard.Boards.SelectMany(board => board.Entries
                 .Where(entry => entry.PlayerId == PlayerId)
                 .Select(entry => new PlayerRecord(
-                    board.Title, entry.Position, entry.Value, entry.Matches, board.ValueKind,
-                    board.Key is "units-lost" or "buildings-lost")))
-            .OrderBy(x => x.Position).ThenBy(x => x.Title)
-            .ToArray();
+                    board.Category, board.Title, entry.Position, entry.Value, entry.Matches, board.ValueKind,
+                    board.IsNegative)))
+                    .ToArray();
+                RecordsLoaded = true;
+            }
+
+            RecordCategoryCache[categoryKey] = Records
+                .Where(record => record.IsNegative == negative && record.Category == category)
+                .OrderBy(record => record.Position).ThenBy(record => record.Title).ToArray();
+        }
+        finally
+        {
+            LoadingRecords = false;
+        }
     }
+
+    private static string RecordCategoryKey(string category, bool negative) => $"{(negative ? "negative" : "positive")}:{category}";
 
     private static string FormatValue(decimal value, AgeNexus.Application.Queries.GeneralStatisticValueKind kind) => kind switch
     {
@@ -146,6 +250,7 @@ else
     private static string VictoryCount(int count) => $"{count} {(count == 1 ? "vitória" : "vitórias")}";
 
     private sealed record PlayerRecord(
+        string Category,
         string Title,
         int Position,
         decimal Value,

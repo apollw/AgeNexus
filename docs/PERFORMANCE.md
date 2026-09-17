@@ -46,3 +46,7 @@ Build e testes automatizados confirmam regras e regressões conhecidas, mas não
 ## Avatares
 
 As listagens usam um componente único com dimensões reservadas, decodificação assíncrona e carregamento tardio para imagens fora da área visível. Avatares locais possuem URL versionada pelo conteúdo, cache imutável no navegador por um ano e cache de seis horas em memória no servidor. Assim, navegar entre jogadores, rankings e recordes não repete uma leitura do PostgreSQL para cada foto. O cache em memória aceita apenas a versão hexadecimal presente na URL e contabiliza o tamanho das imagens no limite global da aplicação.
+
+## Navegação pelos recordes
+
+Marcas positivas e negativas são classificadas nos dados e exibidas separadamente no perfil e em Recordes Gerais. As categorias permanecem recolhidas até serem solicitadas; somente uma fica visível por vez e cada categoria aberta é mantida na memória do componente. No perfil, a consulta das marcas é adiada até o primeiro clique. A consulta geral também utiliza o cache compartilhado de competição, com validade de dois minutos e invalidação após alterações relevantes.

@@ -82,7 +82,8 @@ Os fluxos de conta ficam em:
 - `/conta/login` — entrada exclusivamente pelo Google;
 - `/conta/vincular-perfil` — escolha de um nick histórico ou criação de um novo jogador;
 - `/perfil` — personalização de nick, localização, foto, civilização favorita e bio;
-- `/jogadores/{id}` — perfil público, histórico, civilizações usadas e recordes relevantes.
+- `/jogadores/{id}` — perfil público, civilizações usadas e marcas positivas ou negativas organizadas por categoria.
+- `/estatisticas/gerais` — resumo da comunidade e recordes gerais recolhíveis por tipo e categoria.
 
 ## Autenticação exclusiva com Google
 
