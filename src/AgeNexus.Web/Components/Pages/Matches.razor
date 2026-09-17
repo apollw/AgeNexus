@@ -109,7 +109,7 @@
                 <a class="pagination-arrow @(MatchPage.Page == 1 ? "disabled" : null)" href="@(MatchPage.Page == 1 ? null : PageUrl(MatchPage.Page - 1))" aria-label="Página anterior">←</a>
                 @foreach (var page in VisiblePages())
                 {
-                    <a class="@(page == MatchPage.Page ? "active" : null)" href="@PageUrl(page)" aria-current="@(page == MatchPage.Page ? "page" : null)">@page</a>
+                    <a class="@(page == MatchPage.Page ? "active" : null)" href="@PageUrl(page)" aria-current="@(page == MatchPage.Page ? "page" : null)">@(page)</a>
                 }
                 <a class="pagination-arrow @(MatchPage.Page == MatchPage.TotalPages ? "disabled" : null)" href="@(MatchPage.Page == MatchPage.TotalPages ? null : PageUrl(MatchPage.Page + 1))" aria-label="Próxima página">→</a>
             </nav>
