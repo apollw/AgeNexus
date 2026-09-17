@@ -13,6 +13,7 @@
 @inject Microsoft.JSInterop.IJSRuntime JS
 
 <PageTitle>Desempenho da partida · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@(IsLoading || (Busy && ExtractorProgress is null))" Message="Atualizando a partida..." />
 
 <section class="page-heading compact-heading">
     <div>

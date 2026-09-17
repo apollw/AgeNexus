@@ -21,7 +21,7 @@
 else
 {
     <section class="card-grid">
-        @foreach (var player in PlayerItems)
+        @foreach (var player in VisiblePlayers)
         {
             <a class="panel quick-card player-directory-card" href="/jogadores/@player.PlayerId">
                 <PlayerAvatar DisplayName="@player.DisplayName" Url="@player.AvatarUrl" Size="directory" />
@@ -33,10 +33,16 @@ else
             </a>
         }
     </section>
+    <PaginationNav CurrentPage="@CurrentPage" TotalItems="@PlayerItems.Count" PageSize="@PageSize" BasePath="/jogadores" />
 }
 
 @code {
+    private const int PageSize = 12;
+    [SupplyParameterFromQuery(Name = "pagina")] private int Page { get; set; } = 1;
     private IReadOnlyCollection<AgeNexus.Application.Queries.PlayerSummary> PlayerItems { get; set; } = [];
+    private int CurrentPage => Math.Clamp(Page, 1, Math.Max(1, (int)Math.Ceiling(PlayerItems.Count / (double)PageSize)));
+    private IEnumerable<AgeNexus.Application.Queries.PlayerSummary> VisiblePlayers =>
+        PlayerItems.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
 
-    protected override async Task OnInitializedAsync() => PlayerItems = await Directory.GetAsync();
+    protected override async Task OnParametersSetAsync() => PlayerItems = await Directory.GetAsync(500);
 }
