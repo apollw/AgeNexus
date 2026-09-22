@@ -4,6 +4,8 @@
 
 <PageTitle>Estatísticas gerais · Age Nexus</PageTitle>
 
+<LoadingOverlay Visible="@IsLoading" Message="Consultando os recordes..." />
+
 <section class="page-heading records-page-heading">
     <div>
         <span class="eyebrow">Crônicas do Nexus</span>
@@ -74,7 +76,7 @@ else
         @foreach (var board in FeaturedBoards)
         {
             var champion = board.Entries.First();
-            <button type="button" class="records-feature" @onclick="() => SelectCategory(board.Category, false)">
+            <button type="button" class="records-feature" title="@board.Description" @onclick="() => SelectCategory(board.Category, false)">
                 <span class="records-feature-mark">@ShortMark(board.Key)</span>
                 <div><small>@board.Title</small><strong>@champion.DisplayName</strong></div>
                 <b>@FormatValue(champion.Value, board.ValueKind)</b>
@@ -155,6 +157,7 @@ else
                                         <small>@(board.IsNegative ? "Marca inglória" : "Recordista atual")</small>
                                         <strong>@champion.DisplayName</strong>
                                         <span>@champion.Matches partida(s) contabilizada(s)</span>
+                                        <span class="record-entry-details">@EntryDetails(champion, board)</span>
                                     </div>
                                     <b>@FormatValue(champion.Value, board.ValueKind)</b>
                                 </div>
@@ -168,7 +171,7 @@ else
                                                 <span>@entry.Position</span>
                                                 <PlayerAvatar DisplayName="@entry.DisplayName" Url="@entry.AvatarUrl" Size="compact" />
                                                 <strong>@entry.DisplayName</strong>
-                                                <small>@entry.Matches jogo(s)</small>
+                                                <small>@entry.Matches jogo(s) · @EntryDetails(entry, board)</small>
                                                 <b>@FormatValue(entry.Value, board.ValueKind)</b>
                                             </li>
                                         }
@@ -186,6 +189,7 @@ else
 @code {
     private AgeNexus.Application.Queries.GeneralStatisticsDashboard? Dashboard { get; set; }
     private Dictionary<string, AgeNexus.Application.Queries.GeneralStatisticBoard[]> CategoryCache { get; } = [];
+    private bool IsLoading { get; set; } = true;
     private bool ShowNegativeRecords { get; set; }
     private string? SelectedCategory { get; set; }
 
@@ -212,7 +216,18 @@ else
         Dashboard?.Boards.Where(x => x.Entries.Count > 0 &&
             new[] { "units-killed", "gold", "fastest-feudal", "total-score" }.Contains(x.Key)).ToArray() ?? [];
 
-    protected override async Task OnInitializedAsync() => Dashboard = await Statistics.GetAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            Dashboard = await Statistics.GetAsync();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
 
     private void SelectRecordKind(bool negative)
     {
@@ -255,6 +270,19 @@ else
         return $"{seconds / 3600:00}:{seconds % 3600 / 60:00}:{seconds % 60:00}";
     }
 
+    private static string EntryDetails(
+        AgeNexus.Application.Queries.GeneralStatisticEntry entry,
+        AgeNexus.Application.Queries.GeneralStatisticBoard board)
+    {
+        var absolute = entry.AbsoluteValue.HasValue
+            ? $"{board.AbsoluteLabel}: {FormatValue(entry.AbsoluteValue.Value, board.ValueKind)}"
+            : null;
+        var average = entry.AverageValue.HasValue
+            ? $"{board.AverageLabel}: {FormatValue(entry.AverageValue.Value, board.AverageValueKind ?? board.ValueKind)}"
+            : null;
+        return string.Join(" · ", new[] { absolute, average }.Where(value => value is not null));
+    }
+
     private static string CategoryId(string category) => $"categoria-{CategoryClass(category)}";
     private static string CategoryClass(string category) => category.ToLowerInvariant() switch
     {
@@ -262,6 +290,7 @@ else
         "economia" => "economy",
         "tecnologia" => "technology",
         "sociedade" => "society",
+        "resultados" => "results",
         _ => "score"
     };
 
@@ -271,6 +300,7 @@ else
         "economia" => "II",
         "tecnologia" => "III",
         "sociedade" => "IV",
+        "resultados" => "R",
         _ => "V"
     };
 
@@ -280,6 +310,7 @@ else
         "Economia" => "A abundância que sustentou exércitos, muralhas e impérios.",
         "Tecnologia" => "Velocidade de evolução, conhecimento e visão do mapa.",
         "Sociedade" => "O legado construído em população, monumentos e relíquias.",
+        "Resultados" => "Derrotas acumuladas e frequência de resultados negativos.",
         _ => "A consistência refletida nos placares finais de cada confronto."
     };
 

@@ -157,7 +157,9 @@ public sealed record GeneralStatisticEntry(
     string DisplayName,
     string? AvatarUrl,
     decimal Value,
-    int Matches);
+    int Matches,
+    decimal? AbsoluteValue = null,
+    decimal? AverageValue = null);
 
 public sealed record GeneralStatisticBoard(
     string Key,
@@ -166,7 +168,10 @@ public sealed record GeneralStatisticBoard(
     string Description,
     GeneralStatisticValueKind ValueKind,
     IReadOnlyCollection<GeneralStatisticEntry> Entries,
-    bool IsNegative = false);
+    bool IsNegative = false,
+    GeneralStatisticValueKind? AverageValueKind = null,
+    string AbsoluteLabel = "Total",
+    string AverageLabel = "Média por partida");
 
 public sealed record GeneralStatisticsDashboard(
     int MatchesWithStatistics,
