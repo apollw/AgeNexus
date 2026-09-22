@@ -50,3 +50,5 @@ As listagens usam um componente único com dimensões reservadas, decodificaçã
 ## Navegação pelos recordes
 
 Marcas positivas e negativas são classificadas nos dados e exibidas separadamente no perfil e em Recordes Gerais. As categorias permanecem recolhidas até serem solicitadas; somente uma fica visível por vez e cada categoria aberta é mantida na memória do componente. No perfil, a consulta das marcas é adiada até o primeiro clique. A consulta geral também utiliza o cache compartilhado de competição, com validade de dois minutos e invalidação após alterações relevantes.
+
+Cada marca informa seu significado e apresenta tanto o valor absoluto quanto a média por partida. As marcas negativas cobrem resultados, combate, economia, tecnologia, sociedade e placar; nelas, métricas de produção são ordenadas pela média para que ter poucas partidas não seja confundido automaticamente com pior desempenho. Derrotas são comparadas pelo total e acompanhadas pela taxa de derrotas. Nenhuma nova consulta é aberta por marca: totais, médias e posições são calculados sobre a mesma agregação do painel e reutilizam seu cache.

@@ -115,7 +115,11 @@ else
                     {
                         <article class="profile-record @(record.IsNegative ? "profile-record-negative" : null)">
                             <span class="profile-record-rank">#@record.Position</span>
-                            <div><strong>@record.Title</strong><small>@MatchCount(record.Matches)</small></div>
+                            <div>
+                                <strong>@record.Title</strong>
+                                <p>@record.Description</p>
+                                <small>@MatchCount(record.Matches) · @RecordDetails(record)</small>
+                            </div>
                             <b>@FormatValue(record.Value, record.ValueKind)</b>
                         </article>
                     }
@@ -162,7 +166,7 @@ else
     private bool ShowNegativeRecords { get; set; }
     private string? SelectedCategory { get; set; }
     private static readonly string[] PositiveCategories = ["Combate", "Economia", "Tecnologia", "Sociedade", "Placar"];
-    private static readonly string[] NegativeCategories = ["Combate"];
+    private static readonly string[] NegativeCategories = ["Resultados", "Combate", "Economia", "Tecnologia", "Sociedade", "Placar"];
     private IReadOnlyCollection<string> ActiveCategories => ShowNegativeRecords ? NegativeCategories : PositiveCategories;
     private IReadOnlyCollection<PlayerRecord> ActiveRecords => SelectedCategory is not null &&
         RecordCategoryCache.TryGetValue(RecordCategoryKey(SelectedCategory, ShowNegativeRecords), out var records) ? records : [];
@@ -213,7 +217,9 @@ else
                 Records = dashboard.Boards.SelectMany(board => board.Entries
                 .Where(entry => entry.PlayerId == PlayerId)
                 .Select(entry => new PlayerRecord(
-                    board.Category, board.Title, entry.Position, entry.Value, entry.Matches, board.ValueKind,
+                    board.Category, board.Title, board.Description, entry.Position, entry.Value, entry.Matches,
+                    board.ValueKind, entry.AbsoluteValue, entry.AverageValue,
+                    board.AverageValueKind ?? board.ValueKind, board.AbsoluteLabel, board.AverageLabel,
                     board.IsNegative)))
                     .ToArray();
                 RecordsLoaded = true;
@@ -246,15 +252,31 @@ else
     }
 
     private static string MatchCount(int count) => $"{count} {(count == 1 ? "partida contabilizada" : "partidas contabilizadas")}";
+    private static string RecordDetails(PlayerRecord record)
+    {
+        var absolute = record.AbsoluteValue.HasValue
+            ? $"{record.AbsoluteLabel}: {FormatValue(record.AbsoluteValue.Value, record.ValueKind)}"
+            : null;
+        var average = record.AverageValue.HasValue
+            ? $"{record.AverageLabel}: {FormatValue(record.AverageValue.Value, record.AverageValueKind)}"
+            : null;
+        return string.Join(" · ", new[] { absolute, average }.Where(value => value is not null));
+    }
     private static string UsageCount(int count) => $"{count} {(count == 1 ? "uso" : "usos")}";
     private static string VictoryCount(int count) => $"{count} {(count == 1 ? "vitória" : "vitórias")}";
 
     private sealed record PlayerRecord(
         string Category,
         string Title,
+        string Description,
         int Position,
         decimal Value,
         int Matches,
         AgeNexus.Application.Queries.GeneralStatisticValueKind ValueKind,
+        decimal? AbsoluteValue,
+        decimal? AverageValue,
+        AgeNexus.Application.Queries.GeneralStatisticValueKind AverageValueKind,
+        string AbsoluteLabel,
+        string AverageLabel,
         bool IsNegative);
 }
