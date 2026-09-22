@@ -26,3 +26,16 @@ Os tamanhos compartilhados ficam centralizados em `00-foundation.css`:
 - `--font-lead`: textos introdutórios.
 
 Prefira esses tokens a novos valores fixos. Títulos podem manter tamanhos próprios quando fizerem parte da hierarquia visual da página.
+
+## Comportamento mobile
+
+O breakpoint de navegação e cartões é `max-width: 760px`, em `90-responsive.css`.
+
+- `.logout-button` deve permanecer visível para usuários autenticados.
+- O destaque da navegação inferior é desenhado em `::before` com `clip-path` hexagonal; evite reintroduzir fundos retangulares no item ativo.
+- `.mobile-card-table` converte linhas em cartões. Cada célula usa `data-label` como legenda; `data-mobile-wide` ocupa as duas colunas.
+- Tabelas sem essa classe mantêm rolagem horizontal no mobile.
+- A navegação inferior e o conteúdo usam `env(safe-area-inset-bottom)` para acomodar dispositivos com área segura.
+- Recordes Gerais têm ajustes próprios para nomes, valores, campeões e demais colocações.
+
+Veja o [roteiro de conferência mobile](../../../../docs/MOBILE-UX.md).
