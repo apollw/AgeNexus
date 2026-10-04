@@ -61,7 +61,10 @@ public sealed class PerformanceStatisticsService(
             .Select(x => x.Participant.AiDifficultyId!.Value).ToArray();
         var report = await readDatabase.MatchStatisticsReports.AsNoTracking()
             .SingleOrDefaultAsync(x => x.MatchId == matchId, cancellationToken);
-        var names = await readDatabase.PlayerProfiles.AsNoTracking().Where(x => playerIds.Contains(x.Id))
+        var profileIds = report is null
+            ? playerIds
+            : playerIds.Append(report.SubmittedByPlayerProfileId).Distinct().ToArray();
+        var names = await readDatabase.PlayerProfiles.AsNoTracking().Where(x => profileIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
         var difficultyNames = await readDatabase.AiDifficulties.AsNoTracking()
             .Where(x => aiDifficultyIds.Contains(x.Id))
@@ -114,6 +117,8 @@ public sealed class PerformanceStatisticsService(
             report?.Status,
             report?.ReplayFileName,
             report?.ExtractorVersion,
+            report?.SubmittedByPlayerProfileId,
+            report is null ? null : names.GetValueOrDefault(report.SubmittedByPlayerProfileId, "Jogador"),
             players.Length > 0 && players.All(x => IsComplete(x.Values)),
             players,
             confirmedTeams);
@@ -130,10 +135,13 @@ public sealed class PerformanceStatisticsService(
             return PerformanceOperationResult.Failure("MatchNotFound");
         }
 
-        if (!await accounts.IsAdministratorProfileAsync(request.SubmittedByPlayerProfileId, cancellationToken))
+        if (!await accounts.IsActiveLinkedProfileAsync(request.SubmittedByPlayerProfileId, cancellationToken))
         {
             return PerformanceOperationResult.Failure("NotAuthorized");
         }
+
+        var isAdministrator = await accounts.IsAdministratorProfileAsync(
+            request.SubmittedByPlayerProfileId, cancellationToken);
 
         var participants = MatchParticipants(match);
         if (request.Players.Count != participants.Count ||
@@ -160,6 +168,10 @@ public sealed class PerformanceStatisticsService(
                     request.Source, DateTimeOffset.UtcNow,
                     coverageDetails: request.Source == MatchStatisticsSource.JsonImport ? request.ImportDetails : null);
                 database.MatchStatisticsReports.Add(report);
+            }
+            else if (!isAdministrator && report.SubmittedByPlayerProfileId != request.SubmittedByPlayerProfileId)
+            {
+                return PerformanceOperationResult.Failure("ReportOwnedByAnotherUser");
             }
             else if (report.Status != MatchStatisticsStatus.Draft)
             {
@@ -215,19 +227,25 @@ public sealed class PerformanceStatisticsService(
             return PerformanceOperationResult.Failure("ReportNotFound");
         }
 
-        if (report.Status == MatchStatisticsStatus.Submitted)
-        {
-            return PerformanceOperationResult.Success(reportId, alreadyApplied: true);
-        }
-
         var match = await LoadMatchAsync(report.MatchId, cancellationToken);
         if (match is null)
         {
             return PerformanceOperationResult.Failure("MatchNotFound");
         }
-        if (!await accounts.IsAdministratorProfileAsync(playerProfileId, cancellationToken))
+        if (!await accounts.IsActiveLinkedProfileAsync(playerProfileId, cancellationToken))
         {
             return PerformanceOperationResult.Failure("NotAuthorized");
+        }
+
+        var isAdministrator = await accounts.IsAdministratorProfileAsync(playerProfileId, cancellationToken);
+        if (!isAdministrator && report.SubmittedByPlayerProfileId != playerProfileId)
+        {
+            return PerformanceOperationResult.Failure("ReportOwnedByAnotherUser");
+        }
+
+        if (report.Status == MatchStatisticsStatus.Submitted)
+        {
+            return PerformanceOperationResult.Success(reportId, alreadyApplied: true);
         }
 
         var participantCount = MatchParticipants(match).Count;
@@ -243,7 +261,7 @@ public sealed class PerformanceStatisticsService(
         {
             var now = DateTimeOffset.UtcNow;
             report.Submit(now, statistics.Length == participantCount && statistics.All(x => x.IsComplete));
-            if (SingleAdministratorMode)
+            if (SingleAdministratorMode && isAdministrator)
             {
                 report.MarkConfirmed(now);
                 if (match.Status == MatchStatus.AwaitingConfirmation)
@@ -253,7 +271,7 @@ public sealed class PerformanceStatisticsService(
             }
             await database.SaveChangesAsync(cancellationToken);
 
-            if (SingleAdministratorMode && match.Status == MatchStatus.Confirmed)
+            if (SingleAdministratorMode && isAdministrator && match.Status == MatchStatus.Confirmed)
             {
                 var validation = await matchWorkflow.ValidateAsync(match.Id, cancellationToken);
                 if (!validation.Succeeded)
@@ -270,12 +288,88 @@ public sealed class PerformanceStatisticsService(
         }
     }
 
+    public async Task<PerformanceOperationResult> ReviewAsync(
+        Guid reportId,
+        Guid administratorPlayerProfileId,
+        AdministrativeStatisticsDecision decision,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await database.MatchStatisticsReports.SingleOrDefaultAsync(
+            x => x.Id == reportId, cancellationToken);
+        if (report is null)
+        {
+            return PerformanceOperationResult.Failure("ReportNotFound");
+        }
+
+        if (!await accounts.IsAdministratorProfileAsync(administratorPlayerProfileId, cancellationToken))
+        {
+            return PerformanceOperationResult.Failure("NotAuthorized");
+        }
+
+        if (decision == AdministrativeStatisticsDecision.Approved &&
+            report.Status is MatchStatisticsStatus.Confirmed or MatchStatisticsStatus.Awarded)
+        {
+            return PerformanceOperationResult.Success(reportId, alreadyApplied: true);
+        }
+
+        if (report.Status != MatchStatisticsStatus.Submitted)
+        {
+            return PerformanceOperationResult.Failure("ReportCannotBeReviewed");
+        }
+
+        var match = await LoadMatchAsync(report.MatchId, cancellationToken);
+        if (match is null)
+        {
+            return PerformanceOperationResult.Failure("MatchNotFound");
+        }
+
+        try
+        {
+            if (decision == AdministrativeStatisticsDecision.ReturnedForCorrection)
+            {
+                var confirmations = await database.StatisticsConfirmations
+                    .Where(x => x.ReportId == reportId).ToArrayAsync(cancellationToken);
+                database.StatisticsConfirmations.RemoveRange(confirmations);
+                report.ReturnForCorrection();
+                await database.SaveChangesAsync(cancellationToken);
+                return PerformanceOperationResult.Success(reportId);
+            }
+
+            report.MarkConfirmed(DateTimeOffset.UtcNow);
+            if (match.Status == MatchStatus.AwaitingConfirmation)
+            {
+                match.MarkConfirmed();
+            }
+            await database.SaveChangesAsync(cancellationToken);
+
+            if (match.Status == MatchStatus.Confirmed)
+            {
+                var validation = await matchWorkflow.ValidateAsync(match.Id, cancellationToken);
+                if (!validation.Succeeded)
+                {
+                    return PerformanceOperationResult.Failure("MatchCouldNotBeValidated");
+                }
+            }
+
+            return PerformanceOperationResult.Success(reportId);
+        }
+        catch (DomainRuleException)
+        {
+            return PerformanceOperationResult.Failure("ReportCannotBeReviewed");
+        }
+    }
+
     public async Task<PerformanceOperationResult> ConfirmAsync(
         Guid reportId,
         Guid playerProfileId,
         StatisticsConfirmationDecision decision,
         CancellationToken cancellationToken = default)
     {
+        if (SingleAdministratorMode)
+        {
+            return PerformanceOperationResult.Failure("AdministratorReviewRequired");
+        }
+
         var report = await database.MatchStatisticsReports.SingleOrDefaultAsync(x => x.Id == reportId, cancellationToken);
         if (report is null)
         {

@@ -705,6 +705,23 @@ public sealed class AccountService(
                await userManager.IsInRoleAsync(user, AdministratorRole);
     }
 
+    public async Task<bool> IsActiveLinkedProfileAsync(
+        Guid playerProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = await database.PlayerProfiles.AsNoTracking()
+            .Where(x => x.Id == playerProfileId)
+            .Select(x => x.ApplicationUserId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (!userId.HasValue)
+        {
+            return false;
+        }
+
+        var user = await userManager.FindByIdAsync(userId.Value.ToString());
+        return user is not null && !await userManager.IsLockedOutAsync(user);
+    }
+
     private static Guid? GetUserId(ClaimsPrincipal principal) =>
         principal.Identity?.IsAuthenticated == true &&
         Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ? userId : null;

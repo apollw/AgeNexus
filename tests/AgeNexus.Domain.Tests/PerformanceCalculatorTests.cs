@@ -163,6 +163,32 @@ public sealed class PerformanceCalculatorTests
         Assert.Null(report.AwardedAtUtc);
     }
 
+    [Fact]
+    public void Submitted_report_can_be_returned_for_correction_and_resubmitted()
+    {
+        var report = new MatchStatisticsReport(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), MatchStatisticsSource.ScreenshotTranscription,
+            DateTimeOffset.UtcNow);
+        report.Submit(DateTimeOffset.UtcNow, isComplete: true);
+
+        report.ReturnForCorrection();
+
+        Assert.Equal(MatchStatisticsStatus.Draft, report.Status);
+        Assert.Null(report.SubmittedAtUtc);
+        report.Submit(DateTimeOffset.UtcNow, isComplete: true);
+        Assert.Equal(MatchStatisticsStatus.Submitted, report.Status);
+    }
+
+    [Fact]
+    public void Draft_report_cannot_be_returned_for_correction()
+    {
+        var report = new MatchStatisticsReport(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), MatchStatisticsSource.ScreenshotTranscription,
+            DateTimeOffset.UtcNow);
+
+        Assert.Throws<DomainRuleException>(report.ReturnForCorrection);
+    }
+
     private static PerformancePlayerInput Input(
         TeamResult result,
         int military,

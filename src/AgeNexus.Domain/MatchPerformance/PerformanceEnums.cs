@@ -34,6 +34,12 @@ public enum StatisticsConfirmationDecision
     Contested
 }
 
+public enum AdministrativeStatisticsDecision
+{
+    Approved,
+    ReturnedForCorrection
+}
+
 public enum PerformanceAwardType
 {
     None,

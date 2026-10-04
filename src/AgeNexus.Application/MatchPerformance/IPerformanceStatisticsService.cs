@@ -18,6 +18,11 @@ public interface IPerformanceStatisticsService
         Guid playerProfileId,
         StatisticsConfirmationDecision decision,
         CancellationToken cancellationToken = default);
+    Task<PerformanceOperationResult> ReviewAsync(
+        Guid reportId,
+        Guid administratorPlayerProfileId,
+        AdministrativeStatisticsDecision decision,
+        CancellationToken cancellationToken = default);
     Task<PerformanceOperationResult> FinalizeAsync(
         Guid reportId,
         CancellationToken cancellationToken = default);
@@ -64,6 +69,8 @@ public sealed record PerformanceReportView(
     MatchStatisticsStatus? Status,
     string? ReplayFileName,
     string? ExtractorVersion,
+    Guid? SubmittedByPlayerProfileId,
+    string? SubmittedByDisplayName,
     bool IsComplete,
     IReadOnlyCollection<PerformancePlayerView> Players,
     IReadOnlyCollection<Guid> ConfirmedTeamIds);

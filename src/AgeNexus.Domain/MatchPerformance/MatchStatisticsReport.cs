@@ -95,6 +95,19 @@ public sealed partial class MatchStatisticsReport
         ConfirmedAtUtc = confirmedAtUtc;
     }
 
+    public void ReturnForCorrection()
+    {
+        if (Status != MatchStatisticsStatus.Submitted)
+        {
+            throw new DomainRuleException("Only a submitted report can be returned for correction.");
+        }
+
+        Status = MatchStatisticsStatus.Draft;
+        SubmittedAtUtc = null;
+        ConfirmedAtUtc = null;
+        AwardedAtUtc = null;
+    }
+
     public void MarkAwarded(DateTimeOffset awardedAtUtc)
     {
         if (Status != MatchStatisticsStatus.Confirmed || awardedAtUtc.Offset != TimeSpan.Zero)

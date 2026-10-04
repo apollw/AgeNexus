@@ -8,7 +8,10 @@
     <div><span class="eyebrow">Histórico de batalhas</span><h1>Partidas</h1><p>Reveja confrontos, resultados e estatísticas da comunidade.</p></div>
     @if (IsAdministrator)
     {
-        <a class="button button-primary" href="/partidas/nova"><span>+</span> Nova partida</a>
+        <div class="page-heading-actions">
+            <a class="button button-secondary" href="/partidas?revisao=pendente">Revisões pendentes</a>
+            <a class="button button-primary" href="/partidas/nova"><span>+</span> Nova partida</a>
+        </div>
     }
 </section>
 
@@ -76,12 +79,12 @@
                     <footer><span>@match.Format</span><b>Ver estatísticas <span>→</span></b></footer>
                 </a>
 
-                @if (IsAdministrator || !string.IsNullOrWhiteSpace(match.YouTubeVideoUrl) || match.ScreenshotCount > 0 || match.HasReplay)
+                @if (IsAuthenticated || !string.IsNullOrWhiteSpace(match.YouTubeVideoUrl) || match.ScreenshotCount > 0 || match.HasReplay)
                 {
                     <div class="match-history-actions">
-                        @if (IsAdministrator)
+                        @if (IsAuthenticated)
                         {
-                            <a class="table-action" href="/partidas/@match.MatchId/desempenho">Gerenciar estatísticas</a>
+                            <a class="table-action" href="/partidas/@match.MatchId/desempenho">@StatisticsActionLabel(match)</a>
                         }
                         @if (!string.IsNullOrWhiteSpace(match.YouTubeVideoUrl))
                         {
@@ -118,11 +121,15 @@
     [SupplyParameterFromQuery(Name = "jogador")] private Guid? PlayerId { get; set; }
     [SupplyParameterFromQuery(Name = "inicio")] private DateOnly? FromDate { get; set; }
     [SupplyParameterFromQuery(Name = "fim")] private DateOnly? ToDate { get; set; }
+    [SupplyParameterFromQuery(Name = "revisao")] private string? ReviewFilter { get; set; }
 
     private AgeNexus.Application.Queries.PagedMatchHistory MatchPage { get; set; } = new([], 1, 10, 0);
     private IReadOnlyCollection<AgeNexus.Application.Queries.CatalogOption> Players { get; set; } = [];
     private bool IsAdministrator { get; set; }
-    private bool HasFilters => PlayerId.HasValue || FromDate.HasValue || ToDate.HasValue;
+    private bool IsAuthenticated { get; set; }
+    private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+    private bool PendingReviewOnly => IsAdministrator && ReviewFilter == "pendente";
+    private bool HasFilters => PlayerId.HasValue || FromDate.HasValue || ToDate.HasValue || PendingReviewOnly;
     private bool DeleteSucceeded => DeleteStatus == "ok";
     private string? DeleteMessage => DeleteStatus switch
     {
@@ -138,9 +145,35 @@
     protected override async Task OnParametersSetAsync()
     {
         var authentication = await AuthenticationStateTask;
+        IsAuthenticated = authentication.User.Identity?.IsAuthenticated == true;
         IsAdministrator = await Accounts.IsAdministratorAsync(authentication.User);
+        CurrentProfile = IsAuthenticated
+            ? await Accounts.GetProfileAsync(authentication.User, CancellationToken.None)
+            : null;
         Players = await History.GetPlayerOptionsAsync();
-        MatchPage = await History.GetPageAsync(new(Page, 10, FromDate, ToDate, PlayerId));
+        MatchPage = await History.GetPageAsync(new(Page, 10, FromDate, ToDate, PlayerId, PendingReviewOnly));
+    }
+
+    private string StatisticsActionLabel(AgeNexus.Application.Queries.MatchSummary match)
+    {
+        if (IsAdministrator)
+        {
+            return match.StatisticsStatus == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted
+                ? "Revisar estatísticas"
+                : "Gerenciar estatísticas";
+        }
+
+        return match.StatisticsStatus switch
+        {
+            null => "Enviar estatísticas",
+            AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft
+                when match.StatisticsSubmittedByPlayerProfileId == CurrentProfile?.Id => "Continuar envio",
+            AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted
+                when match.StatisticsSubmittedByPlayerProfileId == CurrentProfile?.Id => "Aguardando aprovação",
+            AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed or
+                AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Awarded => "Ver estatísticas",
+            _ => "Ver situação do envio"
+        };
     }
 
     private string FilterQuery()
@@ -149,6 +182,7 @@
         if (PlayerId.HasValue) parts.Add($"jogador={PlayerId.Value}");
         if (FromDate.HasValue) parts.Add($"inicio={FromDate.Value:yyyy-MM-dd}");
         if (ToDate.HasValue) parts.Add($"fim={ToDate.Value:yyyy-MM-dd}");
+        if (PendingReviewOnly) parts.Add("revisao=pendente");
         return string.Join("&", parts);
     }
 
