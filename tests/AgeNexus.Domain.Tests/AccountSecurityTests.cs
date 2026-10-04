@@ -58,6 +58,27 @@ public sealed class AccountSecurityTests
     }
 
     [Fact]
+    public async Task Statistics_submission_requires_an_active_linked_profile()
+    {
+        await using var services = CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await AddUserAsync(users, "player@example.test");
+        var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+        var linked = new PlayerProfile(Guid.NewGuid(), "Linked", user.Id);
+        var historical = new PlayerProfile(Guid.NewGuid(), "Historical");
+        database.PlayerProfiles.AddRange(linked, historical);
+        await database.SaveChangesAsync();
+        var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();
+
+        Assert.True(await accounts.IsActiveLinkedProfileAsync(linked.Id));
+        Assert.False(await accounts.IsActiveLinkedProfileAsync(historical.Id));
+
+        Assert.True((await users.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddHours(1))).Succeeded);
+        Assert.False(await accounts.IsActiveLinkedProfileAsync(linked.Id));
+    }
+
+    [Fact]
     public async Task Claim_requires_admin_and_profile_changes_cannot_target_another_player()
     {
         await using var services = CreateServices("owner@example.test");

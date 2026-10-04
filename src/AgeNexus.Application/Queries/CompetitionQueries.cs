@@ -1,4 +1,5 @@
 using AgeNexus.Domain.Matches;
+using AgeNexus.Domain.MatchPerformance;
 
 namespace AgeNexus.Application.Queries;
 
@@ -57,6 +58,9 @@ public sealed record MatchSummary(
     public string? YouTubeVideoUrl { get; init; }
     public int ScreenshotCount { get; init; }
     public bool HasReplay { get; init; }
+    public MatchStatisticsStatus? StatisticsStatus { get; init; }
+    public Guid? StatisticsSubmittedByPlayerProfileId { get; init; }
+    public string? StatisticsSubmittedByDisplayName { get; init; }
 }
 
 public sealed record MatchTeamSummary(
@@ -70,7 +74,8 @@ public sealed record MatchHistoryFilter(
     int PageSize = 10,
     DateOnly? FromDate = null,
     DateOnly? ToDate = null,
-    Guid? PlayerId = null);
+    Guid? PlayerId = null,
+    bool PendingStatisticsReview = false);
 
 public sealed record PagedMatchHistory(
     IReadOnlyCollection<MatchSummary> Items,

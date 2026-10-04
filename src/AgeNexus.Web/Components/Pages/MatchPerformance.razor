@@ -1,6 +1,6 @@
 @page "/partidas/{MatchId:guid}/desempenho"
 @using Microsoft.JSInterop
-@attribute [Authorize(Policy = "Administrator")]
+@attribute [Authorize]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IAsyncDisposable
 @inject AgeNexus.Application.MatchPerformance.IPerformanceStatisticsService PerformanceService
@@ -19,7 +19,7 @@
     <div>
         <span class="eyebrow">Relatório pós-jogo</span>
         <h1>Desempenho e MVP</h1>
-        <p>Preencha as estatísticas, extraia os dados das capturas ou importe um arquivo do AgeExtractor. O replay fica disponível apenas para download.</p>
+        <p>Extraia os dados das capturas, revise as estatísticas e envie o relatório para aprovação.</p>
     </div>
     <a class="button button-secondary" href="/partidas">Voltar</a>
 </section>
@@ -54,10 +54,12 @@ else
     <section class="panel performance-summary">
         <div><span class="eyebrow">Partida</span><strong>@CategoryLabel(View.Category)</strong><small>Status: @MatchStatusLabel(View.MatchStatus)</small></div>
         <div><span class="eyebrow">Relatório</span><strong>@ReportStatusLabel(View.Status)</strong><small>Preenchimento: @SourceLabel(View.Source)</small></div>
-        <div><span class="eyebrow">Preenchimento</span><strong>@(View.IsComplete ? "Completo" : "Pendente")</strong><small>@View.ConfirmedTeamIds.Count equipe(s) confirmaram</small></div>
+        <div><span class="eyebrow">Envio</span><strong>@(View.IsComplete ? "Completo" : "Pendente")</strong><small>@SubmissionOwnerLabel</small></div>
     </section>
 
-    <section class="panel profile-form-card replay-import replay-file-upload">
+    @if (IsAdministrator)
+    {
+        <section class="panel profile-form-card replay-import replay-file-upload">
         <header class="panel-header">
             <div><span class="eyebrow">Arquivo da partida</span><h2>Replay para download</h2></div>
             @if (EvidenceReplay is not null)
@@ -77,9 +79,10 @@ else
                 <button class="table-action-button table-action-danger" type="button" @onclick="() => DeleteEvidenceAsync(EvidenceReplay.EvidenceId)" disabled="@Busy">Remover</button>
             </div>
         }
-    </section>
+        </section>
+    }
 
-    @if (View.Status is null or AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft)
+    @if ((View.Status is null or AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft) && CanEditReport)
     {
         <section class="panel profile-form-card online-extractor">
             <header class="panel-header">
@@ -361,16 +364,46 @@ else
             }
             <div class="performance-actions">
                 <button class="button button-secondary" type="button" @onclick="SaveAsync" disabled="@Busy">Salvar rascunho</button>
-                <button class="button button-primary" type="button" @onclick="SubmitAsync" disabled="@Busy">Salvar e enviar para confirmação</button>
+                <button class="button button-primary" type="button" @onclick="SubmitAsync" disabled="@Busy">Salvar e enviar para aprovação</button>
             </div>
-            <small>* Campos obrigatórios para concluir o relatório; somente humanos participam do cálculo de desempenho e MVP.</small>
+            <small>* Campos obrigatórios para concluir o relatório. Envios de usuários são publicados somente depois da aprovação administrativa.</small>
         </section>
         </EditForm>
+    }
+    else if (View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft && !CanEditReport)
+    {
+        <section class="panel panel-empty page-empty">
+            <span class="empty-icon">⌛</span>
+            <strong>Relatório em preenchimento</strong>
+            <p>Outro usuário já iniciou as estatísticas desta partida. Somente o autor ou o administrador pode continuar este rascunho.</p>
+        </section>
+    }
+    else if (View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted &&
+             !IsAdministrator && !IsReportOwner)
+    {
+        <section class="panel panel-empty page-empty">
+            <span class="empty-icon">⌛</span>
+            <strong>Envio aguardando aprovação</strong>
+            <p>As estatísticas desta partida foram enviadas por outro usuário e ainda estão em revisão administrativa.</p>
+        </section>
     }
     else
     {
         <section class="panel profile-form-card">
-            <header class="panel-header"><div><span class="eyebrow">Resultado calculado</span><h2>Placar de desempenho</h2></div></header>
+            <header class="panel-header">
+                <div>
+                    <span class="eyebrow">@(View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted ? "Revisão administrativa" : "Resultado calculado")</span>
+                    <h2>@(View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted ? "Estatísticas enviadas" : "Placar de desempenho")</h2>
+                </div>
+            </header>
+            @if (View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted)
+            {
+                <div class="form-alert">
+                    @(IsAdministrator
+                        ? "Confira os valores antes de aprovar. Somente a aprovação publica as estatísticas."
+                        : "O envio está aguardando a aprovação do administrador. Até lá, ele não aparece nas estatísticas públicas.")
+                </div>
+            }
             <div class="performance-results">
                 @foreach (var player in View.Players.OrderByDescending(x => x.PerformanceIndex ?? -1m))
                 {
@@ -387,16 +420,18 @@ else
                 <div class="form-alert @(HasError ? "form-alert-error" : "form-alert-success")" role="status">@Message</div>
             }
             <div class="performance-actions">
-                @if (CanConfirm)
+                @if (CanReview)
                 {
-                    <button class="button button-primary" type="button" @onclick="ConfirmAsync" disabled="@Busy">Confirmar estatísticas pela equipe</button>
-                    <button class="button button-secondary" type="button" @onclick="ContestAsync" disabled="@Busy">Contestar</button>
+                    <button class="button button-primary" type="button" @onclick="ApproveAsync" disabled="@Busy">Aprovar e publicar</button>
+                    <button class="button button-secondary" type="button" @onclick="ReturnForCorrectionAsync" disabled="@Busy">Devolver para correção</button>
                 }
-                @if (View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed)
+                @if (IsAdministrator && View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed)
                 {
                     <button class="button button-primary" type="button" @onclick="FinalizeAsync" disabled="@Busy">Aplicar MVPs e conceder bônus</button>
                 }
-                @if (CurrentProfile is not null)
+                @if (IsAdministrator && View.Status is
+                    AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed or
+                    AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Awarded)
                 {
                     <button class="button button-secondary" type="button" @onclick="ReopenAsync" disabled="@Busy">Editar dados e MVPs</button>
                 }
@@ -404,7 +439,9 @@ else
         </section>
     }
 
-    <section class="panel profile-form-card evidence-manager">
+    @if (IsAdministrator)
+    {
+        <section class="panel profile-form-card evidence-manager">
         <header class="panel-header">
             <div><span class="eyebrow">Comprovação</span><h2>Vídeo e capturas</h2></div>
             @if (EvidenceGallery?.Items.Count > 0)
@@ -449,7 +486,8 @@ else
                 }
             </div>
         }
-    </section>
+        </section>
+    }
 }
 
 @code {
@@ -465,6 +503,7 @@ else
     private string? Message { get; set; }
     private bool HasError { get; set; }
     private bool Busy { get; set; }
+    private bool IsAdministrator { get; set; }
     private string YouTubeUrl { get; set; } = string.Empty;
     private string JsonText { get; set; } = string.Empty;
     private string? JsonFileName { get; set; }
@@ -500,10 +539,15 @@ else
         EvidenceGallery?.Items.Where(item => item.Kind == AgeNexus.Domain.EvidenceAndModeration.EvidenceKind.ResultScreenshot)
             .ToArray() ?? [];
 
-    private bool CanConfirm => View?.ReportId.HasValue == true &&
+    private bool CanReview => IsAdministrator && View?.ReportId.HasValue == true &&
         View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted &&
-        CurrentProfile is not null &&
-        View.Players.Any(x => x.PlayerProfileId == CurrentProfile.Id && !View.ConfirmedTeamIds.Contains(x.TeamId));
+        CurrentProfile is not null;
+    private bool IsReportOwner => CurrentProfile is not null &&
+        View?.SubmittedByPlayerProfileId == CurrentProfile.Id;
+    private bool CanEditReport => View?.ReportId is null || IsAdministrator || IsReportOwner;
+    private string SubmissionOwnerLabel => View?.SubmittedByDisplayName is null
+        ? "Ainda não iniciado"
+        : $"Enviado por {View.SubmittedByDisplayName}";
 
     protected override Task OnParametersSetAsync() => LoadPageAsync();
 
@@ -522,8 +566,9 @@ else
             // These operations share a limited PostgreSQL connection pool in production.
             // Loading them in sequence prevents this page from multiplying connections.
             CurrentProfile = await Accounts.GetProfileAsync(authentication.User, timeout.Token);
+            IsAdministrator = await Accounts.IsAdministratorAsync(authentication.User, timeout.Token);
             ApplyPerformanceView(await PerformanceService.GetAsync(MatchId, timeout.Token));
-            LoadEvidenceAfterRender = View is not null && CurrentProfile is not null;
+            LoadEvidenceAfterRender = IsAdministrator && View is not null && CurrentProfile is not null;
             if (NewMatch == "1" && View?.ReportId is null)
             {
                 Message = "Partida registrada. Agora transcreva as estatísticas finais de cada jogador e salve o relatório.";
@@ -1184,15 +1229,20 @@ else
 
         Busy = true;
         var result = await PerformanceService.SubmitAsync(reportId, CurrentProfile.Id);
-        SetResult(result, "Relatório confirmado pelo administrador e partida validada.");
+        SetResult(result, IsAdministrator
+            ? "Relatório confirmado e partida validada."
+            : "Relatório enviado. As estatísticas serão publicadas após a aprovação do administrador.");
         await ReloadAsync();
         Busy = false;
     }
 
-    private Task ConfirmAsync() => DecideAsync(AgeNexus.Domain.MatchPerformance.StatisticsConfirmationDecision.Confirmed);
-    private Task ContestAsync() => DecideAsync(AgeNexus.Domain.MatchPerformance.StatisticsConfirmationDecision.Contested);
+    private Task ApproveAsync() => ReviewAsync(
+        AgeNexus.Domain.MatchPerformance.AdministrativeStatisticsDecision.Approved);
 
-    private async Task DecideAsync(AgeNexus.Domain.MatchPerformance.StatisticsConfirmationDecision decision)
+    private Task ReturnForCorrectionAsync() => ReviewAsync(
+        AgeNexus.Domain.MatchPerformance.AdministrativeStatisticsDecision.ReturnedForCorrection);
+
+    private async Task ReviewAsync(AgeNexus.Domain.MatchPerformance.AdministrativeStatisticsDecision decision)
     {
         if (View?.ReportId is not Guid reportId || CurrentProfile is null)
         {
@@ -1200,10 +1250,10 @@ else
         }
 
         Busy = true;
-        var result = await PerformanceService.ConfirmAsync(reportId, CurrentProfile.Id, decision);
-        SetResult(result, decision == AgeNexus.Domain.MatchPerformance.StatisticsConfirmationDecision.Confirmed
-            ? "Estatísticas confirmadas pela sua equipe."
-            : "Relatório contestado e retirado da pontuação.");
+        var result = await PerformanceService.ReviewAsync(reportId, CurrentProfile.Id, decision);
+        SetResult(result, decision == AgeNexus.Domain.MatchPerformance.AdministrativeStatisticsDecision.Approved
+            ? "Envio aprovado. As estatísticas já estão publicadas."
+            : "Relatório devolvido ao autor para correção e novo envio.");
         await ReloadAsync();
         Busy = false;
     }
@@ -1263,6 +1313,10 @@ else
                 "ReportIsIncomplete" => "Preencha todos os campos obrigatórios de todos os jogadores antes de calcular.",
                 "ReportMustBeConfirmed" => "O relatório ainda não está confirmado.",
                 "TeamMvpRequired" => "Selecione exatamente um MVP em cada equipe antes de enviar.",
+                "ReportOwnedByAnotherUser" => "Outro usuário já iniciou o relatório desta partida.",
+                "AdministratorReviewRequired" => "Este envio precisa ser revisado pelo administrador.",
+                "ReportCannotBeReviewed" => "Este relatório não está aguardando aprovação.",
+                "NotAuthorized" => "Sua conta não possui permissão para concluir esta operação.",
                 _ => "Não foi possível concluir a operação. Atualize a página e tente novamente."
             };
     }
@@ -1291,10 +1345,10 @@ else
     private static string ReportStatusLabel(AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus? status) => status switch
     {
         AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft => "Rascunho",
-        AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted => "Enviado para confirmação",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted => "Aguardando aprovação administrativa",
         AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed => "Confirmado",
         AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Awarded => "Concluído",
-        AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Rejected => "Contestado",
+        AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Rejected => "Recusado",
         _ => "Ainda não iniciado"
     };
 

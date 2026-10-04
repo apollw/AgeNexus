@@ -1,6 +1,7 @@
 using AgeNexus.Application.Queries;
 using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.EvidenceAndModeration;
+using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Infrastructure.GameCatalog;
 using AgeNexus.Infrastructure.Persistence;
@@ -124,6 +125,12 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 team.Participants.Any(participant => participant.PlayerProfileId == filter.PlayerId)));
         }
 
+        if (filter.PendingStatisticsReview)
+        {
+            matches = matches.Where(match => database.MatchStatisticsReports.Any(report =>
+                report.MatchId == match.Id && report.Status == MatchStatisticsStatus.Submitted));
+        }
+
         var totalItems = await matches.CountAsync(cancellationToken);
         var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)filter.PageSize));
         var pageNumber = Math.Min(filter.Page, totalPages);
@@ -179,6 +186,19 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             .Select(item => new { item.MatchId, item.Kind, item.ExternalUrl })
             .ToListAsync(cancellationToken);
         var evidenceByMatch = evidenceRows.GroupBy(item => item.MatchId).ToDictionary(group => group.Key);
+        var reportRows = await (
+            from report in database.MatchStatisticsReports.AsNoTracking()
+            where matchIds.Contains(report.MatchId)
+            join submitter in database.PlayerProfiles.AsNoTracking()
+                on report.SubmittedByPlayerProfileId equals submitter.Id
+            select new
+            {
+                report.MatchId,
+                report.Status,
+                report.SubmittedByPlayerProfileId,
+                submitter.DisplayName
+            })
+            .ToDictionaryAsync(item => item.MatchId, cancellationToken);
 
         var summaries = rows.GroupBy(x => new
             {
@@ -223,6 +243,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     .ToArray();
 
                 evidenceByMatch.TryGetValue(match.Key.MatchId, out var matchEvidence);
+                reportRows.TryGetValue(match.Key.MatchId, out var statisticsReport);
                 return new MatchSummary(
                     match.Key.MatchId,
                     match.Key.CreatedByPlayerProfileId,
@@ -236,7 +257,10 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     YouTubeVideoUrl = matchEvidence?
                         .FirstOrDefault(item => item.Kind == EvidenceKind.VideoLink)?.ExternalUrl,
                     ScreenshotCount = matchEvidence?.Count(item => item.Kind == EvidenceKind.ResultScreenshot) ?? 0,
-                    HasReplay = matchEvidence?.Any(item => item.Kind == EvidenceKind.Replay) == true
+                    HasReplay = matchEvidence?.Any(item => item.Kind == EvidenceKind.Replay) == true,
+                    StatisticsStatus = statisticsReport?.Status,
+                    StatisticsSubmittedByPlayerProfileId = statisticsReport?.SubmittedByPlayerProfileId,
+                    StatisticsSubmittedByDisplayName = statisticsReport?.DisplayName
                 };
             })
             .ToArray();

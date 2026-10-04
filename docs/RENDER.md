@@ -54,7 +54,7 @@ Não remova a URI local enquanto ainda quiser executar o projeto no computador.
 
 ## Contas e permissões
 
-A autenticação é exclusivamente pelo Google; não existem formulários nem endpoints de cadastro ou login por senha. `AllowGooglePlayerLogin` controla a entrada de novas contas Google. Administradores existentes são preservados. Quando não há administrador, apenas a conta com e-mail confirmado indicado em `Security__BootstrapAdministratorEmail` pode receber a função `Administrator`; somente o administrador registra ou exclui partidas, altera estatísticas, envia evidências e gerencia participantes. O modo `SingleAdministrator` continua controlando os fluxos competitivos que dependem dessa administração centralizada.
+A autenticação é exclusivamente pelo Google; não existem formulários nem endpoints de cadastro ou login por senha. `AllowGooglePlayerLogin` controla a entrada de novas contas Google. Administradores existentes são preservados. Quando não há administrador, apenas a conta com e-mail confirmado indicado em `Security__BootstrapAdministratorEmail` pode receber a função `Administrator`. Somente o administrador registra ou exclui partidas, publica ou devolve estatísticas, envia evidências e gerencia participantes. Usuários com perfil vinculado podem preparar um relatório pelo AgeXtractor, mas o envio permanece pendente até a revisão administrativa. O modo `SingleAdministrator` continua controlando os fluxos competitivos que dependem dessa administração centralizada.
 
 Cada novo jogador escolhe um nick histórico para solicitar vinculação ou cria um perfil novo. Solicitações aparecem em `/jogadores/gerenciar` e só transferem o histórico após aprovação do administrador. Perfis manuais não vinculados continuam disponíveis para partidas futuras.
 
@@ -83,6 +83,8 @@ Isso não muda a proteção HTTPS, a revalidação nem a revogação de acesso. 
 Depois de alterações em consultas ou cadastro de partidas, valide no ambiente publicado: abrir `/partidas`, usar os filtros de jogador e período, navegar entre páginas, abrir o detalhe público em `/partidas/{id}`, iniciar um cadastro, salvar e abrir `/partidas/{id}/desempenho`. Use uma partida real ou um fluxo previamente autorizado e anote o horário UTC se houver demora.
 
 Confira também a paginação em `/jogadores`, `/rankings`, `/estatisticas/civilizacoes`, `/clas` e `/jogadores/gerenciar`. Ao navegar, salvar ou atualizar dados, a sobreposição de carregamento deve aparecer e desaparecer ao concluir; durante o AgeXtractor, deve permanecer somente a barra de progresso da extração.
+
+Para validar o envio comunitário, entre com uma conta comum que possua perfil vinculado, abra uma partida sem relatório e envie as cinco categorias pelo AgeXtractor. Confirme que o detalhe público ainda informa que as estatísticas não foram publicadas. Depois, entre como administrador: a listagem deve exibir **Revisar estatísticas**. Teste a devolução para correção e um novo envio; por fim, aprove e confira a publicação. Um segundo usuário comum não deve conseguir sobrescrever o rascunho existente.
 
 No Render, procure pelos avisos `Slow query group`, `Slow statistics load`, `Slow database command`, `Timed out loading performance page` e `Failed to load performance page`. Compare-os com CPU, memória, reinicializações e conexões do Supabase. Não considere somente o resultado do CI como confirmação de desempenho em produção.
 
