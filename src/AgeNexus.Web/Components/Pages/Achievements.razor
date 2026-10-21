@@ -1,0 +1,123 @@
+@page "/conquistas"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject AgeNexus.Application.Queries.IAchievementQueryService Achievements
+
+<PageTitle>Conquistas · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@IsLoading" Message="Carregando conquistas..." />
+
+<section class="page-heading achievements-heading">
+    <div>
+        <span class="eyebrow">Salão de glórias</span>
+        <h1>Conquistas</h1>
+        <p>Conheça todos os feitos possíveis e acompanhe quem escreveu os capítulos mais recentes da comunidade.</p>
+    </div>
+    <div class="achievements-overview">
+        <strong>@AchievementDefinitions.Count</strong>
+        <span>conquistas em @AchievementCategories.Count categorias</span>
+    </div>
+</section>
+
+<section class="panel achievements-catalog">
+    <header class="panel-header">
+        <div><span class="eyebrow">Catálogo completo</span><h2>Todas as conquistas possíveis</h2></div>
+        <span class="achievement-feed-total">@VisibleDefinitions.Count exibidas</span>
+    </header>
+
+    <nav class="achievement-categories achievements-catalog-filters" aria-label="Categorias de conquistas">
+        <button class="@(SelectedCategory is null ? "active" : null)" type="button" @onclick="() => SelectCategory(null)">Todas</button>
+        @foreach (var category in AchievementCategories)
+        {
+            <button class="@(SelectedCategory == category ? "active" : null)" type="button"
+                    @onclick="() => SelectCategory(category)">@category</button>
+        }
+    </nav>
+
+    <div class="achievement-catalog-grid">
+        @foreach (var definition in VisibleDefinitions)
+        {
+            <article class="achievement-definition-card">
+                <AchievementIcon Name="@definition.Icon" />
+                <div>
+                    <span>@definition.Category</span>
+                    <strong>@definition.Title</strong>
+                    <p>@definition.Description</p>
+                </div>
+                <small>Meta · @FormatTarget(definition.Target)</small>
+            </article>
+        }
+    </div>
+</section>
+
+<section class="panel achievements-community-feed">
+    <header class="panel-header">
+        <div><span class="eyebrow">Atividade da comunidade</span><h2>Últimas conquistas dos jogadores</h2></div>
+        <span class="achievement-feed-total">@(Feed?.TotalItems ?? 0) desbloqueios</span>
+    </header>
+
+    @if (!IsLoading && (Feed is null || Feed.Items.Count == 0))
+    {
+        <div class="panel-empty achievement-feed-empty">
+            <AchievementIcon Name="trophy" />
+            <strong>A história ainda está sendo escrita</strong>
+            <p>Os desbloqueios aparecerão após a validação das estatísticas das partidas.</p>
+        </div>
+    }
+    else if (Feed is not null)
+    {
+        <div class="achievements-feed-list">
+            @foreach (var achievement in Feed.Items)
+            {
+                <a class="achievement-community-row" href="/jogadores/@achievement.PlayerId#conquistas">
+                    <AchievementIcon Name="@achievement.Definition.Icon" />
+                    <PlayerAvatar DisplayName="@achievement.DisplayName" Url="@achievement.AvatarUrl" Size="list" />
+                    <div>
+                        <span>@achievement.Definition.Category</span>
+                        <strong>@achievement.Definition.Title</strong>
+                        <small>Conquistada por <b>@achievement.DisplayName</b></small>
+                    </div>
+                    <time datetime="@achievement.UnlockedAtUtc.ToString("O")">@achievement.UnlockedAtUtc.ToLocalTime().ToString("dd MMM yyyy")</time>
+                    <b aria-hidden="true">→</b>
+                </a>
+            }
+        </div>
+        <PaginationNav CurrentPage="@Feed.Page"
+                       TotalItems="@Feed.TotalItems"
+                       PageSize="@Feed.PageSize"
+                       BasePath="/conquistas"
+                       PageParameter="pagina" />
+    }
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "pagina")]
+    public int Page { get; set; } = 1;
+
+    private bool IsLoading { get; set; } = true;
+    private string? SelectedCategory { get; set; }
+    private AgeNexus.Application.Queries.PagedAchievementFeed? Feed { get; set; }
+    private IReadOnlyList<AgeNexus.Application.Queries.AchievementDefinition> AchievementDefinitions =>
+        AgeNexus.Application.Queries.AchievementCatalog.All;
+    private IReadOnlyCollection<string> AchievementCategories => AchievementDefinitions
+        .Select(definition => definition.Category)
+        .Distinct()
+        .ToArray();
+    private IReadOnlyCollection<AgeNexus.Application.Queries.AchievementDefinition> VisibleDefinitions => AchievementDefinitions
+        .Where(definition => SelectedCategory is null || definition.Category == SelectedCategory)
+        .ToArray();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        IsLoading = true;
+        try
+        {
+            Feed = await Achievements.GetRecentUnlocksAsync(Page, 10);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void SelectCategory(string? category) => SelectedCategory = category;
+    private static string FormatTarget(decimal value) => value.ToString("N0");
+}
