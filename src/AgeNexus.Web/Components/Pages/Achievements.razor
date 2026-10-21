@@ -1,6 +1,6 @@
 @page "/conquistas"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
-@inject AgeNexus.Application.Queries.IAchievementQueryService Achievements
+@inject AgeNexus.Application.Queries.IAchievementQueryService AchievementQueries
 
 <PageTitle>Conquistas · Age Nexus</PageTitle>
 <LoadingOverlay Visible="@IsLoading" Message="Carregando conquistas..." />
@@ -110,7 +110,7 @@
         IsLoading = true;
         try
         {
-            Feed = await Achievements.GetRecentUnlocksAsync(Page, 10);
+            Feed = await AchievementQueries.GetRecentUnlocksAsync(Page, 10);
         }
         finally
         {
