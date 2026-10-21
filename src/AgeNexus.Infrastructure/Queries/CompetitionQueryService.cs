@@ -220,7 +220,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 match.CreatedByPlayerProfileId,
                 creator.ApplicationUserId,
                 match.PlayedAtUtc,
-                match.Type,
+                MatchType = match.Type,
                 match.Status,
                 match.MapDefinitionId,
                 match.GameMode,
@@ -264,7 +264,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 x.CreatedByPlayerProfileId,
                 CreatedByApplicationUserId = x.ApplicationUserId,
                 x.PlayedAtUtc,
-                x.Type,
+                x.MatchType,
                 x.Status,
                 x.MapDefinitionId,
                 x.GameMode,
@@ -315,7 +315,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     match.Key.Status,
                     teamSummaries)
                 {
-                    Type = match.Key.Type,
+                    Type = match.Key.MatchType,
                     MapDefinitionId = match.Key.MapDefinitionId,
                     MapName = match.Key.MapName,
                     GameMode = match.Key.GameMode,
