@@ -21,6 +21,7 @@ internal sealed class MatchConfiguration : IEntityTypeConfiguration<Match>
         builder.Property(x => x.PlayedAtUtc).HasColumnName("played_at_utc").HasColumnType("timestamp with time zone");
         builder.Property(x => x.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(32);
         builder.Property(x => x.Nature).HasColumnName("nature").HasConversion<string>().HasMaxLength(24);
+        builder.Property(x => x.GameMode).HasColumnName("game_mode").HasConversion<string>().HasMaxLength(32);
         builder.Property(x => x.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(32);
         builder.Property(x => x.SeasonId).HasColumnName("season_id");
         builder.Property(x => x.MapDefinitionId).HasColumnName("map_definition_id");
@@ -73,6 +74,7 @@ internal sealed class MatchConfiguration : IEntityTypeConfiguration<Match>
         builder.HasIndex(x => x.Status).HasDatabaseName("ix_matches_status");
         builder.HasIndex(x => x.SeasonId).HasDatabaseName("ix_matches_season");
         builder.HasIndex(x => x.MapDefinitionId).HasDatabaseName("ix_matches_map");
+        builder.HasIndex(x => x.GameMode).HasDatabaseName("ix_matches_game_mode");
         builder.HasIndex(x => x.GamePatchId).HasDatabaseName("ix_matches_patch");
     }
 }

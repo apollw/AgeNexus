@@ -80,7 +80,7 @@ Isso não muda a proteção HTTPS, a revalidação nem a revogação de acesso. 
 
 ## Verificação operacional após deploy
 
-Depois de alterações em consultas ou cadastro de partidas, valide no ambiente publicado: abrir `/partidas`, usar os filtros de jogador e período, navegar entre páginas, abrir o detalhe público em `/partidas/{id}`, iniciar um cadastro, salvar e abrir `/partidas/{id}/desempenho`. Use uma partida real ou um fluxo previamente autorizado e anote o horário UTC se houver demora.
+Depois de alterações em consultas ou cadastro de partidas, valide no ambiente publicado: abrir `/partidas`, combinar os filtros de jogadores adversários, mapa, tipo e período, navegar entre páginas, abrir o detalhe público em `/partidas/{id}`, iniciar um cadastro, escolher o tipo de partida, salvar e abrir `/partidas/{id}/desempenho`. O administrador também deve testar `/partidas/{id}/editar`. A temporada competitiva deixa de ser escolhida manualmente e é associada pelo backend conforme a data da partida. Use uma partida real ou um fluxo previamente autorizado e anote o horário UTC se houver demora.
 
 Confira também a paginação em `/jogadores`, `/rankings`, `/estatisticas/civilizacoes`, `/clas` e `/jogadores/gerenciar`. Ao navegar, salvar ou atualizar dados, a sobreposição de carregamento deve aparecer e desaparecer ao concluir; durante o AgeXtractor, deve permanecer somente a barra de progresso da extração.
 

@@ -107,10 +107,20 @@ else
                         @foreach (var option in Catalog.Maps) { <option value="@option.Id">@option.Name</option> }
                     </InputSelect>
                 </label>
-                <label class="form-field"><span>Temporada</span>
-                    <InputSelect @bind-Value="Form.SeasonId">
-                        <option value="">Sem temporada</option>
-                        @foreach (var option in Catalog.Seasons) { <option value="@option.Id">@option.Name</option> }
+                <label class="form-field"><span>Tipo de partida</span>
+                    <InputSelect @bind-Value="Form.GameMode">
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.Standard">Padrão</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.Conquest">Conquista</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.Regicide">Regicídio</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.KingOfTheHill">Rei da Colina</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.WonderRace">Corrida das Maravilhas</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.DefendTheWonder">Defender a Maravilha</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.CaptureTheRelic">Capturar a Relíquia</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.SuddenDeath">Morte Súbita</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.DeathMatch">Combate Mortal</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.EmpireWars">Guerras de Impérios</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.BattleRoyale">Battle Royale</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.Other">Outro</option>
                     </InputSelect>
                 </label>
             </div>
@@ -292,7 +302,6 @@ else
     {
         ChangingEdition = true;
         Form.MapDefinitionId = null;
-        Form.SeasonId = null;
         Form.GamePatchId = null;
         foreach (var participant in Form.Teams.SelectMany(x => x.Participants))
         {
@@ -348,7 +357,8 @@ else
             DateTimeOffset.UtcNow,
             Form.Type,
             AgeNexus.Domain.Matches.MatchNature.Ranked,
-            Form.SeasonId,
+            Form.GameMode,
+            null,
             Form.MapDefinitionId,
             Form.GamePatchId,
             Form.Teams.Select(team => new AgeNexus.Application.Matches.RegisterMatchTeam(
@@ -381,7 +391,7 @@ else
     {
         public Guid GameEditionId { get; set; }
         public AgeNexus.Domain.Matches.MatchType Type { get; set; } = AgeNexus.Domain.Matches.MatchType.PlayerVersusPlayer;
-        public Guid? SeasonId { get; set; }
+        public AgeNexus.Domain.Matches.MatchGameMode GameMode { get; set; } = AgeNexus.Domain.Matches.MatchGameMode.Standard;
         public Guid? MapDefinitionId { get; set; }
         public Guid? GamePatchId { get; set; }
         public List<TeamForm> Teams { get; } = [];

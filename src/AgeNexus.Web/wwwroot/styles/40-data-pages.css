@@ -44,7 +44,7 @@
 .table-action-button:disabled { cursor: wait; opacity: .5; }
 .table-action-danger, .table-action-danger:hover { color: var(--red); }
 
-.match-history-filters { display: grid; grid-template-columns: minmax(220px,1.4fr) repeat(2,minmax(150px,.7fr)) auto auto; align-items: end; gap: 12px; margin-bottom: 20px; padding: 18px; }
+.match-history-filters { display: grid; grid-template-columns: repeat(4,minmax(160px,1fr)); align-items: end; gap: 12px; margin-bottom: 20px; padding: 18px; }
 .match-history-filters label { display: grid; gap: 6px; color: var(--muted); font-size: var(--font-xs); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .match-history-filters select, .match-history-filters input { width: 100%; min-height: 42px; padding: 0 12px; color: var(--ink); border: 1px solid var(--line); border-radius: 5px; background: #fffdf8; font: 600 var(--font-caption) inherit; }
 .match-history { display: grid; gap: 13px; }

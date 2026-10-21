@@ -1144,6 +1144,12 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("game_patch_id");
 
+                    b.Property<string>("GameMode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("game_mode");
+
                     b.Property<Guid?>("MapDefinitionId")
                         .HasColumnType("uuid")
                         .HasColumnName("map_definition_id");
@@ -1182,6 +1188,9 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("GamePatchId")
                         .HasDatabaseName("ix_matches_patch");
+
+                    b.HasIndex("GameMode")
+                        .HasDatabaseName("ix_matches_game_mode");
 
                     b.HasIndex("MapDefinitionId")
                         .HasDatabaseName("ix_matches_map");

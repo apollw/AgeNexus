@@ -22,7 +22,7 @@
 
 <form class="panel match-history-filters" method="get" action="/partidas">
     <label>
-        <span>Jogador</span>
+        <span>Jogador 1</span>
         <select name="jogador">
             <option value="">Todos os jogadores</option>
             @foreach (var player in Players)
@@ -34,6 +34,57 @@
                 else
                 {
                     <option value="@player.Id">@player.Name</option>
+                }
+            }
+        </select>
+    </label>
+    <label>
+        <span>Adversário</span>
+        <select name="adversario">
+            <option value="">Qualquer adversário</option>
+            @foreach (var player in Players.Where(player => player.Id != PlayerId))
+            {
+                if (OpponentPlayerId == player.Id)
+                {
+                    <option value="@player.Id" selected>@player.Name</option>
+                }
+                else
+                {
+                    <option value="@player.Id">@player.Name</option>
+                }
+            }
+        </select>
+    </label>
+    <label>
+        <span>Mapa</span>
+        <select name="mapa">
+            <option value="">Todos os mapas</option>
+            @foreach (var map in Maps)
+            {
+                if (MapDefinitionId == map.Id)
+                {
+                    <option value="@map.Id" selected>@map.Name</option>
+                }
+                else
+                {
+                    <option value="@map.Id">@map.Name</option>
+                }
+            }
+        </select>
+    </label>
+    <label>
+        <span>Tipo de partida</span>
+        <select name="tipo">
+            <option value="">Todos os tipos</option>
+            @foreach (var mode in Enum.GetValues<AgeNexus.Domain.Matches.MatchGameMode>())
+            {
+                if (GameMode == mode)
+                {
+                    <option value="@mode" selected>@GameModeLabel(mode)</option>
+                }
+                else
+                {
+                    <option value="@mode">@GameModeLabel(mode)</option>
                 }
             }
         </select>
@@ -76,7 +127,7 @@
                             </div>
                         }
                     </div>
-                    <footer><span>@match.Format</span><b>Ver estatísticas <span>→</span></b></footer>
+                    <footer><span>@match.Format · @GameModeLabel(match.GameMode) · @(match.MapName ?? "Mapa não informado")</span><b>Ver estatísticas <span>→</span></b></footer>
                 </a>
 
                 @if (IsAuthenticated || !string.IsNullOrWhiteSpace(match.YouTubeVideoUrl) || match.ScreenshotCount > 0 || match.HasReplay)
@@ -96,6 +147,7 @@
                         }
                         @if (IsAdministrator)
                         {
+                            <a class="table-action" href="/partidas/@match.MatchId/editar">Editar partida</a>
                             <form method="post" action="/matches/delete" class="match-delete-form" onsubmit="return confirm('Excluir definitivamente esta partida?');">
                                 <AntiforgeryToken /><input type="hidden" name="matchId" value="@match.MatchId" />
                                 <button class="table-action-button table-action-danger" type="submit">Excluir</button>
@@ -119,17 +171,22 @@
     [SupplyParameterFromQuery(Name = "exclusao")] private string? DeleteStatus { get; set; }
     [SupplyParameterFromQuery(Name = "pagina")] private int Page { get; set; } = 1;
     [SupplyParameterFromQuery(Name = "jogador")] private Guid? PlayerId { get; set; }
+    [SupplyParameterFromQuery(Name = "adversario")] private Guid? OpponentPlayerId { get; set; }
+    [SupplyParameterFromQuery(Name = "mapa")] private Guid? MapDefinitionId { get; set; }
+    [SupplyParameterFromQuery(Name = "tipo")] private AgeNexus.Domain.Matches.MatchGameMode? GameMode { get; set; }
     [SupplyParameterFromQuery(Name = "inicio")] private DateOnly? FromDate { get; set; }
     [SupplyParameterFromQuery(Name = "fim")] private DateOnly? ToDate { get; set; }
     [SupplyParameterFromQuery(Name = "revisao")] private string? ReviewFilter { get; set; }
 
     private AgeNexus.Application.Queries.PagedMatchHistory MatchPage { get; set; } = new([], 1, 10, 0);
     private IReadOnlyCollection<AgeNexus.Application.Queries.CatalogOption> Players { get; set; } = [];
+    private IReadOnlyCollection<AgeNexus.Application.Queries.CatalogOption> Maps { get; set; } = [];
     private bool IsAdministrator { get; set; }
     private bool IsAuthenticated { get; set; }
     private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
     private bool PendingReviewOnly => IsAdministrator && ReviewFilter == "pendente";
-    private bool HasFilters => PlayerId.HasValue || FromDate.HasValue || ToDate.HasValue || PendingReviewOnly;
+    private bool HasFilters => PlayerId.HasValue || OpponentPlayerId.HasValue || MapDefinitionId.HasValue ||
+        GameMode.HasValue || FromDate.HasValue || ToDate.HasValue || PendingReviewOnly;
     private bool DeleteSucceeded => DeleteStatus == "ok";
     private string? DeleteMessage => DeleteStatus switch
     {
@@ -151,7 +208,17 @@
             ? await Accounts.GetProfileAsync(authentication.User, CancellationToken.None)
             : null;
         Players = await History.GetPlayerOptionsAsync();
-        MatchPage = await History.GetPageAsync(new(Page, 10, FromDate, ToDate, PlayerId, PendingReviewOnly));
+        Maps = await History.GetMapOptionsAsync();
+        MatchPage = await History.GetPageAsync(new(
+            Page,
+            10,
+            FromDate,
+            ToDate,
+            PlayerId,
+            PendingReviewOnly,
+            OpponentPlayerId,
+            MapDefinitionId,
+            GameMode));
     }
 
     private string StatisticsActionLabel(AgeNexus.Application.Queries.MatchSummary match)
@@ -180,11 +247,30 @@
     {
         var parts = new List<string>();
         if (PlayerId.HasValue) parts.Add($"jogador={PlayerId.Value}");
+        if (OpponentPlayerId.HasValue) parts.Add($"adversario={OpponentPlayerId.Value}");
+        if (MapDefinitionId.HasValue) parts.Add($"mapa={MapDefinitionId.Value}");
+        if (GameMode.HasValue) parts.Add($"tipo={GameMode.Value}");
         if (FromDate.HasValue) parts.Add($"inicio={FromDate.Value:yyyy-MM-dd}");
         if (ToDate.HasValue) parts.Add($"fim={ToDate.Value:yyyy-MM-dd}");
         if (PendingReviewOnly) parts.Add("revisao=pendente");
         return string.Join("&", parts);
     }
+
+    private static string GameModeLabel(AgeNexus.Domain.Matches.MatchGameMode value) => value switch
+    {
+        AgeNexus.Domain.Matches.MatchGameMode.Standard => "Padrão",
+        AgeNexus.Domain.Matches.MatchGameMode.Conquest => "Conquista",
+        AgeNexus.Domain.Matches.MatchGameMode.Regicide => "Regicídio",
+        AgeNexus.Domain.Matches.MatchGameMode.KingOfTheHill => "Rei da Colina",
+        AgeNexus.Domain.Matches.MatchGameMode.WonderRace => "Corrida das Maravilhas",
+        AgeNexus.Domain.Matches.MatchGameMode.DefendTheWonder => "Defender a Maravilha",
+        AgeNexus.Domain.Matches.MatchGameMode.CaptureTheRelic => "Capturar a Relíquia",
+        AgeNexus.Domain.Matches.MatchGameMode.SuddenDeath => "Morte Súbita",
+        AgeNexus.Domain.Matches.MatchGameMode.DeathMatch => "Combate Mortal",
+        AgeNexus.Domain.Matches.MatchGameMode.EmpireWars => "Guerras de Impérios",
+        AgeNexus.Domain.Matches.MatchGameMode.BattleRoyale => "Battle Royale",
+        _ => "Outro"
+    };
 
     private static string CategoryLabel(AgeNexus.Domain.Matches.MatchScoringCategory value) => value switch
     {

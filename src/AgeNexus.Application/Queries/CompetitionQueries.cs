@@ -54,6 +54,9 @@ public sealed record MatchSummary(
     MatchStatus Status,
     IReadOnlyCollection<MatchTeamSummary> Teams)
 {
+    public Guid? MapDefinitionId { get; init; }
+    public string? MapName { get; init; }
+    public MatchGameMode GameMode { get; init; }
     public Guid? CreatedByApplicationUserId { get; init; }
     public string? YouTubeVideoUrl { get; init; }
     public int ScreenshotCount { get; init; }
@@ -75,7 +78,17 @@ public sealed record MatchHistoryFilter(
     DateOnly? FromDate = null,
     DateOnly? ToDate = null,
     Guid? PlayerId = null,
-    bool PendingStatisticsReview = false);
+    bool PendingStatisticsReview = false,
+    Guid? OpponentPlayerId = null,
+    Guid? MapDefinitionId = null,
+    MatchGameMode? GameMode = null);
+
+public sealed record MatchMetadataEditView(
+    Guid MatchId,
+    Guid GameEditionId,
+    string GameEditionName,
+    Guid? MapDefinitionId,
+    MatchGameMode GameMode);
 
 public sealed record PagedMatchHistory(
     IReadOnlyCollection<MatchSummary> Items,
@@ -89,6 +102,13 @@ public sealed record PagedMatchHistory(
 public interface IMatchHistoryQueryService
 {
     Task<IReadOnlyCollection<CatalogOption>> GetPlayerOptionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<CatalogOption>> GetMapOptionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<MatchMetadataEditView?> GetMetadataForEditAsync(
+        Guid matchId,
         CancellationToken cancellationToken = default);
 
     Task<PagedMatchHistory> GetPageAsync(

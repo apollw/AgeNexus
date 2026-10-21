@@ -6,6 +6,9 @@ namespace AgeNexus.Application.Matches;
 public interface IMatchWorkflowService
 {
     Task<MatchWorkflowResult> RegisterAsync(RegisterMatchRequest request, CancellationToken cancellationToken = default);
+    Task<MatchWorkflowResult> UpdateMetadataAsync(
+        UpdateMatchMetadataRequest request,
+        CancellationToken cancellationToken = default);
     Task<MatchWorkflowResult> ConfirmAsync(
         Guid matchId,
         Guid playerProfileId,
@@ -36,10 +39,17 @@ public sealed record RegisterMatchRequest(
     DateTimeOffset PlayedAtUtc,
     AgeNexus.Domain.Matches.MatchType Type,
     MatchNature Nature,
+    MatchGameMode GameMode,
     Guid? SeasonId,
     Guid? MapDefinitionId,
     Guid? GamePatchId,
     IReadOnlyCollection<RegisterMatchTeam> Teams);
+
+public sealed record UpdateMatchMetadataRequest(
+    Guid MatchId,
+    Guid RequestedByPlayerProfileId,
+    Guid? MapDefinitionId,
+    MatchGameMode GameMode);
 
 public sealed record RegisterMatchTeam(
     TeamResult Result,
