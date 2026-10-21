@@ -93,6 +93,29 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             .Select(player => new CatalogOption(player.Id, player.DisplayName))
             .ToArrayAsync(cancellationToken);
 
+    public async Task<IReadOnlyCollection<CatalogOption>> GetMapOptionsAsync(
+        CancellationToken cancellationToken = default) =>
+        await database.MapDefinitions.AsNoTracking()
+            .OrderBy(map => map.Name)
+            .Select(map => new CatalogOption(map.Id, map.Name))
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<MatchMetadataEditView?> GetMetadataForEditAsync(
+        Guid matchId,
+        CancellationToken cancellationToken = default) =>
+        await (
+            from match in database.Matches.AsNoTracking()
+            join edition in database.GameEditions.AsNoTracking()
+                on match.GameEditionId equals edition.Id
+            where match.Id == matchId
+            select new MatchMetadataEditView(
+                match.Id,
+                match.GameEditionId,
+                edition.Name,
+                match.MapDefinitionId,
+                match.GameMode))
+            .SingleOrDefaultAsync(cancellationToken);
+
     private async Task<IReadOnlyCollection<MatchSummary>> GetRecentCoreAsync(
         int limit,
         CancellationToken cancellationToken)
@@ -125,6 +148,34 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 team.Participants.Any(participant => participant.PlayerProfileId == filter.PlayerId)));
         }
 
+        if (filter.OpponentPlayerId.HasValue)
+        {
+            if (filter.PlayerId.HasValue)
+            {
+                matches = matches.Where(match => match.Teams.Any(firstTeam =>
+                    firstTeam.Participants.Any(participant => participant.PlayerProfileId == filter.PlayerId) &&
+                    match.Teams.Any(secondTeam => secondTeam.Id != firstTeam.Id &&
+                        secondTeam.Participants.Any(participant =>
+                            participant.PlayerProfileId == filter.OpponentPlayerId))));
+            }
+            else
+            {
+                matches = matches.Where(match => match.Teams.Any(team =>
+                    team.Participants.Any(participant =>
+                        participant.PlayerProfileId == filter.OpponentPlayerId)));
+            }
+        }
+
+        if (filter.MapDefinitionId.HasValue)
+        {
+            matches = matches.Where(match => match.MapDefinitionId == filter.MapDefinitionId);
+        }
+
+        if (filter.GameMode.HasValue)
+        {
+            matches = matches.Where(match => match.GameMode == filter.GameMode);
+        }
+
         if (filter.PendingStatisticsReview)
         {
             matches = matches.Where(match => database.MatchStatisticsReports.Any(report =>
@@ -152,6 +203,9 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             where pageMatchIds.Contains(match.Id)
             join creator in database.PlayerProfiles.AsNoTracking()
                 on match.CreatedByPlayerProfileId equals creator.Id
+            join map in database.MapDefinitions.AsNoTracking()
+                on match.MapDefinitionId equals (Guid?)map.Id into maps
+            from map in maps.DefaultIfEmpty()
             from team in match.Teams
             from participant in team.Participants
             join human in database.PlayerProfiles.AsNoTracking()
@@ -167,6 +221,9 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 creator.ApplicationUserId,
                 match.PlayedAtUtc,
                 match.Status,
+                match.MapDefinitionId,
+                match.GameMode,
+                MapName = map == null ? null : map.Name,
                 TeamId = team.Id,
                 team.Position,
                 team.Result,
@@ -206,7 +263,10 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 x.CreatedByPlayerProfileId,
                 CreatedByApplicationUserId = x.ApplicationUserId,
                 x.PlayedAtUtc,
-                x.Status
+                x.Status,
+                x.MapDefinitionId,
+                x.GameMode,
+                x.MapName
             })
             .OrderByDescending(x => x.Key.PlayedAtUtc)
             .Select(match =>
@@ -253,6 +313,9 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     match.Key.Status,
                     teamSummaries)
                 {
+                    MapDefinitionId = match.Key.MapDefinitionId,
+                    MapName = match.Key.MapName,
+                    GameMode = match.Key.GameMode,
                     CreatedByApplicationUserId = match.Key.CreatedByApplicationUserId,
                     YouTubeVideoUrl = matchEvidence?
                         .FirstOrDefault(item => item.Kind == EvidenceKind.VideoLink)?.ExternalUrl,

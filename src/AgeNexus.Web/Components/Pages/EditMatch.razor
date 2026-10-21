@@ -1,0 +1,135 @@
+@page "/partidas/{MatchId:guid}/editar"
+@attribute [Authorize(Policy = "Administrator")]
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@inject AgeNexus.Application.Matches.IMatchWorkflowService Workflow
+@inject AgeNexus.Application.Queries.IMatchHistoryQueryService History
+@inject AgeNexus.Application.Queries.ICatalogQueryService CatalogQueries
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
+@inject NavigationManager Navigation
+
+<PageTitle>Editar partida · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@(Loading || Saving)" Message="@(Saving ? "Salvando alterações..." : "Carregando partida...")" />
+
+<section class="page-heading compact-heading">
+    <div><span class="eyebrow">Ajustes da batalha</span><h1>Editar partida</h1><p>Atualize o mapa e o tipo da partida.</p></div>
+    <a class="button button-secondary" href="/partidas/@MatchId">Cancelar</a>
+</section>
+
+@if (!Loading && View is null)
+{
+    <section class="panel panel-empty page-empty"><strong>Partida não encontrada</strong></section>
+}
+else if (View is not null)
+{
+    <EditForm Model="Form" OnValidSubmit="SaveAsync" class="account-form">
+        <section class="panel profile-form-card">
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <div class="form-alert form-alert-error">@Error</div>
+            }
+            <div class="form-grid">
+                <label class="form-field"><span>Edição</span><input value="@View.GameEditionName" disabled /></label>
+                <label class="form-field"><span>Mapa</span>
+                    <InputSelect @bind-Value="Form.MapDefinitionId">
+                        <option value="">Não informado</option>
+                        @foreach (var map in Maps) { <option value="@map.Id">@map.Name</option> }
+                    </InputSelect>
+                </label>
+                <label class="form-field"><span>Tipo de partida</span>
+                    <InputSelect @bind-Value="Form.GameMode">
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.Standard">Padrão</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.Conquest">Conquista</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.Regicide">Regicídio</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.KingOfTheHill">Rei da Colina</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.WonderRace">Corrida das Maravilhas</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.DefendTheWonder">Defender a Maravilha</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.CaptureTheRelic">Capturar a Relíquia</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.SuddenDeath">Morte Súbita</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.DeathMatch">Combate Mortal</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.EmpireWars">Guerras de Impérios</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.BattleRoyale">Battle Royale</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchGameMode.Other">Outro</option>
+                    </InputSelect>
+                </label>
+            </div>
+        </section>
+        <button class="button button-primary account-submit" type="submit" disabled="@Saving">Salvar alterações</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public Guid MatchId { get; set; }
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private AgeNexus.Application.Queries.MatchMetadataEditView? View { get; set; }
+    private IReadOnlyCollection<AgeNexus.Application.Queries.CatalogOption> Maps { get; set; } = [];
+    private EditMatchForm Form { get; } = new();
+    private bool Loading { get; set; } = true;
+    private bool Saving { get; set; }
+    private string? Error { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Loading = true;
+        try
+        {
+            View = await History.GetMetadataForEditAsync(MatchId);
+            if (View is null) return;
+
+            var catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(View.GameEditionId);
+            Maps = catalog.Maps;
+            Form.MapDefinitionId = View.MapDefinitionId;
+            Form.GameMode = View.GameMode;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        var authentication = await AuthenticationStateTask;
+        var profile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+        if (profile is null)
+        {
+            Error = "Não foi possível identificar seu perfil administrativo.";
+            return;
+        }
+
+        Saving = true;
+        Error = null;
+        try
+        {
+            var result = await Workflow.UpdateMetadataAsync(new(
+                MatchId,
+                profile.Id,
+                Form.MapDefinitionId,
+                Form.GameMode));
+            if (result.Succeeded)
+            {
+                Navigation.NavigateTo($"/partidas/{MatchId}");
+                return;
+            }
+
+            Error = result.ErrorCode switch
+            {
+                "InvalidMap" => "O mapa selecionado não pertence à edição desta partida.",
+                "InvalidMatchState" => "Uma partida anulada não pode ser editada.",
+                "NotAuthorized" => "Sua conta não possui permissão para editar esta partida.",
+                "MatchNotFound" => "A partida não foi encontrada.",
+                _ => "Não foi possível salvar as alterações."
+            };
+        }
+        finally
+        {
+            Saving = false;
+        }
+    }
+
+    private sealed class EditMatchForm
+    {
+        public Guid? MapDefinitionId { get; set; }
+        public AgeNexus.Domain.Matches.MatchGameMode GameMode { get; set; }
+    }
+}

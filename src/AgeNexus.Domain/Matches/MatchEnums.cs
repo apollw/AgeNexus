@@ -35,6 +35,22 @@ public enum MatchNature
     Series
 }
 
+public enum MatchGameMode
+{
+    Standard,
+    Conquest,
+    Regicide,
+    KingOfTheHill,
+    WonderRace,
+    DefendTheWonder,
+    CaptureTheRelic,
+    SuddenDeath,
+    DeathMatch,
+    EmpireWars,
+    BattleRoyale,
+    Other
+}
+
 public enum ParticipantType
 {
     Human,

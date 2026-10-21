@@ -42,6 +42,7 @@ public sealed class Match
     public DateTimeOffset PlayedAtUtc { get; private set; }
     public MatchType Type { get; private set; }
     public MatchNature Nature { get; private set; }
+    public MatchGameMode GameMode { get; private set; } = MatchGameMode.Standard;
     public MatchStatus Status { get; private set; } = MatchStatus.Draft;
     public Guid? SeasonId { get; private set; }
     public Guid? MapDefinitionId { get; private set; }
@@ -96,6 +97,25 @@ public sealed class Match
         SeasonId = NormalizeOptionalId(seasonId);
         MapDefinitionId = NormalizeOptionalId(mapDefinitionId);
         GamePatchId = NormalizeOptionalId(gamePatchId);
+    }
+
+    public void SetGameMode(MatchGameMode gameMode)
+    {
+        EnsureDraft();
+        EnsureValidGameMode(gameMode);
+        GameMode = gameMode;
+    }
+
+    public void UpdatePublicMetadata(Guid? mapDefinitionId, MatchGameMode gameMode)
+    {
+        if (Status == MatchStatus.Voided)
+        {
+            throw new DomainRuleException("A voided match cannot be edited.");
+        }
+
+        EnsureValidGameMode(gameMode);
+        MapDefinitionId = NormalizeOptionalId(mapDefinitionId);
+        GameMode = gameMode;
     }
 
     public void AddParticipant(Guid teamId, MatchParticipant participant)
@@ -277,6 +297,14 @@ public sealed class Match
         if (Status != MatchStatus.Draft)
         {
             throw new DomainRuleException("Match composition can only change while it is a draft.");
+        }
+    }
+
+    private static void EnsureValidGameMode(MatchGameMode gameMode)
+    {
+        if (!Enum.IsDefined(typeof(MatchGameMode), gameMode))
+        {
+            throw new DomainRuleException("Unknown match game mode.");
         }
     }
 

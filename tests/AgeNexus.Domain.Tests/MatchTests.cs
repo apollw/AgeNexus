@@ -112,6 +112,28 @@ public sealed class MatchTests
     }
 
     [Fact]
+    public void Stores_game_mode_and_allows_administrative_metadata_correction()
+    {
+        var match = CreateMatch(MatchType.PlayerVersusPlayer);
+        var originalMapId = Guid.NewGuid();
+        var correctedMapId = Guid.NewGuid();
+        match.SetCatalogContext(null, originalMapId, null);
+        match.SetGameMode(MatchGameMode.Regicide);
+
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        AddHumans(match, firstTeam.Id, 1);
+        AddHumans(match, secondTeam.Id, 1);
+        match.Submit();
+        match.RequestConfirmation();
+
+        match.UpdatePublicMetadata(correctedMapId, MatchGameMode.Conquest);
+
+        Assert.Equal(correctedMapId, match.MapDefinitionId);
+        Assert.Equal(MatchGameMode.Conquest, match.GameMode);
+    }
+
+    [Fact]
     public void Validates_only_after_confirmation_and_coherent_results()
     {
         var match = CreateMatch(MatchType.PlayerVersusPlayer);

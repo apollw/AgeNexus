@@ -46,7 +46,15 @@ public sealed class MatchWorkflowService(
                 request.PlayedAtUtc,
                 request.Type,
                 request.Nature);
-            match.SetCatalogContext(request.SeasonId, request.MapDefinitionId, request.GamePatchId);
+            var seasonId = request.SeasonId ?? await database.Seasons.AsNoTracking()
+                .Where(season => season.GameEditionId == request.GameEditionId &&
+                                 season.StartsAtUtc <= request.PlayedAtUtc &&
+                                 season.EndsAtUtc > request.PlayedAtUtc)
+                .OrderByDescending(season => season.StartsAtUtc)
+                .Select(season => (Guid?)season.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+            match.SetCatalogContext(seasonId, request.MapDefinitionId, request.GamePatchId);
+            match.SetGameMode(request.GameMode);
 
             foreach (var requestedTeam in request.Teams)
             {
@@ -79,6 +87,41 @@ public sealed class MatchWorkflowService(
         catch (DomainRuleException)
         {
             return MatchWorkflowResult.Failure(matchId, "InvalidMatch");
+        }
+    }
+
+    public async Task<MatchWorkflowResult> UpdateMetadataAsync(
+        UpdateMatchMetadataRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (!await accounts.IsAdministratorProfileAsync(request.RequestedByPlayerProfileId, cancellationToken))
+        {
+            return MatchWorkflowResult.Failure(request.MatchId, "NotAuthorized");
+        }
+
+        var match = await LoadMatchAsync(request.MatchId, cancellationToken);
+        if (match is null)
+        {
+            return MatchWorkflowResult.Failure(request.MatchId, "MatchNotFound");
+        }
+
+        if (request.MapDefinitionId.HasValue && !await database.MapDefinitions.AsNoTracking().AnyAsync(
+                map => map.Id == request.MapDefinitionId && map.GameEditionId == match.GameEditionId,
+                cancellationToken))
+        {
+            return MatchWorkflowResult.Failure(request.MatchId, "InvalidMap");
+        }
+
+        try
+        {
+            match.UpdatePublicMetadata(request.MapDefinitionId, request.GameMode);
+            await database.SaveChangesAsync(cancellationToken);
+            return MatchWorkflowResult.Success(match.Id);
+        }
+        catch (DomainRuleException)
+        {
+            return MatchWorkflowResult.Failure(request.MatchId, "InvalidMatchState");
         }
     }
 
