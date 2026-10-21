@@ -88,3 +88,19 @@
 .home-match-context b { font: 700 var(--font-caption) "Unbounded"; }.home-match-context small { color: var(--muted); font-size: var(--font-xs); }
 .home-match-arrow { color: var(--gold); font-size: 17px; transition: .18s; }.home-match-row:hover .home-match-arrow { transform: translateX(3px); }
 .home-leaderboard { padding-bottom: 17px; }
+
+.achievement-feed-panel { margin-top: 20px; }
+.achievement-feed-total { color: var(--muted); font-size: var(--font-sm); font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.achievement-feed-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; padding: 0 26px 20px; }
+.achievement-feed-card { display: grid; grid-template-columns: 48px 32px minmax(0,1fr) auto; align-items: center; gap: 11px; min-width: 0; padding: 13px; color: inherit; border: 1px solid #e8dfcf; border-radius: 8px; background: linear-gradient(115deg,#fffdf8,#f9f3e5); transition: .18s ease; }
+.achievement-feed-card:hover { border-color: #cdb271; box-shadow: 0 9px 22px rgba(63,47,21,.08); transform: translateY(-2px); }
+.achievement-feed-card .achievement-icon { width: 48px; height: 48px; grid-row: 1; }
+.achievement-feed-card .avatar { margin-left: -21px; border-color: #fffaf0; box-shadow: 0 3px 9px rgba(0,0,0,.2); }
+.achievement-feed-card > div { display: grid; gap: 2px; min-width: 0; }
+.achievement-feed-card > div > span { color: var(--gold); font-size: var(--font-xs); font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
+.achievement-feed-card strong { overflow: hidden; font-size: var(--font-copy); text-overflow: ellipsis; white-space: nowrap; }
+.achievement-feed-card small { overflow: hidden; color: var(--muted); font-size: var(--font-sm); text-overflow: ellipsis; white-space: nowrap; }
+.achievement-feed-card small b { color: var(--forest); }
+.achievement-feed-card > b { color: var(--gold); font-size: 18px; }
+.achievement-feed-panel .pagination { padding: 2px 26px 24px; }
+.achievement-feed-empty { min-height: 190px; }

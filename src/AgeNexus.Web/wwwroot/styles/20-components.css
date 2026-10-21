@@ -28,3 +28,5 @@
 .loading-spinner { width: 36px; height: 36px; margin-bottom: 5px; border: 3px solid #e8deca; border-top-color: var(--gold); border-radius: 50%; animation: loading-spin .75s linear infinite; }
 @keyframes loading-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .loading-spinner { animation-duration: 1.5s; } }
+.achievement-icon { display: inline-grid; place-items: center; width: 48px; height: 48px; flex: 0 0 auto; color: #f1cf82; border: 1px solid rgba(226,183,92,.42); border-radius: 13px; background: linear-gradient(145deg,#315e4e,#17372d); box-shadow: inset 0 1px rgba(255,255,255,.12),0 5px 14px rgba(24,47,39,.18); }
+.achievement-icon svg { width: 27px; height: 27px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }

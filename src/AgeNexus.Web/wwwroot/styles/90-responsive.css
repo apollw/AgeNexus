@@ -10,6 +10,7 @@
     .dashboard-grid { grid-template-columns: 1fr; }
     .player-grid { grid-template-columns: repeat(2, 1fr); }
     .records-feature-strip { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .achievement-pool { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }
 
 @media (max-width: 900px) {
@@ -18,6 +19,7 @@
     .public-profile-grid { grid-template-columns: 1fr; }
     .public-profile-hero { align-items: flex-start; flex-direction: column; }
     .public-profile-favorite { width: 100%; }
+    .achievement-feed-grid { grid-template-columns: 1fr; }
     .faction-podium { grid-template-columns: 1fr; }
     .faction-podium-card { min-height: 120px; }
     .records-hero { grid-template-columns: 1fr; }
@@ -75,6 +77,7 @@
     .match-sides { grid-template-columns: 1fr 48px 1fr; gap: 5px; }.player-side .avatar { display: none; }.player-side strong, .team-stack strong { font-size: 11px; }.team-stack .avatar { display: none; }
     .quick-actions, .player-grid { grid-template-columns: 1fr; }
     .home-match-list { padding: 0 14px 14px; }.home-match-main { grid-template-columns: minmax(0,1fr) auto auto; }.home-match-versus { display: none; }.home-match-context { min-width: 65px; }
+    .achievement-feed-grid { padding: 0 14px 16px; }.achievement-feed-card { grid-template-columns: 44px 29px minmax(0,1fr) auto; padding: 11px; }.achievement-feed-card .achievement-icon { width: 44px; height: 44px; }.achievement-feed-panel .pagination { padding-left: 14px; padding-right: 14px; }
     .filter-bar { flex-wrap: wrap; }.search-box { flex-basis: 100%; }.filter-button { flex: 1; min-width: 90px; }
     .table-panel { padding: 12px; }
     .data-table { overflow-x: auto; }.table-head, .table-row { min-width: 720px; }
@@ -105,6 +108,7 @@
     .onboarding-result, .public-profile-hero, .public-profile-identity { align-items: flex-start; flex-direction: column; }.onboarding-result .button { width: 100%; }
     .public-profile-hero { min-height: 0; }.public-profile-avatar { width: 82px; height: 82px; }.public-profile-favorite { width: 100%; }.public-profile-identity h1 { font-size: 30px; }
     .public-profile-stats .stat-card { min-height: 132px; }.public-profile-stats .stat-card > div { display: grid; gap: 2px; }
+    .profile-achievements-header { align-items: flex-start; }.achievement-pool { grid-template-columns: 1fr; padding: 14px; }.achievement-card { min-height: 145px; }.achievement-summary strong { font-size: 18px; }
     .profile-claim-row { grid-template-columns: auto minmax(0,1fr); }.profile-claim-actions { grid-column: 1 / -1; width: 100%; }.profile-claim-actions .button, .profile-claim-actions .table-action-button { flex: 1; }
     .profile-record-categories { flex-wrap: nowrap; padding: 13px 14px; overflow-x: auto; }.profile-record-categories button { flex: 0 0 auto; }.public-profile-section .record-category-prompt { margin: 14px; }.profile-record, .profile-faction-list article { padding: 14px 15px; }
     .json-import-inputs { grid-template-columns: 1fr; }.json-import-or { min-height: 20px; }.json-file-picker { min-height: 145px; }.json-player-mapping { grid-template-columns: 1fr; }

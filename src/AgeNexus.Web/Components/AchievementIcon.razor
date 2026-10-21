@@ -1,0 +1,69 @@
+<span class="achievement-icon @Class" aria-hidden="true">
+    <svg viewBox="0 0 24 24" role="img">
+        @switch (Name)
+        {
+            case "trophy":
+                <path d="M8 4h8v4c0 3-1.8 5-4 5S8 11 8 8V4Z M8 6H4v2c0 2 1.3 3 3 3 M16 6h4v2c0 2-1.3 3-3 3 M12 13v4 M8 20h8 M9 17h6" />
+                break;
+            case "crown":
+                <path d="m3 7 4 4 5-7 5 7 4-4-2 11H5L3 7Z M6 21h12" />
+                break;
+            case "swords":
+                <path d="m4 3 7 7-2 2-7-7 2-2Z M13 12l7-7 2-2v4l-7 7 M7 15l-4 4 2 2 4-4 M15 15l6 6 M18 18l3-3" />
+                break;
+            case "skull":
+                <path d="M5 11a7 7 0 1 1 14 0c0 3-2 5-4 6v3h-2v-2h-2v2H9v-3c-2-1-4-3-4-6Z M9 11h.01 M15 11h.01 M10 15h4" />
+                break;
+            case "siege":
+                <path d="M3 16h18 M6 16l2-7h8l2 7 M9 9V5h6v4 M7 20h.01 M17 20h.01 M4 20h16" />
+                break;
+            case "fire":
+                <path d="M12 22c4 0 7-3 7-7 0-5-4-8-6-12 0 4-3 5-4 8-1-2-2-2-3-3 0 3-1 4-1 7 0 4 3 7 7 7Z M10 21c-1-3 1-5 3-7 0 3 2 4 1 7" />
+                break;
+            case "food":
+                <path d="M12 21V8 M8 21h8 M7 3c3 0 5 2 5 5-3 0-5-2-5-5Z M17 4c-3 0-5 2-5 5 3 0 5-2 5-5Z" />
+                break;
+            case "wood":
+                <path d="m12 2-5 7h3l-5 7h5v6h4v-6h5l-5-7h3l-5-7Z" />
+                break;
+            case "gold":
+                <path d="M5 9 8 4h8l3 5-7 11L5 9Z M5 9h14 M8 4l4 5 4-5 M12 9v11" />
+                break;
+            case "stone":
+                <path d="m4 17 3-9 5-5 6 4 2 10-5 4H8l-4-4Z M7 8l5 4 6-5 M12 12l3 9" />
+                break;
+            case "trade":
+                <path d="M4 7h13 M14 4l3 3-3 3 M20 17H7 M10 14l-3 3 3 3" />
+                break;
+            case "relic":
+                <path d="M9 3h6l1 4-2 3v7l3 3H7l3-3v-7L8 7l1-4Z M9 7h6 M10 13h4" />
+                break;
+            case "monk":
+                <path d="M12 3a4 4 0 0 0-4 4v3l-3 3v8h14v-8l-3-3V7a4 4 0 0 0-4-4Z M9 8h6 M10 14h4 M12 12v4" />
+                break;
+            case "research":
+                <path d="M4 5h6c2 0 3 1 3 3v12c0-2-1-3-3-3H4V5Z M20 5h-4c-2 0-3 1-3 3v12c0-2 1-3 3-3h4V5Z" />
+                break;
+            case "castle":
+                <path d="M4 21V8h3V4h3v4h4V4h3v4h3v13H4Z M9 21v-5a3 3 0 0 1 6 0v5 M4 11h16" />
+                break;
+            case "wonder":
+                <path d="m12 2 2.5 6H21l-5 4 2 7-6-4-6 4 2-7-5-4h6.5L12 2Z" />
+                break;
+            case "star":
+                <path d="m12 2 3 6 7 .8-5 4.7 1.5 6.5-6.5-3.5L5.5 20 7 13.5 2 8.8 9 8l3-6Z" />
+                break;
+            case "shield":
+                <path d="M12 3 20 6v5c0 5-3 8-8 10-5-2-8-5-8-10V6l8-3Z M9 12l2 2 4-5" />
+                break;
+            default:
+                <path d="M5 21V5l7-2 7 2v16 M5 17h14 M9 8h6 M9 12h6" />
+                break;
+        }
+    </svg>
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "banner";
+    [Parameter] public string? Class { get; set; }
+}
