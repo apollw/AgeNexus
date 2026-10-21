@@ -1,1 +1,13 @@
-YªçŠx-®éÜj×¢ëiºÚ+Š§j[h‘éÜ¢éíç~öÙ:-jZ.¶›­–)Ş³mÈQˆˆ[Ù[\ˆ\Y\ÈÜˆ\]Z\\ÈH\XÚ\[\Â‚‹Hİ]\ÎˆXÙZ]Â‹H]NˆŒ‹LLÌ‚ˆÈÈXÚ\ğèÛÂ‚˜X]Ú0êHH˜Z^ˆÈYÜ™YØYÈHÛÛ0ê[HHX\ÈHÚ]È\]Z\\ËˆØYH\]Z\HÛÛ0ê[H\XÚ\[\È\YÜÈÛÛ[È[X[›ÈİHPKˆ›Ü›X]ÜÈÛÛ[È˜H^^X°èÛÈğèÛÈ[[\ÈHğèÛÈ\š]˜YÜÈ\È]X[YY\ÈH[X[›ÜËˆÈ™\İ[YÈšXØH˜H\]Z\Kˆ\Y\ÈH°êœÈHÚ]È\]Z\\È\Ø[HHØ]YÛÜšXHÙÜÈÛÛ˜HÙÜÎÈ[\È\›X^™[˜[H™\İ[YÜÈH\İ]0ë\İXØ\ËX\ÈZ[™H°èÛÈ[\˜[HÈ[ËİZ›Èğè[İ[È]X[ÛÛ\\˜H^][Y[HÚ\ÈYÜË‚‚ˆÈÈÛÛœÙ\]pê›˜ÚX\Â‚“ÈY\Û[È[Ù[È][™H\]Z\\ÈYİXZ\Ë\ÜÚ[pê]šXØ\Ë\Y\ÈÛÛ˜HPHHÙÜÈÛÛ˜HÙÜÈÛÛH]0êHÚ]È\]Z\\ÈÙ[H]Y[°éØ\ÈH\Ü]Y[XKˆ\È[˜\šX[\ÈHÛÛ\ÜÚpéğèÛÈšXØ[H›ÈYÜ™YØYË‚‚
+# ADR 0002: modelar partidas por equipes e participantes
+
+- Status: aceito
+- Data: 2026-08-30
+
+## DecisÃ£o
+
+`Match` Ã© a raiz do agregado e contÃ©m de duas a oito equipes. Cada equipe contÃ©m participantes tipados como humano ou IA. Formatos como `2x2` e `1x1x1` nÃ£o sÃ£o enums e sÃ£o derivados das quantidades de humanos. O resultado fica na equipe. Partidas de trÃªs a oito equipes usam a categoria todos contra todos; elas armazenam resultados e estatÃ­sticas, mas ainda nÃ£o alteram o Elo, cujo cÃ¡lculo atual compara exatamente dois lados.
+
+## ConsequÃªncias
+
+O mesmo modelo atende equipes iguais, assimÃ©tricas, partidas contra IA e todos contra todos com atÃ© oito equipes sem mudanÃ§as de esquema. As invariantes de composiÃ§Ã£o ficam no agregado.
+
