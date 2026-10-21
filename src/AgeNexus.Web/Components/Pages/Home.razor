@@ -1,6 +1,7 @@
 @page "/"
 @inject AgeNexus.Application.Queries.IMatchHistoryQueryService MatchHistory
 @inject AgeNexus.Application.Queries.IRankingQueryService Rankings
+@inject AgeNexus.Application.Queries.IAchievementQueryService Achievements
 
 <PageTitle>Visão geral · Age Nexus</PageTitle>
 
@@ -88,6 +89,45 @@
     </aside>
 </div>
 
+<section class="panel achievement-feed-panel">
+    <header class="panel-header">
+        <div><span class="eyebrow">Feitos da comunidade</span><h2>Últimas conquistas</h2></div>
+        <span class="achievement-feed-total">@(AchievementFeed?.TotalItems ?? 0) desbloqueios</span>
+    </header>
+
+    @if (AchievementFeed is null || AchievementFeed.Items.Count == 0)
+    {
+        <div class="panel-empty achievement-feed-empty">
+            <AchievementIcon Name="trophy" />
+            <strong>A história ainda está sendo escrita</strong>
+            <p>As conquistas aparecem quando as estatísticas validadas alcançam uma nova meta.</p>
+        </div>
+    }
+    else
+    {
+        <div class="achievement-feed-grid">
+            @foreach (var achievement in AchievementFeed.Items)
+            {
+                <a class="achievement-feed-card" href="/jogadores/@achievement.PlayerId#conquistas">
+                    <AchievementIcon Name="@achievement.Definition.Icon" />
+                    <PlayerAvatar DisplayName="@achievement.DisplayName" Url="@achievement.AvatarUrl" Size="compact" />
+                    <div>
+                        <span>@achievement.Definition.Category</span>
+                        <strong>@achievement.Definition.Title</strong>
+                        <small><b>@achievement.DisplayName</b> · @achievement.UnlockedAtUtc.ToLocalTime().ToString("dd MMM yyyy")</small>
+                    </div>
+                    <b aria-hidden="true">→</b>
+                </a>
+            }
+        </div>
+        <PaginationNav CurrentPage="@AchievementFeed.Page"
+                       TotalItems="@AchievementFeed.TotalItems"
+                       PageSize="@AchievementFeed.PageSize"
+                       BasePath="/"
+                       PageParameter="conquistas" />
+    }
+</section>
+
 <section class="quick-actions">
     <a href="/partidas" class="quick-card">
         <span class="quick-number">01</span><div><strong>Registre uma história</strong><small>Adicione equipes, civilizações e evidências.</small></div><b>→</b>
@@ -103,6 +143,10 @@
 @code {
     private IReadOnlyCollection<AgeNexus.Application.Queries.MatchSummary> RecentMatches { get; set; } = [];
     private IReadOnlyCollection<AgeNexus.Application.Queries.RankingEntry> TopPlayers { get; set; } = [];
+    private AgeNexus.Application.Queries.PagedAchievementFeed? AchievementFeed { get; set; }
+
+    [SupplyParameterFromQuery(Name = "conquistas")]
+    public int AchievementPage { get; set; } = 1;
 
     protected override async Task OnInitializedAsync()
     {
@@ -112,6 +156,7 @@
         TopPlayers = await Rankings.GetAsync(
             AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive,
             limit: 5);
+        AchievementFeed = await Achievements.GetRecentUnlocksAsync(AchievementPage, 8);
     }
 
     private static string TeamResultMark(AgeNexus.Domain.Matches.TeamResult result) => result switch

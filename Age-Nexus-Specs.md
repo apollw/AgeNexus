@@ -577,6 +577,8 @@ Painéis de jogadores, confrontos diretos, civilizações, mapas, composições 
 
 Clãs, convites, pedidos de entrada, comentários, conquistas e recordes.
 
+As conquistas iniciais foram antecipadas: há um catálogo de 50 metas em jornada, vitórias, combate, cerco, economia, comércio, religião, tecnologia, sociedade, exploração e prestígio. Elas são derivadas cronologicamente das estatísticas confirmadas de partidas validadas, inclusive as anteriores à implantação. O painel exibe os desbloqueios recentes com paginação; o perfil apresenta o catálogo completo, progresso e estado visual bloqueado/desbloqueado.
+
 ### Fase 6 — Expansão
 
 Upload de replays, eventual leitura automática de metadados, torneios, API pública e novos jogos.
@@ -615,6 +617,7 @@ Clãs podem entrar no fim do MVP ou na primeira versão posterior, pois não blo
 - Filtros por período, modalidade, jogador, civilização e mapa funcionam em histórico e estatísticas.
 - Civilizações, mapas, jogos e dificuldades são dados configuráveis.
 - O sistema consegue recalcular ratings e estatísticas a partir do histórico validado.
+- O sistema recalcula conquistas e suas datas de desbloqueio a partir do mesmo histórico, sem considerar relatórios pendentes.
 
 ## 13. Instruções para a IA implementadora
 

@@ -2,6 +2,7 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @inject AgeNexus.Application.Queries.IPlayerPublicProfileQueryService Profiles
 @inject AgeNexus.Application.Queries.IGeneralStatisticsQueryService GeneralStatistics
+@inject AgeNexus.Application.Queries.IAchievementQueryService Achievements
 
 <PageTitle>@(Profile is null ? "Jogador" : Profile.DisplayName) · Age Nexus</PageTitle>
 <LoadingOverlay Visible="@(LoadingProfile || LoadingRecords)"
@@ -62,6 +63,58 @@ else
             <span class="stat-icon" aria-hidden="true">⚔</span>
             <div><span>Partidas validadas</span><strong>@Profile.ValidatedMatches</strong><small>@Profile.PvePoints.ToString("N0") pontos contra IA</small></div>
         </article>
+    </section>
+
+    <section class="panel profile-achievements" id="conquistas">
+        <header class="panel-header profile-achievements-header">
+            <div><span class="eyebrow">Salão de glórias</span><h2>Conquistas</h2></div>
+            <div class="achievement-summary">
+                <strong>@UnlockedAchievementCount/@PlayerAchievements.Count</strong>
+                <span>desbloqueadas</span>
+            </div>
+        </header>
+
+        <nav class="achievement-categories" aria-label="Categorias de conquistas">
+            <button class="@(SelectedAchievementCategory is null ? "active" : null)" type="button"
+                    @onclick="() => SelectedAchievementCategory = null">Todas</button>
+            @foreach (var category in AchievementCategories)
+            {
+                <button class="@(SelectedAchievementCategory == category ? "active" : null)" type="button"
+                        @onclick="() => SelectedAchievementCategory = category">@category</button>
+            }
+        </nav>
+
+        <div class="achievement-pool">
+            @foreach (var achievement in VisibleAchievements)
+            {
+                <article class="achievement-card @(achievement.IsUnlocked ? "achievement-unlocked" : "achievement-locked")">
+                    <AchievementIcon Name="@achievement.Definition.Icon" />
+                    <div class="achievement-card-copy">
+                        <span>@achievement.Definition.Category</span>
+                        <strong>@achievement.Definition.Title</strong>
+                        <p>@achievement.Definition.Description</p>
+                        @if (achievement.IsUnlocked)
+                        {
+                            <small>Desbloqueada em @achievement.UnlockedAtUtc!.Value.ToLocalTime().ToString("dd MMM yyyy")</small>
+                        }
+                        else
+                        {
+                            <small>@AchievementProgress(achievement.Progress) / @AchievementProgress(achievement.Definition.Target)</small>
+                        }
+                    </div>
+                    @if (achievement.IsUnlocked)
+                    {
+                        <span class="achievement-check" title="Conquistada">✓</span>
+                    }
+                    else
+                    {
+                        <div class="achievement-progress" title="@AchievementProgressTitle(achievement.ProgressPercent)">
+                            <span style="@AchievementProgressStyle(achievement.ProgressPercent)"></span>
+                        </div>
+                    }
+                </article>
+            }
+        </div>
     </section>
 
     <div class="public-profile-grid">
@@ -158,6 +211,7 @@ else
     public Guid PlayerId { get; set; }
 
     private AgeNexus.Application.Queries.PlayerPublicProfileDashboard? Profile { get; set; }
+    private IReadOnlyCollection<AgeNexus.Application.Queries.PlayerAchievement> PlayerAchievements { get; set; } = [];
     private IReadOnlyCollection<PlayerRecord> Records { get; set; } = [];
     private Dictionary<string, PlayerRecord[]> RecordCategoryCache { get; } = [];
     private bool RecordsLoaded { get; set; }
@@ -165,11 +219,18 @@ else
     private bool LoadingRecords { get; set; }
     private bool ShowNegativeRecords { get; set; }
     private string? SelectedCategory { get; set; }
+    private string? SelectedAchievementCategory { get; set; }
     private static readonly string[] PositiveCategories = ["Combate", "Economia", "Tecnologia", "Sociedade", "Placar"];
     private static readonly string[] NegativeCategories = ["Resultados", "Combate", "Economia", "Tecnologia", "Sociedade", "Placar"];
     private IReadOnlyCollection<string> ActiveCategories => ShowNegativeRecords ? NegativeCategories : PositiveCategories;
     private IReadOnlyCollection<PlayerRecord> ActiveRecords => SelectedCategory is not null &&
         RecordCategoryCache.TryGetValue(RecordCategoryKey(SelectedCategory, ShowNegativeRecords), out var records) ? records : [];
+    private int UnlockedAchievementCount => PlayerAchievements.Count(achievement => achievement.IsUnlocked);
+    private IReadOnlyCollection<string> AchievementCategories => PlayerAchievements
+        .Select(achievement => achievement.Definition.Category).Distinct().ToArray();
+    private IEnumerable<AgeNexus.Application.Queries.PlayerAchievement> VisibleAchievements => PlayerAchievements
+        .Where(achievement => SelectedAchievementCategory is null ||
+            achievement.Definition.Category == SelectedAchievementCategory);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -177,11 +238,15 @@ else
         try
         {
             Profile = await Profiles.GetAsync(PlayerId);
+            PlayerAchievements = Profile is null
+                ? []
+                : await Achievements.GetPlayerAchievementsAsync(PlayerId);
             Records = [];
             RecordsLoaded = false;
             RecordCategoryCache.Clear();
             ShowNegativeRecords = false;
             SelectedCategory = null;
+            SelectedAchievementCategory = null;
         }
         finally
         {
@@ -264,6 +329,10 @@ else
     }
     private static string UsageCount(int count) => $"{count} {(count == 1 ? "uso" : "usos")}";
     private static string VictoryCount(int count) => $"{count} {(count == 1 ? "vitória" : "vitórias")}";
+    private static string AchievementProgress(decimal value) => value.ToString("N0");
+    private static string AchievementProgressStyle(decimal percent) =>
+        $"width: {percent.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}%";
+    private static string AchievementProgressTitle(decimal percent) => $"{percent:0}% concluído";
 
     private sealed record PlayerRecord(
         string Category,
