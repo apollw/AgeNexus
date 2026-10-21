@@ -95,10 +95,11 @@ else
                     </InputSelect>
                 </label>
                 <label class="form-field"><span>Categoria declarada</span>
-                    <InputSelect @bind-Value="Form.Type">
+                    <InputSelect @bind-Value="Form.Type" @bind-Value:after="MatchTypeChanged">
                         <option value="@AgeNexus.Domain.Matches.MatchType.PlayerVersusPlayer">PvP puro</option>
                         <option value="@AgeNexus.Domain.Matches.MatchType.Mixed">PvP híbrido</option>
                         <option value="@AgeNexus.Domain.Matches.MatchType.HumansVersusAi">Humanos contra IA</option>
+                        <option value="@AgeNexus.Domain.Matches.MatchType.FreeForAll">Todos contra todos (3 a 8 equipes)</option>
                     </InputSelect>
                 </label>
                 <label class="form-field"><span>Mapa</span>
@@ -131,11 +132,14 @@ else
             var team = Form.Teams[teamIndex];
             <section class="panel profile-form-card" @key="team">
                 <header class="panel-header"><div><span class="eyebrow">Lado @(teamIndex + 1)</span><h2>Equipe @(teamIndex + 1)</h2></div>
-                    <InputSelect @bind-Value="team.Result">
-                        <option value="@AgeNexus.Domain.Matches.TeamResult.Victory">Vitória</option>
-                        <option value="@AgeNexus.Domain.Matches.TeamResult.Draw">Empate</option>
-                        <option value="@AgeNexus.Domain.Matches.TeamResult.Defeat">Derrota</option>
-                    </InputSelect>
+                    <div class="match-team-actions">
+                        <InputSelect @bind-Value="team.Result">
+                            <option value="@AgeNexus.Domain.Matches.TeamResult.Victory">Vitória</option>
+                            <option value="@AgeNexus.Domain.Matches.TeamResult.Draw">Empate</option>
+                            <option value="@AgeNexus.Domain.Matches.TeamResult.Defeat">Derrota</option>
+                        </InputSelect>
+                        <button class="button button-secondary" type="button" @onclick="() => RemoveTeam(team)" disabled="@(!CanRemoveTeam)">Remover equipe</button>
+                    </div>
                 </header>
 
                 @foreach (var participant in team.Participants)
@@ -173,6 +177,17 @@ else
                     </div>
                 }
                 <button class="button button-secondary" type="button" @onclick="() => AddParticipant(team)">+ Participante</button>
+            </section>
+        }
+
+        @if (Form.Type == AgeNexus.Domain.Matches.MatchType.FreeForAll)
+        {
+            <section class="panel match-team-adder">
+                <div>
+                    <strong>@Form.Teams.Count de @AgeNexus.Domain.Matches.Match.MaximumTeams equipes</strong>
+                    <span>O formato é montado automaticamente, como 1x1x1. Partidas multiequipe ainda não alteram o Elo.</span>
+                </div>
+                <button class="button button-secondary" type="button" @onclick="AddTeam" disabled="@(Form.Teams.Count >= AgeNexus.Domain.Matches.Match.MaximumTeams)">+ Adicionar equipe</button>
             </section>
         }
 
@@ -333,6 +348,60 @@ else
     };
 
     private void AddParticipant(TeamForm team) => team.Participants.Add(CreateParticipant());
+
+    private bool CanRemoveTeam => Form.Teams.Count >
+        (Form.Type == AgeNexus.Domain.Matches.MatchType.FreeForAll ? 3 : 2);
+
+    private void MatchTypeChanged()
+    {
+        if (Form.Type == AgeNexus.Domain.Matches.MatchType.FreeForAll)
+        {
+            while (Form.Teams.Count < 3)
+            {
+                AddTeam();
+            }
+        }
+    }
+
+    private void AddTeam()
+    {
+        if (Form.Teams.Count >= AgeNexus.Domain.Matches.Match.MaximumTeams)
+        {
+            return;
+        }
+
+        var selectedPlayers = Form.Teams
+            .SelectMany(x => x.Participants)
+            .Where(x => x.Type == AgeNexus.Domain.Matches.ParticipantType.Human && x.PlayerProfileId.HasValue)
+            .Select(x => x.PlayerProfileId!.Value)
+            .ToHashSet();
+        var availablePlayer = Catalog?.Players.FirstOrDefault(x => !selectedPlayers.Contains(x.Id));
+        var participant = CreateParticipant(availablePlayer?.Id);
+        if (availablePlayer is null)
+        {
+            participant.Type = AgeNexus.Domain.Matches.ParticipantType.ArtificialIntelligence;
+            participant.PlayerProfileId = null;
+        }
+
+        var team = new TeamForm { Result = AgeNexus.Domain.Matches.TeamResult.Defeat };
+        team.Participants.Add(participant);
+        Form.Teams.Add(team);
+    }
+
+    private void RemoveTeam(TeamForm team)
+    {
+        if (!CanRemoveTeam)
+        {
+            return;
+        }
+
+        var removedWinner = team.Result == AgeNexus.Domain.Matches.TeamResult.Victory;
+        Form.Teams.Remove(team);
+        if (removedWinner && Form.Teams.All(x => x.Result != AgeNexus.Domain.Matches.TeamResult.Victory))
+        {
+            Form.Teams[0].Result = AgeNexus.Domain.Matches.TeamResult.Victory;
+        }
+    }
 
     private static void RemoveParticipant(TeamForm team, ParticipantForm participant)
     {

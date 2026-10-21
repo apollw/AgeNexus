@@ -54,6 +54,7 @@ public sealed record MatchSummary(
     MatchStatus Status,
     IReadOnlyCollection<MatchTeamSummary> Teams)
 {
+    public MatchType Type { get; init; }
     public Guid? MapDefinitionId { get; init; }
     public string? MapName { get; init; }
     public MatchGameMode GameMode { get; init; }
