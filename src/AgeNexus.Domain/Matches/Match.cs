@@ -4,6 +4,8 @@ namespace AgeNexus.Domain.Matches;
 
 public sealed class Match
 {
+    public const int MaximumTeams = 8;
+
     private readonly List<MatchTeam> _teams = [];
 
     private Match()
@@ -81,6 +83,11 @@ public sealed class Match
     {
         EnsureDraft();
 
+        if (_teams.Count >= MaximumTeams)
+        {
+            throw new DomainRuleException($"A match cannot contain more than {MaximumTeams} teams.");
+        }
+
         if (_teams.Any(x => x.Id == teamId))
         {
             throw new DomainRuleException("Team is already in this match.");
@@ -156,9 +163,9 @@ public sealed class Match
     {
         EnsureDraft();
 
-        if (_teams.Count < 2 || _teams.Any(x => x.Participants.Count == 0))
+        if (_teams.Count is < 2 or > MaximumTeams || _teams.Any(x => x.Participants.Count == 0))
         {
-            throw new DomainRuleException("A match requires at least two non-empty teams.");
+            throw new DomainRuleException($"A match requires between two and {MaximumTeams} non-empty teams.");
         }
 
         var category = ClassifyScoringCategory();

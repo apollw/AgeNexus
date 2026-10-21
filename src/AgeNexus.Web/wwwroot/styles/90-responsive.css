@@ -105,6 +105,8 @@
     .account-intro { margin-bottom: 30px; }.account-intro h1 { font-size: 37px; }.account-intro > p { font-size: 14px; }.account-benefits { display: none; }
     .account-card { padding: 24px 18px; }.form-grid { grid-template-columns: 1fr; }
     .profile-layout, .onboarding-grid, .public-profile-grid { grid-template-columns: 1fr; }.profile-preview { padding: 28px 20px; }.profile-form-card { padding: 24px 18px; }
+    .match-team-adder { align-items: stretch; flex-direction: column; padding: 20px 18px; }
+    .match-team-actions { align-items: stretch; flex-direction: column; width: 100%; }
     .onboarding-result, .public-profile-hero, .public-profile-identity { align-items: flex-start; flex-direction: column; }.onboarding-result .button { width: 100%; }
     .public-profile-hero { min-height: 0; }.public-profile-avatar { width: 82px; height: 82px; }.public-profile-favorite { width: 100%; }.public-profile-identity h1 { font-size: 30px; }
     .public-profile-stats .stat-card { min-height: 132px; }.public-profile-stats .stat-card > div { display: grid; gap: 2px; }

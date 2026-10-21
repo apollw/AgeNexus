@@ -115,7 +115,7 @@
             <article class="panel match-history-card">
                 <a class="match-history-main" href="/partidas/@match.MatchId" aria-label="Ver detalhes desta partida">
                     <header>
-                        <div><span class="status-badge @StatusClass(match.Status)">@StatusLabel(match.Status)</span><span class="match-category">@CategoryLabel(match.Category)</span></div>
+                        <div><span class="status-badge @StatusClass(match.Status)">@StatusLabel(match.Status)</span><span class="match-category">@CategoryLabel(match.Type, match.Category)</span></div>
                         <time datetime="@match.PlayedAtUtc.ToString("O")">@match.PlayedAtUtc.ToLocalTime().ToString("dd/MM/yyyy · HH:mm")</time>
                     </header>
                     <div class="match-history-versus">
@@ -277,7 +277,11 @@
         _ => "Outro"
     };
 
-    private static string CategoryLabel(AgeNexus.Domain.Matches.MatchScoringCategory value) => value switch
+    private static string CategoryLabel(
+        AgeNexus.Domain.Matches.MatchType type,
+        AgeNexus.Domain.Matches.MatchScoringCategory value) => type == AgeNexus.Domain.Matches.MatchType.FreeForAll
+        ? "Todos contra todos"
+        : value switch
     {
         AgeNexus.Domain.Matches.MatchScoringCategory.PurePvp => "PvP competitivo",
         AgeNexus.Domain.Matches.MatchScoringCategory.HybridPvp => "PvP com IA",

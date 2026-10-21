@@ -48,7 +48,7 @@
                             <span class="home-match-versus">VS</span>
                             <div class="home-match-context">
                                 <b>@match.Format</b>
-                                <small>@CategoryLabel(match.Category)</small>
+                                <small>@CategoryLabel(match.Type, match.Category)</small>
                             </div>
                             <span class="home-match-arrow">→</span>
                         </div>
@@ -166,7 +166,11 @@
         _ => "◇"
     };
 
-    private static string CategoryLabel(AgeNexus.Domain.Matches.MatchScoringCategory value) => value switch
+    private static string CategoryLabel(
+        AgeNexus.Domain.Matches.MatchType type,
+        AgeNexus.Domain.Matches.MatchScoringCategory value) => type == AgeNexus.Domain.Matches.MatchType.FreeForAll
+        ? "Todos contra todos"
+        : value switch
     {
         AgeNexus.Domain.Matches.MatchScoringCategory.PurePvp => "PvP competitivo",
         AgeNexus.Domain.Matches.MatchScoringCategory.PurePve => "Humanos contra IA",

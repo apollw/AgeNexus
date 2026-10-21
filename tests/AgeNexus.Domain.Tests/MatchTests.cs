@@ -43,6 +43,38 @@ public sealed class MatchTests
         Assert.Equal(MatchScoringCategory.PurePve, match.ScoringCategory);
     }
 
+    [Theory]
+    [InlineData(3, "1x1x1")]
+    [InlineData(4, "1x1x1x1")]
+    [InlineData(8, "1x1x1x1x1x1x1x1")]
+    public void Supports_free_for_all_with_up_to_eight_teams(int teamCount, string expectedFormat)
+    {
+        var match = CreateMatch(MatchType.FreeForAll);
+        for (var index = 0; index < teamCount; index++)
+        {
+            var team = match.AddTeam(Guid.NewGuid());
+            AddHumans(match, team.Id, 1);
+            match.SetTeamResult(team.Id, index == 0 ? TeamResult.Victory : TeamResult.Defeat);
+        }
+
+        match.Submit();
+
+        Assert.Equal(expectedFormat, match.HumanFormatLabel);
+        Assert.Equal(MatchStatus.Submitted, match.Status);
+    }
+
+    [Fact]
+    public void Rejects_more_than_eight_teams()
+    {
+        var match = CreateMatch(MatchType.FreeForAll);
+        for (var index = 0; index < Match.MaximumTeams; index++)
+        {
+            match.AddTeam(Guid.NewGuid());
+        }
+
+        Assert.Throws<DomainRuleException>(() => match.AddTeam(Guid.NewGuid()));
+    }
+
     [Fact]
     public void Classifies_hybrid_match_and_keeps_human_format()
     {
