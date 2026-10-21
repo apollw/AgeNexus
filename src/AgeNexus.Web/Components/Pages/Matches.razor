@@ -78,7 +78,7 @@
             <option value="">Todos os tipos</option>
             @foreach (var mode in Enum.GetValues<AgeNexus.Domain.Matches.MatchGameMode>())
             {
-                if (GameMode == mode)
+                if (SelectedGameMode == mode)
                 {
                     <option value="@mode" selected>@GameModeLabel(mode)</option>
                 }
@@ -168,15 +168,15 @@
 
 @code {
     [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
-    [SupplyParameterFromQuery(Name = "exclusao")] private string? DeleteStatus { get; set; }
-    [SupplyParameterFromQuery(Name = "pagina")] private int Page { get; set; } = 1;
-    [SupplyParameterFromQuery(Name = "jogador")] private Guid? PlayerId { get; set; }
-    [SupplyParameterFromQuery(Name = "adversario")] private Guid? OpponentPlayerId { get; set; }
-    [SupplyParameterFromQuery(Name = "mapa")] private Guid? MapDefinitionId { get; set; }
-    [SupplyParameterFromQuery(Name = "tipo")] private AgeNexus.Domain.Matches.MatchGameMode? GameMode { get; set; }
-    [SupplyParameterFromQuery(Name = "inicio")] private DateOnly? FromDate { get; set; }
-    [SupplyParameterFromQuery(Name = "fim")] private DateOnly? ToDate { get; set; }
-    [SupplyParameterFromQuery(Name = "revisao")] private string? ReviewFilter { get; set; }
+    [SupplyParameterFromQuery(Name = "exclusao")] public string? DeleteStatus { get; set; }
+    [SupplyParameterFromQuery(Name = "pagina")] public int Page { get; set; } = 1;
+    [SupplyParameterFromQuery(Name = "jogador")] public Guid? PlayerId { get; set; }
+    [SupplyParameterFromQuery(Name = "adversario")] public Guid? OpponentPlayerId { get; set; }
+    [SupplyParameterFromQuery(Name = "mapa")] public Guid? MapDefinitionId { get; set; }
+    [SupplyParameterFromQuery(Name = "tipo")] public string? GameModeFilter { get; set; }
+    [SupplyParameterFromQuery(Name = "inicio")] public DateOnly? FromDate { get; set; }
+    [SupplyParameterFromQuery(Name = "fim")] public DateOnly? ToDate { get; set; }
+    [SupplyParameterFromQuery(Name = "revisao")] public string? ReviewFilter { get; set; }
 
     private AgeNexus.Application.Queries.PagedMatchHistory MatchPage { get; set; } = new([], 1, 10, 0);
     private IReadOnlyCollection<AgeNexus.Application.Queries.CatalogOption> Players { get; set; } = [];
@@ -184,9 +184,14 @@
     private bool IsAdministrator { get; set; }
     private bool IsAuthenticated { get; set; }
     private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+    private AgeNexus.Domain.Matches.MatchGameMode? SelectedGameMode =>
+        Enum.TryParse<AgeNexus.Domain.Matches.MatchGameMode>(GameModeFilter, ignoreCase: true, out var mode) &&
+        Enum.IsDefined(mode)
+            ? mode
+            : null;
     private bool PendingReviewOnly => IsAdministrator && ReviewFilter == "pendente";
     private bool HasFilters => PlayerId.HasValue || OpponentPlayerId.HasValue || MapDefinitionId.HasValue ||
-        GameMode.HasValue || FromDate.HasValue || ToDate.HasValue || PendingReviewOnly;
+        SelectedGameMode.HasValue || FromDate.HasValue || ToDate.HasValue || PendingReviewOnly;
     private bool DeleteSucceeded => DeleteStatus == "ok";
     private string? DeleteMessage => DeleteStatus switch
     {
@@ -218,7 +223,7 @@
             PendingReviewOnly,
             OpponentPlayerId,
             MapDefinitionId,
-            GameMode));
+            SelectedGameMode));
     }
 
     private string StatisticsActionLabel(AgeNexus.Application.Queries.MatchSummary match)
@@ -249,7 +254,7 @@
         if (PlayerId.HasValue) parts.Add($"jogador={PlayerId.Value}");
         if (OpponentPlayerId.HasValue) parts.Add($"adversario={OpponentPlayerId.Value}");
         if (MapDefinitionId.HasValue) parts.Add($"mapa={MapDefinitionId.Value}");
-        if (GameMode.HasValue) parts.Add($"tipo={GameMode.Value}");
+        if (SelectedGameMode.HasValue) parts.Add($"tipo={SelectedGameMode.Value}");
         if (FromDate.HasValue) parts.Add($"inicio={FromDate.Value:yyyy-MM-dd}");
         if (ToDate.HasValue) parts.Add($"fim={ToDate.Value:yyyy-MM-dd}");
         if (PendingReviewOnly) parts.Add("revisao=pendente");
