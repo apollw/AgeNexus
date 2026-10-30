@@ -33,6 +33,7 @@ internal static class Age2DefinitiveEditionCatalog
         new("chinese", "Chineses"),
         new("koreans", "Coreanos"),
         new("cumans", "Cumanos"),
+        new("danes", "Dinamarqueses"),
         new("dravidians", "Dravidianos"),
         new("slavs", "Eslavos"),
         new("spanish", "Espanhóis"),
@@ -64,6 +65,7 @@ internal static class Age2DefinitiveEditionCatalog
         new("khitans", "Quitais"),
         new("romans", "Romanos"),
         new("saracens", "Sarracenos"),
+        new("saxons", "Saxões"),
         new("shu", "Shu"),
         new("sicilians", "Sicilianos"),
         new("tatars", "Tártaros"),
@@ -73,6 +75,7 @@ internal static class Age2DefinitiveEditionCatalog
         new("turks", "Turcos"),
         new("vietnamese", "Vietnamitas"),
         new("vikings", "Vikings"),
+        new("varangians", "Varangianos"),
         new("wei", "Wei"),
         new("wu", "Wu"),
     ];

@@ -10,6 +10,8 @@ using AgeNexus.Application.GameCatalog;
 using AgeNexus.Infrastructure.GameCatalog;
 using AgeNexus.Application.Evidence;
 using AgeNexus.Infrastructure.Evidence;
+using AgeNexus.Application.Drafts;
+using AgeNexus.Infrastructure.Drafts;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -111,6 +113,9 @@ public static class DependencyInjection
 
         services.AddScoped<AccountService>();
         services.AddScoped<ICatalogSetupService, CatalogSetupService>();
+        services.AddSingleton<CivilizationDraftNotifier>();
+        services.AddSingleton<ICivilizationDraftNotifier>(x => x.GetRequiredService<CivilizationDraftNotifier>());
+        services.AddScoped<ICivilizationDraftService, CivilizationDraftService>();
         services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
         services.AddScoped<IPerformanceStatisticsService, PerformanceStatisticsService>();
         services.AddSingleton<IAgeExtractorService, AgeExtractorProcessService>();

@@ -53,12 +53,12 @@ else if (Catalog.GameEditions.Count == 0)
 }
 else
 {
-    @if (Catalog.Factions.Count < 59 || Catalog.Maps.Count < 193 || Catalog.AiDifficulties.Count < 6)
+    @if (Catalog.Factions.Count < 62 || Catalog.Maps.Count < 193 || Catalog.AiDifficulties.Count < 6)
     {
         <section class="catalog-sync-banner">
             <div>
                 <strong>Dados do Age II: DE incompletos</strong>
-                <span>Carregue as 59 civilizações, os 193 mapas e todas as 6 dificuldades de IA.</span>
+                <span>Carregue as 62 civilizações, os 193 mapas e todas as 6 dificuldades de IA.</span>
             </div>
             <button class="button button-secondary" type="button" @onclick="SyncAge2CatalogAsync" disabled="@SyncingCatalog">
                 @(SyncingCatalog ? "Carregando..." : "Carregar dados do jogo")

@@ -1,0 +1,141 @@
+@page "/partidas/drafts/{ShareCode}"
+@attribute [Authorize]
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IDisposable
+@inject AgeNexus.Application.Drafts.ICivilizationDraftService Drafts
+@inject AgeNexus.Application.Drafts.ICivilizationDraftNotifier Notifier
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
+@inject NavigationManager Navigation
+@inject IJSRuntime JavaScript
+
+<PageTitle>Draft de civilizações · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@Loading" Message="Atualizando a sala..." />
+
+@if (Draft is null && !Loading)
+{
+    <section class="panel panel-empty page-empty"><strong>Draft não encontrado</strong><p>Confira o link compartilhado.</p><a class="button button-secondary" href="/partidas">Voltar às partidas</a></section>
+}
+else if (Draft is not null && Profile is not null)
+{
+    <section class="draft-room-hero">
+        <div><span class="eyebrow">@PhaseLabel(Draft.Phase)</span><h1>@Draft.Title</h1><p>@(Draft.MapName ?? "Mapa a definir") · @ModeLabel(Draft.GameMode) · código <strong>@Draft.ShareCode</strong></p></div>
+        <div class="page-heading-actions"><button class="button button-secondary" @onclick="CopyLinkAsync">@(Copied ? "Link copiado" : "Copiar link")</button>@if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Completed) { <button class="button button-primary" @onclick="DownloadImageAsync">Baixar imagem</button> }</div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <div class="form-alert @(OperationFailed ? "form-alert-error" : "form-alert-success")">@Message</div>
+    }
+
+    <section class="draft-status-strip">
+        <div><span>Fase</span><strong>@PhaseLabel(Draft.Phase)</strong></div>
+        <div><span>Vez</span><strong>@(CurrentPlayerName ?? "—")</strong></div>
+        <div><span>Progresso</span><strong>@Draft.CompletedActions / @Draft.TotalActions</strong></div>
+        <div><span>Atualizado</span><strong>@Draft.UpdatedAtUtc.ToLocalTime().ToString("HH:mm:ss")</strong></div>
+    </section>
+
+    <section class="draft-teams-grid">
+        @foreach (var team in Draft.Teams)
+        {
+            <article class="panel draft-team-card">
+                <header><span>Equipe</span><h2>@team.Name</h2></header>
+                @foreach (var player in team.Players)
+                {
+                    <div class="draft-player-row @(Draft.CurrentPlayerProfileId == player.PlayerProfileId ? "is-current" : null)">
+                        <div class="draft-avatar">@if (!string.IsNullOrWhiteSpace(player.AvatarUrl)) { <img src="@player.AvatarUrl" alt="" /> } else { <span>@player.DisplayName[..1].ToUpperInvariant()</span> }</div>
+                        <div><strong>@player.DisplayName</strong><small>@PlayerStatus(player)</small></div>
+                        @if (player.PickFactionId.HasValue) { <span class="draft-picked-civ">@player.PickFactionName</span> }
+                    </div>
+                }
+            </article>
+        }
+    </section>
+
+    @if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Lobby)
+    {
+        <section class="panel draft-action-panel"><div><span class="eyebrow">Confirmação</span><h2>Todos precisam estar presentes</h2><p>Cada jogador confirma sua própria presença antes do organizador iniciar.</p></div><div class="draft-action-buttons">@if (Me is not null) { <button class="button @(Me.Ready ? "button-secondary" : "button-primary")" @onclick="ToggleReadyAsync">@(Me.Ready ? "Cancelar presença" : "Estou pronto")</button> }@if (IsOrganizer) { <button class="button button-primary" @onclick="StartAsync">Iniciar draft</button> }</div></section>
+    }
+    else if (Draft.Phase is AgeNexus.Application.Drafts.CivilizationDraftPhase.Preferences or AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans or AgeNexus.Application.Drafts.CivilizationDraftPhase.Picks)
+    {
+        <section class="panel draft-action-panel"><div><span class="eyebrow">@ActionTitle</span><h2>@ActionInstruction</h2><p>@ActionHelp</p></div>@if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Preferences && IsMyTurn) { <button class="button button-primary" @onclick="SubmitPreferencesAsync" disabled="@(SelectedFactions.Count != 2)">Confirmar 2 preferências</button> }</section>
+        <section class="draft-faction-grid" aria-label="Civilizações disponíveis">
+            @foreach (var faction in Draft.Pool)
+            {
+                var selected = SelectedFactions.Contains(faction.Id);
+                var mine = Draft.MyPreferenceFactionIds.Contains(faction.Id);
+                <button type="button" class="draft-faction-card @(selected || mine ? "selected" : null) @(faction.IsBanned ? "banned" : null) @(faction.IsProtected ? "protected" : null)" disabled="@FactionDisabled(faction)" @onclick="() => SelectFactionAsync(faction.Id)">
+                    <span class="draft-civ-mark">@faction.Name[..1]</span><strong>@faction.Name</strong>
+                    @if (faction.IsBanned) { <small>Banida</small> } else if (faction.IsProtected) { <small>Protegida</small> } else if (mine) { <small>Sua preferência</small> }
+                </button>
+            }
+        </section>
+    }
+    else if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Review)
+    {
+        <section class="panel draft-action-panel"><div><span class="eyebrow">Conferência final</span><h2>Confira as escolhas</h2><p>O resultado é concluído quando todos confirmarem.</p></div>@if (Me is not null && !Me.FinalConfirmed) { <button class="button button-primary" @onclick="ConfirmFinalAsync">Confirmar resultado</button> }</section>
+    }
+    else if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Completed)
+    {
+        <section class="panel draft-complete"><span class="eyebrow">Draft concluído</span><h2>As civilizações estão definidas</h2><p>Baixe a composição pronta para compartilhar. Nenhuma partida foi criada.</p></section>
+    }
+
+    @if (IsOrganizer && Draft.Phase is not AgeNexus.Application.Drafts.CivilizationDraftPhase.Completed and not AgeNexus.Application.Drafts.CivilizationDraftPhase.Cancelled)
+    {
+        <div class="draft-danger-zone"><button class="table-action-button table-action-danger" @onclick="CancelAsync">Cancelar draft</button></div>
+    }
+}
+
+@code {
+    [Parameter] public string ShareCode { get; set; } = "";
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+    private AgeNexus.Application.Drafts.CivilizationDraftView? Draft;
+    private AgeNexus.Infrastructure.Identity.PublicProfile? Profile;
+    private readonly HashSet<Guid> SelectedFactions = [];
+    private bool Loading = true, OperationFailed, Copied;
+    private string? Message;
+    private bool IsOrganizer => Draft?.CreatedByPlayerProfileId == Profile?.Id;
+    private bool IsMyTurn => Draft?.CurrentPlayerProfileId == Profile?.Id;
+    private AgeNexus.Application.Drafts.CivilizationDraftParticipantView? Me => Draft?.Teams.SelectMany(x => x.Players).SingleOrDefault(x => x.PlayerProfileId == Profile?.Id);
+    private string? CurrentPlayerName => Draft?.Teams.SelectMany(x => x.Players).SingleOrDefault(x => x.PlayerProfileId == Draft.CurrentPlayerProfileId)?.DisplayName;
+    private string ActionTitle => Draft?.Phase switch { AgeNexus.Application.Drafts.CivilizationDraftPhase.Preferences => "Preferências secretas", AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans => "Bans globais", _ => "Escolha final" };
+    private string ActionInstruction => IsMyTurn ? Draft?.Phase switch { AgeNexus.Application.Drafts.CivilizationDraftPhase.Preferences => "Escolha duas civilizações", AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans => "Elimine uma civilização", _ => "Escolha uma de suas preferências" } ?? "Sua vez" : $"Aguardando {CurrentPlayerName}";
+    private string ActionHelp => Draft?.Phase switch { AgeNexus.Application.Drafts.CivilizationDraftPhase.Preferences => "As escolhas são ocultas por jogador. Civilizações já reservadas ficam indisponíveis.", AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans => "Você não vê as preferências dos demais. Se uma delas cair, a outra será protegida automaticamente.", _ => "A civilização protegida já é confirmada automaticamente." } ?? "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthenticationStateTask;
+        Profile = await Accounts.GetProfileAsync(auth.User, CancellationToken.None);
+        Notifier.Changed += DraftChangedAsync;
+        await LoadAsync();
+    }
+    protected override async Task OnParametersSetAsync() { if (Profile is not null) await LoadAsync(); }
+    private async Task LoadAsync() { Loading = true; Draft = Profile is null ? null : await Drafts.GetAsync(ShareCode, Profile.Id); Loading = false; }
+    private async Task DraftChangedAsync(string code) { if (!string.Equals(code, ShareCode, StringComparison.OrdinalIgnoreCase)) return; await InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); }); }
+    private async Task RunAsync(Func<Task<AgeNexus.Application.Drafts.CivilizationDraftOperationResult>> action)
+    {
+        var result = await action(); OperationFailed = !result.Succeeded; Message = result.Succeeded ? null : ErrorLabel(result.ErrorCode); if (!result.Succeeded) await LoadAsync();
+    }
+    private Task ToggleReadyAsync() => RunAsync(() => Drafts.SetReadyAsync(ShareCode, Profile!.Id, !(Me?.Ready ?? false)));
+    private Task StartAsync() => RunAsync(() => Drafts.StartAsync(ShareCode, Profile!.Id));
+    private Task ConfirmFinalAsync() => RunAsync(() => Drafts.ConfirmFinalAsync(ShareCode, Profile!.Id));
+    private Task CancelAsync() => RunAsync(() => Drafts.CancelAsync(ShareCode, Profile!.Id));
+    private async Task SubmitPreferencesAsync() { var ids = SelectedFactions.ToArray(); await RunAsync(() => Drafts.SubmitPreferencesAsync(ShareCode, Profile!.Id, ids)); if (!OperationFailed) SelectedFactions.Clear(); }
+    private async Task SelectFactionAsync(Guid id)
+    {
+        if (!IsMyTurn) return;
+        if (Draft!.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Preferences) { if (!SelectedFactions.Add(id)) SelectedFactions.Remove(id); else if (SelectedFactions.Count > 2) SelectedFactions.Remove(SelectedFactions.First()); StateHasChanged(); return; }
+        if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans) await RunAsync(() => Drafts.SubmitBanAsync(ShareCode, Profile!.Id, id));
+        else if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Picks) await RunAsync(() => Drafts.SubmitPickAsync(ShareCode, Profile!.Id, id));
+    }
+    private bool FactionDisabled(AgeNexus.Application.Drafts.CivilizationDraftFactionView faction) =>
+        !IsMyTurn || faction.IsBanned || faction.IsProtected ||
+        (Draft!.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans && Draft.MyPreferenceFactionIds.Contains(faction.Id)) ||
+        (faction.IsUnavailable && !Draft.MyPreferenceFactionIds.Contains(faction.Id) && Draft.Phase != AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans);
+    private async Task CopyLinkAsync() { await JavaScript.InvokeVoidAsync("ageNexusDraft.copy", Navigation.Uri); Copied = true; }
+    private async Task DownloadImageAsync() { await JavaScript.InvokeVoidAsync("ageNexusDraft.download", new { Draft!.Title, Draft.MapName, Mode = ModeLabel(Draft.GameMode), Teams = Draft.Teams.Select(t => new { t.Name, Players = t.Players.Select(p => new { p.DisplayName, Civilization = p.PickFactionName }) }) }, $"draft-{Draft.ShareCode}.png"); }
+    private static string PlayerStatus(AgeNexus.Application.Drafts.CivilizationDraftParticipantView player) => player.PickFactionId.HasValue ? player.PickWasProtected ? "Escolha protegida" : "Escolha confirmada" : player.FinalConfirmed ? "Resultado confirmado" : player.Ready ? "Presente" : "Aguardando";
+    private static string PhaseLabel(AgeNexus.Application.Drafts.CivilizationDraftPhase phase) => phase switch { AgeNexus.Application.Drafts.CivilizationDraftPhase.Lobby => "Sala de espera", AgeNexus.Application.Drafts.CivilizationDraftPhase.Preferences => "Preferências", AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans => "Bans", AgeNexus.Application.Drafts.CivilizationDraftPhase.Picks => "Picks", AgeNexus.Application.Drafts.CivilizationDraftPhase.Review => "Confirmação", AgeNexus.Application.Drafts.CivilizationDraftPhase.Completed => "Concluído", _ => "Cancelado" };
+    private static string ModeLabel(AgeNexus.Domain.Matches.MatchGameMode mode) => mode switch { AgeNexus.Domain.Matches.MatchGameMode.Conquest => "Conquista", AgeNexus.Domain.Matches.MatchGameMode.Regicide => "Regicídio", AgeNexus.Domain.Matches.MatchGameMode.KingOfTheHill => "Rei da Colina", AgeNexus.Domain.Matches.MatchGameMode.EmpireWars => "Guerras de Impérios", _ => mode == AgeNexus.Domain.Matches.MatchGameMode.Standard ? "Padrão" : mode.ToString() };
+    private static string ErrorLabel(string? code) => code switch { "PlayersNotReady" => "Todos os jogadores precisam confirmar presença.", "NotYourTurn" => "Aguarde sua vez na fila.", "FactionUnavailable" => "Essa civilização já está indisponível.", "CannotBanOwnPreference" => "Você não pode banir sua própria preferência.", "OrganizerOnly" => "Somente o organizador pode fazer isso.", "ConcurrentChange" => "Outra ação chegou primeiro. A sala foi atualizada.", _ => "Não foi possível concluir esta ação." };
+    public void Dispose() => Notifier.Changed -= DraftChangedAsync;
+}

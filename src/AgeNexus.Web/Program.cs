@@ -118,6 +118,12 @@ if (!app.Environment.IsDevelopment())
     await using var migrationScope = app.Services.CreateAsyncScope();
     var database = migrationScope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
     await database.Database.MigrateAsync();
+    var catalog = migrationScope.ServiceProvider.GetRequiredService<AgeNexus.Application.GameCatalog.ICatalogSetupService>();
+    var syncResult = await catalog.SyncAge2DefinitiveEditionAsync();
+    if (!syncResult.Succeeded)
+    {
+        app.Logger.LogWarning("Não foi possível sincronizar o catálogo AoE II: DE: {ErrorCode}", syncResult.ErrorCode);
+    }
 }
 
 await using (var identityScope = app.Services.CreateAsyncScope())
