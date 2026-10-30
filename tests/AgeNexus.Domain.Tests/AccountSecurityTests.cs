@@ -1,8 +1,11 @@
 using System.Security.Claims;
+using AgeNexus.Application;
 using AgeNexus.Application.Evidence;
+using AgeNexus.Application.Matches;
 using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Domain.Players;
+using AgeNexus.Infrastructure.Competition;
 using AgeNexus.Infrastructure.Identity;
 using AgeNexus.Infrastructure.Persistence;
 using AgeNexus.Web.Identity;
@@ -160,6 +163,37 @@ public sealed class AccountSecurityTests
         Assert.Equal(linked.Id, await database.Matches.Select(x => x.CreatedByPlayerProfileId).SingleAsync());
     }
 
+    [Fact]
+    public async Task Active_linked_player_can_register_a_match_without_administrator_role()
+    {
+        await using var services = CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await AddUserAsync(users, "player@example.test");
+        var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+        var creator = new PlayerProfile(Guid.NewGuid(), "Jogador", user.Id);
+        var opponent = new PlayerProfile(Guid.NewGuid(), "Adversário");
+        database.PlayerProfiles.AddRange(creator, opponent);
+        await database.SaveChangesAsync();
+        var workflow = scope.ServiceProvider.GetRequiredService<IMatchWorkflowService>();
+
+        var result = await workflow.RegisterAsync(new RegisterMatchRequest(
+            Guid.NewGuid(), creator.Id, DateTimeOffset.UtcNow, MatchType.PlayerVersusPlayer,
+            MatchNature.Ranked, MatchGameMode.Standard, null, null, null,
+            [
+                new RegisterMatchTeam(TeamResult.Victory,
+                    [new RegisterMatchParticipant(ParticipantType.Human, creator.Id, null, null, FactionSelection.Unknown)]),
+                new RegisterMatchTeam(TeamResult.Defeat,
+                    [new RegisterMatchParticipant(ParticipantType.Human, opponent.Id, null, null, FactionSelection.Unknown)])
+            ]));
+
+        Assert.True(result.Succeeded);
+        var match = await database.Matches.SingleAsync(x => x.Id == result.MatchId);
+        Assert.Equal(creator.Id, match.CreatedByPlayerProfileId);
+        Assert.Equal(MatchStatus.AwaitingConfirmation, match.Status);
+        Assert.False(await users.IsInRoleAsync(user, AccountService.AdministratorRole));
+    }
+
     [Theory]
     [InlineData("stamp")]
     [InlineData("role")]
@@ -201,7 +235,9 @@ public sealed class AccountSecurityTests
             .AddEntityFrameworkStores<AgeNexusDbContext>().AddSignInManager();
         services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
         services.AddSingleton<IEvidenceObjectStorage, DisabledStorage>();
+        services.AddAgeNexusApplication();
         services.AddScoped<AccountService>();
+        services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
         return services.BuildServiceProvider();
     }
 
