@@ -32,11 +32,11 @@
         <div class="draft-team-editor">
             @foreach (var team in Teams)
             {
-                <article class="draft-team-edit-card">
+                <article class="draft-team-edit-card" @key="team">
                     <header><span class="draft-team-number">Equipe</span><input @bind="team.Name" maxlength="40" aria-label="Nome do time" /></header>
                     @foreach (var slot in team.Players)
                     {
-                        <div class="draft-player-select"><select @bind="slot.PlayerId"><option value="">Selecione um jogador</option>@foreach (var player in AvailablePlayers(slot.PlayerId)) { <option value="@player.Id">@player.Name</option> }</select></div>
+                        <div class="draft-player-select" @key="slot"><select value="@slot.PlayerId" @onchange="args => PlayerChanged(team, slot, args)"><option value="">Selecione um jogador</option>@foreach (var player in Catalog.Players) { <option value="@player.Id" disabled="@PlayerUnavailable(player.Id, slot)">@player.Name</option> }</select></div>
                     }
                     <label class="form-field draft-representative-field"><span>Representante online</span><select @bind="team.RepresentativePlayerId"><option value="">Selecione o representante</option>@foreach (var slot in team.Players.Where(x => x.PlayerId.HasValue)) { var player = Catalog.Players.Single(x => x.Id == slot.PlayerId); <option value="@player.Id">@player.Name</option> }</select><small>Esta pessoa fará os bans e picks da equipe.</small></label>
                 </article>
@@ -74,8 +74,17 @@
         Loading = false;
     }
 
-    private IEnumerable<AgeNexus.Application.Queries.CatalogOption> AvailablePlayers(Guid? current) =>
-        Catalog!.Players.Where(x => x.Id == current || !Teams.SelectMany(t => t.Players).Any(p => p.PlayerId == x.Id));
+    private bool PlayerUnavailable(Guid playerId, PlayerSlot current) =>
+        Teams.SelectMany(x => x.Players).Any(x => !ReferenceEquals(x, current) && x.PlayerId == playerId);
+
+    private void PlayerChanged(TeamForm team, PlayerSlot slot, ChangeEventArgs args)
+    {
+        slot.PlayerId = Guid.TryParse(args.Value?.ToString(), out var playerId) ? playerId : null;
+        if (!team.Players.Any(x => x.PlayerId == team.RepresentativePlayerId))
+        {
+            team.RepresentativePlayerId = null;
+        }
+    }
     private void TeamSizeChanged(ChangeEventArgs args)
     {
         TeamSize = int.TryParse(args.Value?.ToString(), out var size) ? Math.Clamp(size, 1, 4) : 1;

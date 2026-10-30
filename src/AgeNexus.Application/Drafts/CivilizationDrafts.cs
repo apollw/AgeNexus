@@ -13,6 +13,12 @@ public enum CivilizationDraftPhase
     Cancelled
 }
 
+public enum CivilizationDraftActionKind
+{
+    Ban,
+    Pick
+}
+
 public sealed record CreateCivilizationDraftRequest(
     string Title,
     Guid GameEditionId,
@@ -41,6 +47,9 @@ public sealed record CivilizationDraftView(
     CivilizationDraftPhase Phase,
     Guid CreatedByPlayerProfileId,
     Guid? CurrentPlayerProfileId,
+    CivilizationDraftActionKind? CurrentAction,
+    DateTimeOffset? TurnDeadlineUtc,
+    CivilizationDraftActionView? LastAction,
     IReadOnlyCollection<CivilizationDraftTeamView> Teams,
     IReadOnlyCollection<CivilizationDraftFactionView> Pool,
     int CompletedActions,
@@ -53,7 +62,20 @@ public sealed record CivilizationDraftTeamView(
     Guid RepresentativePlayerProfileId,
     string RepresentativeDisplayName,
     bool RepresentativeReady,
-    IReadOnlyCollection<CivilizationDraftParticipantView> Players);
+    IReadOnlyCollection<CivilizationDraftParticipantView> Players,
+    IReadOnlyCollection<CivilizationDraftTeamPickView> Picks);
+
+public sealed record CivilizationDraftTeamPickView(
+    Guid FactionId,
+    string FactionName,
+    string? FactionImageUrl);
+
+public sealed record CivilizationDraftActionView(
+    CivilizationDraftActionKind Kind,
+    string TeamName,
+    string FactionName,
+    bool WasAutomatic,
+    DateTimeOffset OccurredAtUtc);
 
 public sealed record CivilizationDraftParticipantView(
     Guid PlayerProfileId,
@@ -70,7 +92,8 @@ public sealed record CivilizationDraftFactionView(
     bool IsBanned,
     bool IsPicked,
     string? AssignedPlayerName,
-    string? AssignedTeamName);
+    string? AssignedTeamName,
+    string? BannedByTeamName);
 
 public interface ICivilizationDraftService
 {
@@ -87,7 +110,7 @@ public interface ICivilizationDraftService
     Task<CivilizationDraftOperationResult> SetReadyAsync(string shareCode, Guid playerProfileId, bool ready, CancellationToken cancellationToken = default);
     Task<CivilizationDraftOperationResult> StartAsync(string shareCode, Guid organizerPlayerProfileId, CancellationToken cancellationToken = default);
     Task<CivilizationDraftOperationResult> SubmitBanAsync(string shareCode, Guid playerProfileId, Guid factionId, CancellationToken cancellationToken = default);
-    Task<CivilizationDraftOperationResult> SubmitPickAsync(string shareCode, Guid playerProfileId, Guid targetPlayerProfileId, Guid factionId, CancellationToken cancellationToken = default);
+    Task<CivilizationDraftOperationResult> SubmitPickAsync(string shareCode, Guid playerProfileId, Guid factionId, CancellationToken cancellationToken = default);
     Task<CivilizationDraftOperationResult> CancelAsync(string shareCode, Guid organizerPlayerProfileId, CancellationToken cancellationToken = default);
 }
 

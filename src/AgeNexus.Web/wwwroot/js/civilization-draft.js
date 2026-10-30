@@ -42,14 +42,24 @@ window.ageNexusDraft = {
             context.fillStyle = "#fff";
             context.font = "700 22px Unbounded, sans-serif";
             context.fillText(team.name, x + 20, y + 38);
+            context.fillStyle = "#796f5e";
+            context.font = "700 14px Manrope, sans-serif";
+            context.fillText("JOGADORES", x + 22, y + 88);
             (team.players || []).forEach((player, playerIndex) => {
-                const py = y + 95 + playerIndex * 66;
+                const py = y + 120 + playerIndex * 34;
                 context.fillStyle = ink;
-                context.font = "700 22px Manrope, sans-serif";
+                context.font = "700 19px Manrope, sans-serif";
                 context.fillText(player.displayName, x + 22, py);
+            });
+            const picksY = y + 145 + (team.players || []).length * 34;
+            context.fillStyle = "#796f5e";
+            context.font = "700 14px Manrope, sans-serif";
+            context.fillText("CIVILIZAÇÕES DA EQUIPE", x + 22, picksY);
+            (team.picks || []).forEach((civilization, pickIndex) => {
+                const column = pickIndex % 2, pickRow = Math.floor(pickIndex / 2);
                 context.fillStyle = "#9b6d16";
                 context.font = "700 18px Manrope, sans-serif";
-                context.fillText(player.civilization || "A definir", x + 22, py + 27);
+                context.fillText(civilization, x + 22 + column * (cardWidth / 2), picksY + 32 + pickRow * 30);
             });
         });
         context.fillStyle = "#796f5e";
