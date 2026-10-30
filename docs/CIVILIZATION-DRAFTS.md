@@ -4,18 +4,14 @@ O draft é uma sala compartilhável independente do cadastro de partidas. Conclu
 
 ## Fluxo
 
-1. Um usuário autenticado informa mapa, tipo de jogo, equipes e de dois a oito jogadores.
-2. Cada jogador abre o link usando sua conta vinculada e confirma presença.
-3. Em uma fila alternada entre as equipes, cada participante reserva secretamente duas civilizações do conjunto rotativo apresentado.
-4. Na mesma ordem, cada participante faz um ban global sem ver as preferências dos demais. Se uma das duas preferências de alguém for banida, a outra é protegida e confirmada automaticamente.
-5. Quem ainda possui duas opções escolhe uma delas na fase de picks.
-6. Todos conferem e confirmam o resultado. A sala então libera uma imagem PNG para compartilhamento.
+1. O administrador informa mapa, tipo de jogo, duas equipes equilibradas, seus jogadores e um representante por equipe.
+2. Somente os dois representantes abrem o link e confirmam presença. Eles conversam com suas equipes fora do site antes de cada ação.
+3. Os representantes alternam os bans. Cada equipe possui um ban por jogador: 1x1 gera um ban por lado, 2x2 gera dois e assim por diante até 4x4.
+4. Após todos os bans, os representantes alternam os picks na mesma quantidade. Em cada pick, o representante indica qual jogador da equipe receberá a civilização.
+5. A sala exibe o catálogo completo e atualiza imediatamente quais civilizações continuam disponíveis, quais foram banidas e quais foram escolhidas.
+6. Ao final do último pick, a sala libera uma imagem PNG para compartilhamento.
 
-O servidor valida a identidade, a fase e a vez antes de aceitar cada ação. O estado é persistido no PostgreSQL e as telas conectadas recebem a atualização imediatamente pelo circuito do Blazor Server.
-
-## Rodízio
-
-Cada sala recebe apenas parte do catálogo. Civilizações menos utilizadas em drafts anteriores têm prioridade no próximo conjunto. Civilizações banidas não contam como utilizadas e, portanto, retornam ao rodízio. Isso evita mostrar sempre toda a lista sem fazer opções desaparecerem definitivamente.
+O servidor valida a identidade do representante, a equipe, a fase, a vez, o jogador destinatário e a disponibilidade da civilização antes de aceitar cada ação. O estado é persistido no PostgreSQL e as telas conectadas recebem a atualização imediatamente pelo circuito do Blazor Server.
 
 ## Catálogo
 
