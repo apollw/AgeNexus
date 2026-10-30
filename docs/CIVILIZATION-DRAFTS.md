@@ -6,13 +6,14 @@ O draft é uma sala compartilhável independente do cadastro de partidas. Conclu
 
 1. O administrador informa mapa, tipo de jogo, duas equipes equilibradas, seus jogadores e um representante por equipe.
 2. Somente os dois representantes abrem o link e confirmam presença. Eles conversam com suas equipes fora do site antes de cada ação.
-3. Os representantes alternam os bans. Cada equipe possui um ban por jogador: 1x1 gera um ban por lado, 2x2 gera dois e assim por diante até 4x4.
-4. Após todos os bans, os representantes alternam os picks na mesma quantidade. Em cada pick, o representante indica qual jogador da equipe receberá a civilização.
-5. A sala exibe o catálogo completo e atualiza imediatamente quais civilizações continuam disponíveis, quais foram banidas e quais foram escolhidas.
-6. Todo ban ou pick exige uma confirmação antes de ser enviado ao servidor.
-7. Ao final do último pick, todos veem o aviso de draft finalizado e a sala libera uma imagem PNG para compartilhamento.
+3. Ao iniciar, o servidor sorteia qual equipe age primeiro. Cada rodada segue `ban da primeira equipe → ban da segunda → pick da primeira → pick da segunda`, repetindo conforme o tamanho dos times: uma rodada no 1x1, duas no 2x2 e assim por diante até 4x4.
+4. Cada pick pertence à equipe. O AgeNexus não vincula a civilização a um jogador específico; os integrantes decidem essa divisão entre si.
+5. Cada turno possui 60 segundos. Se o representante não agir, o servidor seleciona aleatoriamente uma civilização ainda disponível e passa a vez.
+6. A sala exibe o catálogo completo, informa quem realizou o último ban ou pick e identifica em cada civilização a equipe responsável pela ação.
+7. Todo ban ou pick manual exige uma confirmação antes de ser enviado ao servidor.
+8. Ao final do último pick, todos veem o aviso de draft finalizado e a sala libera uma imagem PNG para compartilhamento.
 
-O servidor valida a identidade do representante, a equipe, a fase, a vez, o jogador destinatário e a disponibilidade da civilização antes de aceitar cada ação. O estado é persistido no PostgreSQL e as telas conectadas recebem a atualização imediatamente pelo circuito do Blazor Server.
+O servidor valida a identidade do representante, a equipe, o tipo da ação, a vez e a disponibilidade da civilização antes de aceitar cada escolha. A ordem sorteada, o prazo, a autoria e o histórico recente ficam persistidos no PostgreSQL; as telas conectadas recebem a atualização imediatamente pelo circuito do Blazor Server e também conferem periodicamente o vencimento do relógio.
 
 ## Catálogo
 
