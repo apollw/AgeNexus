@@ -32,7 +32,7 @@ public sealed class MatchWorkflowService(
     {
         ArgumentNullException.ThrowIfNull(request);
         var matchId = Guid.NewGuid();
-        if (!await accounts.IsAdministratorProfileAsync(request.CreatedByPlayerProfileId, cancellationToken))
+        if (!await accounts.IsActiveLinkedProfileAsync(request.CreatedByPlayerProfileId, cancellationToken))
         {
             return MatchWorkflowResult.Failure(matchId, "NotAuthorized");
         }
