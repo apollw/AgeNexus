@@ -34,11 +34,13 @@ public sealed class AchievementQueryServiceTests
 
         var achievements = await service.GetPlayerAchievementsAsync(player.Id);
 
-        Assert.Equal(50, achievements.Count);
+        Assert.Equal(70, achievements.Count);
         Assert.Equal(unlockedAt, achievements.Single(x => x.Definition.Key == "first-battle").UnlockedAtUtc);
         Assert.Equal(unlockedAt, achievements.Single(x => x.Definition.Key == "thousand-kills").UnlockedAtUtc);
         Assert.Equal(1_000m, achievements.Single(x => x.Definition.Key == "five-thousand-kills").Progress);
         Assert.False(achievements.Single(x => x.Definition.Key == "five-thousand-kills").IsUnlocked);
+        Assert.Equal(1_000m, achievements.Single(x => x.Definition.Key == "twenty-thousand-kills").Progress);
+        Assert.False(achievements.Single(x => x.Definition.Key == "twenty-thousand-kills").IsUnlocked);
         Assert.Equal(unlockedAt, achievements.Single(x => x.Definition.Key == "five-hundred-buildings").UnlockedAtUtc);
 
         var feed = await service.GetRecentUnlocksAsync(page: 1, pageSize: 2);
