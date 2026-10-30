@@ -161,7 +161,7 @@ else if (Draft is not null && Profile is not null)
     private Task ToggleReadyAsync() => RunAsync(() => Drafts.SetReadyAsync(ShareCode, Profile!.Id, !(MyTeam?.RepresentativeReady ?? false)));
     private Task StartAsync() => RunAsync(() => Drafts.StartAsync(ShareCode, Profile!.Id));
     private Task CancelAsync() => RunAsync(() => Drafts.CancelAsync(ShareCode, Profile!.Id));
-    private async Task SelectFactionAsync(Guid id)
+    private void SelectFactionAsync(Guid id)
     {
         if (!IsMyTurn || Draft is null) return;
         if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans)
