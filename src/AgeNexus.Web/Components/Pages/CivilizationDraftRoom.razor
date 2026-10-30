@@ -8,6 +8,7 @@
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 @inject NavigationManager Navigation
 @inject IJSRuntime JavaScript
+@inject ILogger<CivilizationDraftRoom> Logger
 
 <PageTitle>Draft de civilizações · Age Nexus</PageTitle>
 <LoadingOverlay Visible="@Loading" Message="Atualizando a sala..." />
@@ -154,6 +155,9 @@ else if (Draft is not null && Profile is not null)
     private Guid? PendingFactionId;
     private DraftAction? PendingAction;
     private readonly CancellationTokenSource ClockCancellation = new();
+    private readonly SemaphoreSlim refreshGate = new(1, 1);
+    private bool reloadRequested;
+    private bool commandInProgress;
     private bool Loading = true, OperationFailed, Copied;
     private bool FloatingStatusCollapsed;
     private string? Message;
@@ -187,12 +191,45 @@ else if (Draft is not null && Profile is not null)
     protected override async Task OnParametersSetAsync() { if (Profile is not null) await LoadAsync(); }
     private async Task LoadAsync(bool showLoading = true)
     {
+        // Relógio, notificações e ações do usuário disputam o mesmo DbContext (scoped por circuito).
+        // A fila serializa as leituras e agrupa pedidos repetidos, evitando operações concorrentes.
+        reloadRequested = true;
+        if (commandInProgress) return;
         if (showLoading) Loading = true;
-        Draft = Profile is null ? null : await Drafts.GetAsync(ShareCode, Profile.Id);
-        if (!IsMyTurn || PendingFaction is { IsBanned: true } or { IsPicked: true }) CancelPendingAction();
-        if (showLoading) Loading = false;
+        await refreshGate.WaitAsync();
+        try
+        {
+            while (reloadRequested)
+            {
+                reloadRequested = false;
+                Draft = Profile is null ? null : await Drafts.GetAsync(ShareCode, Profile.Id);
+                if (!IsMyTurn || PendingFaction is { IsBanned: true } or { IsPicked: true }) CancelPendingAction();
+            }
+        }
+        finally
+        {
+            refreshGate.Release();
+            if (showLoading) Loading = false;
+        }
     }
-    private async Task DraftChangedAsync(string code) { if (!string.Equals(code, ShareCode, StringComparison.OrdinalIgnoreCase)) return; await InvokeAsync(async () => { await LoadAsync(false); StateHasChanged(); }); }
+    private Task DraftChangedAsync(string code)
+    {
+        if (!string.Equals(code, ShareCode, StringComparison.OrdinalIgnoreCase)) return Task.CompletedTask;
+        // Quem gravou a ação não pode esperar (nem falhar) por causa dos outros circuitos.
+        _ = RefreshFromNotificationAsync();
+        return Task.CompletedTask;
+    }
+    private async Task RefreshFromNotificationAsync()
+    {
+        try
+        {
+            await InvokeAsync(async () => { await LoadAsync(false); StateHasChanged(); });
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Logger.LogWarning(exception, "Falha ao aplicar a atualização recebida do draft {ShareCode}", ShareCode);
+        }
+    }
     private async Task RunClockAsync()
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -202,21 +239,60 @@ else if (Draft is not null && Profile is not null)
             while (await timer.WaitForNextTickAsync(ClockCancellation.Token))
             {
                 ticks++;
-                await InvokeAsync(async () =>
+                try
                 {
-                    if (IsActive && (RemainingSeconds == 0 || ticks % 3 == 0))
+                    if (!IsActive)
                     {
-                        await LoadAsync(false);
+                        // Sem relógio ativo não existe contagem para animar: a sala é atualizada por notificação.
+                        if (ticks % 5 == 0) await InvokeAsync(StateHasChanged);
+                        continue;
                     }
-                    StateHasChanged();
-                });
+
+                    // O contador é local: repinta antes de consultar o servidor para o relógio nunca travar.
+                    await InvokeAsync(StateHasChanged);
+                    if (RemainingSeconds > 0 && ticks % 3 != 0) continue;
+                    await LoadAsync(false);
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    // Uma leitura com falha não pode encerrar o relógio da sala.
+                    Logger.LogWarning(exception, "Falha ao atualizar o relógio do draft {ShareCode}", ShareCode);
+                }
             }
         }
         catch (OperationCanceledException) { }
     }
     private async Task RunAsync(Func<Task<AgeNexus.Application.Drafts.CivilizationDraftOperationResult>> action)
     {
-        var result = await action(); OperationFailed = !result.Succeeded; Message = result.Succeeded ? null : ErrorLabel(result.ErrorCode); if (!result.Succeeded) await LoadAsync();
+        await refreshGate.WaitAsync();
+        try
+        {
+            commandInProgress = true;
+            var result = await action();
+            OperationFailed = !result.Succeeded;
+            Message = result.Succeeded ? null : ErrorLabel(result.ErrorCode);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Logger.LogError(exception, "Falha ao concluir uma ação do draft {ShareCode}", ShareCode);
+            OperationFailed = true;
+            Message = ErrorLabel(null);
+        }
+        finally
+        {
+            commandInProgress = false;
+            refreshGate.Release();
+        }
+
+        try
+        {
+            await LoadAsync(!OperationFailed);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            Logger.LogWarning(exception, "Falha ao atualizar a sala do draft {ShareCode}", ShareCode);
+        }
     }
     private Task ToggleReadyAsync() => RunAsync(() => Drafts.SetReadyAsync(ShareCode, Profile!.Id, !(MyTeam?.RepresentativeReady ?? false)));
     private Task StartAsync() => RunAsync(() => Drafts.StartAsync(ShareCode, Profile!.Id));
@@ -257,5 +333,5 @@ else if (Draft is not null && Profile is not null)
     private static string ModeLabel(AgeNexus.Domain.Matches.MatchGameMode mode) => mode switch { AgeNexus.Domain.Matches.MatchGameMode.Conquest => "Conquista", AgeNexus.Domain.Matches.MatchGameMode.Regicide => "Regicídio", AgeNexus.Domain.Matches.MatchGameMode.KingOfTheHill => "Rei da Colina", AgeNexus.Domain.Matches.MatchGameMode.EmpireWars => "Guerras de Impérios", _ => mode == AgeNexus.Domain.Matches.MatchGameMode.Standard ? "Padrão" : mode.ToString() };
     private static string ErrorLabel(string? code) => code switch { "RepresentativesNotReady" => "Os dois representantes precisam confirmar presença.", "RepresentativeOnly" => "Somente o representante desta equipe pode confirmar presença.", "NotYourTurn" => "Aguarde a vez da outra equipe.", "FactionUnavailable" => "Essa civilização já foi banida ou escolhida.", "InvalidPick" => "Esta equipe já concluiu suas escolhas.", "OrganizerOnly" => "Somente o organizador pode fazer isso.", "ConcurrentChange" => "Outra ação chegou primeiro. A sala foi atualizada.", _ => "Não foi possível concluir esta ação." };
     private enum DraftAction { Ban, Pick }
-    public void Dispose() { ClockCancellation.Cancel(); ClockCancellation.Dispose(); Notifier.Changed -= DraftChangedAsync; }
+    public void Dispose() { Notifier.Changed -= DraftChangedAsync; ClockCancellation.Cancel(); ClockCancellation.Dispose(); }
 }
