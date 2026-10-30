@@ -1,5 +1,5 @@
 @page "/partidas/nova"
-@attribute [Authorize(Policy = "Administrator")]
+@attribute [Authorize]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using System.ComponentModel.DataAnnotations
 @inject AgeNexus.Application.Matches.IMatchWorkflowService Workflow
@@ -13,47 +13,65 @@
                 Message="@(Saving ? "Registrando partida..." : "Preparando os dados...")" />
 
 <section class="page-heading compact-heading">
-    <div><span class="eyebrow">Novo registro</span><h1>Registrar partida</h1><p>Informe os lados, participantes, civilizações e resultado.</p></div>
+    <div><span class="eyebrow">Novo registro</span><h1>Registrar partida</h1><p>Informe os lados, participantes, civilizações e resultado. A publicação depende da aprovação do administrador.</p></div>
 </section>
 
-@if (Catalog is null || CurrentProfile is null)
+@if (Catalog is null)
 {
     <section class="panel panel-empty page-empty"><strong>Preparando dados da partida...</strong></section>
 }
+else if (CurrentProfile is null)
+{
+    <section class="panel panel-empty page-empty">
+        <strong>Vincule seu perfil antes de registrar uma partida.</strong>
+        <p>O registro precisa ficar associado a um jogador cadastrado.</p>
+        <a class="button button-primary" href="/conta/vincular-perfil">Configurar meu perfil</a>
+    </section>
+}
 else if (Catalog.GameEditions.Count == 0)
 {
-    <section class="panel catalog-setup">
-        <div class="catalog-setup-copy">
-            <span class="eyebrow">Configuração inicial</span>
-            <h2>Cadastre o primeiro jogo</h2>
-            <p>Informe o jogo e a edição usados pela sua comunidade para começar a registrar partidas.</p>
-        </div>
+    @if (IsAdministrator)
+    {
+        <section class="panel catalog-setup">
+            <div class="catalog-setup-copy">
+                <span class="eyebrow">Configuração inicial</span>
+                <h2>Cadastre o primeiro jogo</h2>
+                <p>Informe o jogo e a edição usados pela sua comunidade para começar a registrar partidas.</p>
+            </div>
 
-        <EditForm Model="SetupForm" OnValidSubmit="SetupCatalogAsync" class="account-form catalog-setup-form">
-            <DataAnnotationsValidator />
-            @if (!string.IsNullOrWhiteSpace(SetupError))
-            {
-                <div class="form-alert form-alert-error">@SetupError</div>
-            }
-            <label class="form-field">
-                <span>Jogo</span>
-                <InputText @bind-Value="SetupForm.GameName" placeholder="Ex.: Age of Empires II" />
-                <ValidationMessage For="() => SetupForm.GameName" />
-            </label>
-            <label class="form-field">
-                <span>Edição</span>
-                <InputText @bind-Value="SetupForm.EditionName" placeholder="Ex.: Definitive Edition" />
-                <ValidationMessage For="() => SetupForm.EditionName" />
-            </label>
-            <button class="button button-primary" type="submit" disabled="@SettingUpCatalog">
-                @(SettingUpCatalog ? "Salvando..." : "Salvar jogo e continuar")
-            </button>
-        </EditForm>
-    </section>
+            <EditForm Model="SetupForm" OnValidSubmit="SetupCatalogAsync" class="account-form catalog-setup-form">
+                <DataAnnotationsValidator />
+                @if (!string.IsNullOrWhiteSpace(SetupError))
+                {
+                    <div class="form-alert form-alert-error">@SetupError</div>
+                }
+                <label class="form-field">
+                    <span>Jogo</span>
+                    <InputText @bind-Value="SetupForm.GameName" placeholder="Ex.: Age of Empires II" />
+                    <ValidationMessage For="() => SetupForm.GameName" />
+                </label>
+                <label class="form-field">
+                    <span>Edição</span>
+                    <InputText @bind-Value="SetupForm.EditionName" placeholder="Ex.: Definitive Edition" />
+                    <ValidationMessage For="() => SetupForm.EditionName" />
+                </label>
+                <button class="button button-primary" type="submit" disabled="@SettingUpCatalog">
+                    @(SettingUpCatalog ? "Salvando..." : "Salvar jogo e continuar")
+                </button>
+            </EditForm>
+        </section>
+    }
+    else
+    {
+        <section class="panel panel-empty page-empty">
+            <strong>O catálogo do jogo ainda não foi configurado.</strong>
+            <p>Avise o administrador para concluir a configuração inicial.</p>
+        </section>
+    }
 }
 else
 {
-    @if (Catalog.Factions.Count < 62 || Catalog.Maps.Count < 193 || Catalog.AiDifficulties.Count < 6)
+    @if (IsAdministrator && (Catalog.Factions.Count < 62 || Catalog.Maps.Count < 193 || Catalog.AiDifficulties.Count < 6))
     {
         <section class="catalog-sync-banner">
             <div>
@@ -77,7 +95,10 @@ else
                 <strong>Cadastre pelo menos mais um participante</strong>
                 <span>Adicione jogadores que ainda não possuem conta para selecioná-los nas equipes.</span>
             </div>
-            <a class="button button-secondary" href="/jogadores/gerenciar">Adicionar jogadores</a>
+            @if (IsAdministrator)
+            {
+                <a class="button button-secondary" href="/jogadores/gerenciar">Adicionar jogadores</a>
+            }
         </section>
     }
 
@@ -212,6 +233,7 @@ else
     private bool SyncingCatalog { get; set; }
     private bool ChangingEdition { get; set; }
     private bool CatalogSyncFailed { get; set; }
+    private bool IsAdministrator { get; set; }
     private string? CatalogMessage { get; set; }
 
     protected override async Task OnInitializedAsync()
@@ -219,6 +241,7 @@ else
         try
         {
             var authentication = await AuthenticationStateTask;
+            IsAdministrator = await Accounts.IsAdministratorAsync(authentication.User);
             CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
             Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync();
             InitializeMatchForm();
@@ -449,7 +472,7 @@ else
 
         Error = result.ErrorCode switch
         {
-            "NotAuthorized" => "sua conta não possui permissão para registrar esta partida.",
+            "NotAuthorized" => "seu perfil precisa estar vinculado e ativo para registrar esta partida.",
             "UnsupportedMatchType" => "partidas exclusivamente entre humanos e IA não são mais registradas.",
             "InvalidMatch" => "revise as equipes, os participantes e o resultado informado.",
             _ => "ocorreu um problema inesperado. Revise os dados e tente novamente."
