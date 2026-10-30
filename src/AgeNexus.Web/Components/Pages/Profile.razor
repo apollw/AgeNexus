@@ -67,6 +67,12 @@
                     <p>Todos estes campos podem ser alterados novamente.</p>
                 </div>
 
+                <div class="profile-private-account">
+                    <span>E-mail da conta</span>
+                    <strong>@AccountEmail</strong>
+                    <small>Informação privada, visível somente para você.</small>
+                </div>
+
                 @if (Saved == "1")
                 {
                     <div class="form-alert form-alert-success" role="status">Perfil atualizado com sucesso.</div>
@@ -133,12 +139,16 @@
     private bool HasError { get; set; }
     private bool Busy { get; set; }
     private bool IsLoading { get; set; } = true;
+    private string AccountEmail { get; set; } = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             var authenticationState = await AuthenticationStateTask;
+            AccountEmail = authenticationState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                ?? authenticationState.User.Identity?.Name
+                ?? string.Empty;
             CurrentProfile = await Accounts.GetProfileAsync(authenticationState.User, CancellationToken.None);
             Factions = await Accounts.GetFactionOptionsAsync();
         }

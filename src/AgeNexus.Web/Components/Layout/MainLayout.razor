@@ -1,4 +1,6 @@
 @inherits LayoutComponentBase
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
+@inject ILogger<MainLayout> Logger
 
 <div class="app-shell">
     <aside class="sidebar">
@@ -26,8 +28,9 @@
                 <AuthorizeView>
                     <Authorized Context="session">
                         <a class="profile-chip" href="/perfil">
-                            <span class="avatar">@GetInitial(session.User.Identity?.Name)</span>
-                            <span class="profile-copy"><strong>@session.User.Identity?.Name</strong><small>Minha conta</small></span>
+                            <PlayerAvatar DisplayName="@HeaderDisplayName" Url="@HeaderProfile?.AvatarUrl" Size="compact"
+                                          Class="profile-chip-avatar" Lazy="false" />
+                            <span class="profile-copy"><strong>@HeaderDisplayName</strong><small>Minha conta</small></span>
                         </a>
                         <form method="post" action="/account/logout" class="logout-form">
                             <AntiforgeryToken />
@@ -68,6 +71,25 @@
 </div>
 
 @code {
-    private static string GetInitial(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? "?" : value[..1].ToUpperInvariant();
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+
+    private AgeNexus.Infrastructure.Identity.PublicProfile? HeaderProfile { get; set; }
+    private string HeaderDisplayName => HeaderProfile?.DisplayName ?? "Meu perfil";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authentication = await AuthenticationStateTask;
+            if (authentication.User.Identity?.IsAuthenticated == true)
+            {
+                HeaderProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+            }
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception, "Nao foi possivel carregar o perfil do cabecalho.");
+        }
+    }
 }
