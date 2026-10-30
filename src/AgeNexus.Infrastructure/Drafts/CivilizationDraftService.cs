@@ -24,8 +24,13 @@ public sealed class CivilizationDraftService(
         var title = request.Title.Trim();
         var teams = request.Teams.Where(x => x.PlayerProfileIds.Count > 0).ToArray();
         var playerIds = teams.SelectMany(x => x.PlayerProfileIds).ToArray();
-        if (title.Length is 0 or > 120 || teams.Length is < 2 or > 8 || playerIds.Length is < 2 or > 8 ||
-            playerIds.Distinct().Count() != playerIds.Length || teams.Any(x => x.Name.Trim().Length is 0 or > 40))
+        var balancedTeams = teams.Length == 2 && teams[0].PlayerProfileIds.Count == teams[1].PlayerProfileIds.Count;
+        var validRepresentatives = teams.All(x =>
+            x.RepresentativePlayerProfileId != Guid.Empty && x.PlayerProfileIds.Contains(x.RepresentativePlayerProfileId));
+        if (title.Length is 0 or > 120 || !balancedTeams || teams[0].PlayerProfileIds.Count is < 1 or > 4 ||
+            playerIds.Distinct().Count() != playerIds.Length || !validRepresentatives ||
+            teams.Select(x => x.RepresentativePlayerProfileId).Distinct().Count() != 2 ||
+            teams.Any(x => x.Name.Trim().Length is 0 or > 40))
         {
             return CivilizationDraftOperationResult.Failure("InvalidSetup");
         }
@@ -48,22 +53,12 @@ public sealed class CivilizationDraftService(
             return CivilizationDraftOperationResult.Failure("InvalidCatalog");
         }
 
-        var factions = await database.Factions.AsNoTracking()
-            .Where(x => x.GameEditionId == request.GameEditionId)
-            .Select(x => new FactionState { Id = x.Id, Name = x.Name, Slug = x.Slug, ImageUrl = x.ImageUrl })
-            .ToArrayAsync(cancellationToken);
-        var poolSize = Math.Min(factions.Length, Math.Max(12, playerIds.Length * 4));
-        if (poolSize < playerIds.Length * 3)
+        var factions = await LoadFactionsAsync(request.GameEditionId, cancellationToken);
+        if (factions.Count < playerIds.Length * 2)
         {
             return CivilizationDraftOperationResult.Failure("InsufficientFactions");
         }
 
-        var usedCounts = await GetPoolUsageCountsAsync(request.GameEditionId, cancellationToken);
-        var pool = factions
-            .OrderBy(x => usedCounts.GetValueOrDefault(x.Id))
-            .ThenBy(_ => Random.Shared.Next())
-            .Take(poolSize)
-            .ToList();
         var state = new DraftState
         {
             Title = title,
@@ -71,10 +66,11 @@ public sealed class CivilizationDraftService(
             MapName = map?.Name,
             GameMode = request.GameMode,
             Phase = CivilizationDraftPhase.Lobby,
-            Pool = pool,
-            Teams = teams.Select((team, index) => new TeamState
+            Pool = factions,
+            Teams = teams.Select(team => new TeamState
             {
                 Name = team.Name.Trim(),
+                RepresentativePlayerProfileId = team.RepresentativePlayerProfileId,
                 Players = team.PlayerProfileIds.Select(id => new ParticipantState
                 {
                     PlayerProfileId = id,
@@ -97,93 +93,141 @@ public sealed class CivilizationDraftService(
         return CivilizationDraftOperationResult.Success(shareCode);
     }
 
-    public async Task<CivilizationDraftView?> GetAsync(string shareCode, Guid viewerPlayerProfileId, CancellationToken cancellationToken = default)
+    public async Task<CivilizationDraftView?> GetAsync(
+        string shareCode,
+        Guid viewerPlayerProfileId,
+        CancellationToken cancellationToken = default)
     {
         var row = await GetRowAsync(shareCode, cancellationToken);
-        return row is null ? null : ToView(row, viewerPlayerProfileId);
+        if (row is null)
+        {
+            return null;
+        }
+
+        await CompletePoolAsync(row, cancellationToken);
+        return ToView(row);
     }
 
-    public Task<CivilizationDraftOperationResult> SetReadyAsync(string shareCode, Guid playerProfileId, bool ready, CancellationToken cancellationToken = default)
-        => MutateAsync(shareCode, playerProfileId, (_, state, participant) =>
+    public Task<CivilizationDraftOperationResult> SetReadyAsync(
+        string shareCode, Guid playerProfileId, bool ready, CancellationToken cancellationToken = default)
+        => MutateAsync(shareCode, playerProfileId, (_, state) =>
         {
-            if (state.Phase != CivilizationDraftPhase.Lobby || participant is null) return "InvalidPhase";
-            participant.Ready = ready;
+            if (state.Phase != CivilizationDraftPhase.Lobby)
+            {
+                return "InvalidPhase";
+            }
+
+            var team = FindRepresentedTeam(state, playerProfileId);
+            if (team is null)
+            {
+                return "RepresentativeOnly";
+            }
+
+            team.RepresentativeReady = ready;
             return null;
         }, cancellationToken);
 
-    public Task<CivilizationDraftOperationResult> StartAsync(string shareCode, Guid organizerPlayerProfileId, CancellationToken cancellationToken = default)
-        => MutateAsync(shareCode, organizerPlayerProfileId, (row, state, _) =>
+    public Task<CivilizationDraftOperationResult> StartAsync(
+        string shareCode, Guid organizerPlayerProfileId, CancellationToken cancellationToken = default)
+        => MutateAsync(shareCode, organizerPlayerProfileId, (row, state) =>
         {
-            if (row.CreatorPlayerProfileId != organizerPlayerProfileId) return "OrganizerOnly";
-            if (state.Phase != CivilizationDraftPhase.Lobby) return "InvalidPhase";
-            if (state.Teams.SelectMany(x => x.Players).Any(x => !x.Ready)) return "PlayersNotReady";
-            state.Queue = BuildSnakeQueue(state.Teams);
+            if (row.CreatorPlayerProfileId != organizerPlayerProfileId)
+            {
+                return "OrganizerOnly";
+            }
+
+            if (state.Phase != CivilizationDraftPhase.Lobby)
+            {
+                return "InvalidPhase";
+            }
+
+            if (state.Teams.Count != 2 || state.Teams.Any(x => !x.RepresentativeReady))
+            {
+                return "RepresentativesNotReady";
+            }
+
+            state.Queue = BuildAlternatingQueue(state.Teams);
             state.ActionIndex = 0;
-            state.Phase = CivilizationDraftPhase.Preferences;
+            state.Phase = CivilizationDraftPhase.Bans;
             return null;
         }, cancellationToken);
 
-    public Task<CivilizationDraftOperationResult> SubmitPreferencesAsync(string shareCode, Guid playerProfileId, IReadOnlyCollection<Guid> factionIds, CancellationToken cancellationToken = default)
-        => MutateAsync(shareCode, playerProfileId, (_, state, participant) =>
+    public Task<CivilizationDraftOperationResult> SubmitBanAsync(
+        string shareCode, Guid playerProfileId, Guid factionId, CancellationToken cancellationToken = default)
+        => MutateAsync(shareCode, playerProfileId, (_, state) =>
         {
-            var ids = factionIds.Distinct().ToArray();
-            if (state.Phase != CivilizationDraftPhase.Preferences || participant is null || CurrentPlayer(state) != playerProfileId) return "NotYourTurn";
-            if (ids.Length != 2 || ids.Any(id => state.Pool.All(x => x.Id != id))) return "ChooseTwoFactions";
-            var reserved = state.Teams.SelectMany(x => x.Players).SelectMany(x => x.PreferenceFactionIds).ToHashSet();
-            if (ids.Any(reserved.Contains)) return "FactionUnavailable";
-            participant.PreferenceFactionIds = ids.ToList();
-            Advance(state, CivilizationDraftPhase.Bans);
-            return null;
-        }, cancellationToken);
+            if (state.Phase != CivilizationDraftPhase.Bans || CurrentRepresentative(state) != playerProfileId)
+            {
+                return "NotYourTurn";
+            }
 
-    public Task<CivilizationDraftOperationResult> SubmitBanAsync(string shareCode, Guid playerProfileId, Guid factionId, CancellationToken cancellationToken = default)
-        => MutateAsync(shareCode, playerProfileId, (_, state, participant) =>
-        {
-            if (state.Phase != CivilizationDraftPhase.Bans || participant is null || CurrentPlayer(state) != playerProfileId) return "NotYourTurn";
-            if (participant.PreferenceFactionIds.Contains(factionId)) return "CannotBanOwnPreference";
-            if (state.BannedFactionIds.Contains(factionId) || state.ProtectedFactionIds.Contains(factionId) || state.Pool.All(x => x.Id != factionId)) return "FactionUnavailable";
+            if (!IsFactionAvailable(state, factionId))
+            {
+                return "FactionUnavailable";
+            }
+
             state.BannedFactionIds.Add(factionId);
-            foreach (var target in state.Teams.SelectMany(x => x.Players).Where(x => x.PreferenceFactionIds.Contains(factionId) && !x.PickFactionId.HasValue))
+            state.ActionIndex++;
+            if (state.ActionIndex >= state.Queue.Count)
             {
-                var remaining = target.PreferenceFactionIds.Single(x => x != factionId);
-                target.PickFactionId = remaining;
-                target.PickWasProtected = true;
-                state.ProtectedFactionIds.Add(remaining);
-            }
-            Advance(state, CivilizationDraftPhase.Picks);
-            if (state.Phase == CivilizationDraftPhase.Picks)
-            {
-                state.Queue = state.Queue.Where(id => FindParticipant(state, id)?.PickFactionId is null).ToList();
+                state.Phase = CivilizationDraftPhase.Picks;
+                state.Queue = BuildAlternatingQueue(state.Teams);
                 state.ActionIndex = 0;
-                if (state.Queue.Count == 0) state.Phase = CivilizationDraftPhase.Review;
             }
+
             return null;
         }, cancellationToken);
 
-    public Task<CivilizationDraftOperationResult> SubmitPickAsync(string shareCode, Guid playerProfileId, Guid factionId, CancellationToken cancellationToken = default)
-        => MutateAsync(shareCode, playerProfileId, (_, state, participant) =>
+    public Task<CivilizationDraftOperationResult> SubmitPickAsync(
+        string shareCode,
+        Guid playerProfileId,
+        Guid targetPlayerProfileId,
+        Guid factionId,
+        CancellationToken cancellationToken = default)
+        => MutateAsync(shareCode, playerProfileId, (_, state) =>
         {
-            if (state.Phase != CivilizationDraftPhase.Picks || participant is null || CurrentPlayer(state) != playerProfileId) return "NotYourTurn";
-            if (!participant.PreferenceFactionIds.Contains(factionId) || state.BannedFactionIds.Contains(factionId)) return "FactionUnavailable";
-            participant.PickFactionId = factionId;
-            Advance(state, CivilizationDraftPhase.Review);
+            if (state.Phase != CivilizationDraftPhase.Picks || CurrentRepresentative(state) != playerProfileId)
+            {
+                return "NotYourTurn";
+            }
+
+            var team = FindRepresentedTeam(state, playerProfileId);
+            var target = team?.Players.SingleOrDefault(x => x.PlayerProfileId == targetPlayerProfileId);
+            if (target is null || target.PickFactionId.HasValue)
+            {
+                return "InvalidPickTarget";
+            }
+
+            if (!IsFactionAvailable(state, factionId))
+            {
+                return "FactionUnavailable";
+            }
+
+            target.PickFactionId = factionId;
+            state.ActionIndex++;
+            if (state.ActionIndex >= state.Queue.Count)
+            {
+                state.Phase = CivilizationDraftPhase.Completed;
+                state.ActionIndex = state.Queue.Count;
+            }
+
             return null;
         }, cancellationToken);
 
-    public Task<CivilizationDraftOperationResult> ConfirmFinalAsync(string shareCode, Guid playerProfileId, CancellationToken cancellationToken = default)
-        => MutateAsync(shareCode, playerProfileId, (_, state, participant) =>
+    public Task<CivilizationDraftOperationResult> CancelAsync(
+        string shareCode, Guid organizerPlayerProfileId, CancellationToken cancellationToken = default)
+        => MutateAsync(shareCode, organizerPlayerProfileId, (row, state) =>
         {
-            if (state.Phase != CivilizationDraftPhase.Review || participant is null) return "InvalidPhase";
-            participant.FinalConfirmed = true;
-            if (state.Teams.SelectMany(x => x.Players).All(x => x.FinalConfirmed)) state.Phase = CivilizationDraftPhase.Completed;
-            return null;
-        }, cancellationToken);
+            if (row.CreatorPlayerProfileId != organizerPlayerProfileId)
+            {
+                return "OrganizerOnly";
+            }
 
-    public Task<CivilizationDraftOperationResult> CancelAsync(string shareCode, Guid organizerPlayerProfileId, CancellationToken cancellationToken = default)
-        => MutateAsync(shareCode, organizerPlayerProfileId, (row, state, _) =>
-        {
-            if (row.CreatorPlayerProfileId != organizerPlayerProfileId) return "OrganizerOnly";
-            if (state.Phase is CivilizationDraftPhase.Completed or CivilizationDraftPhase.Cancelled) return "InvalidPhase";
+            if (state.Phase is CivilizationDraftPhase.Completed or CivilizationDraftPhase.Cancelled)
+            {
+                return "InvalidPhase";
+            }
+
             state.Phase = CivilizationDraftPhase.Cancelled;
             return null;
         }, cancellationToken);
@@ -191,7 +235,7 @@ public sealed class CivilizationDraftService(
     private async Task<CivilizationDraftOperationResult> MutateAsync(
         string shareCode,
         Guid actorId,
-        Func<DraftRow, DraftState, ParticipantState?, string?> mutation,
+        Func<DraftRow, DraftState, string?> mutation,
         CancellationToken cancellationToken)
     {
         shareCode = NormalizeCode(shareCode);
@@ -200,9 +244,19 @@ public sealed class CivilizationDraftService(
         try
         {
             var row = await GetRowAsync(shareCode, cancellationToken);
-            if (row is null) return CivilizationDraftOperationResult.Failure("NotFound");
-            var error = mutation(row, row.State, FindParticipant(row.State, actorId));
-            if (error is not null) return CivilizationDraftOperationResult.Failure(error);
+            if (row is null)
+            {
+                return CivilizationDraftOperationResult.Failure("NotFound");
+            }
+
+            await CompletePoolAsync(row, cancellationToken);
+            NormalizeLegacyState(row.State);
+            var error = mutation(row, row.State);
+            if (error is not null)
+            {
+                return CivilizationDraftOperationResult.Failure(error);
+            }
+
             var now = DateTimeOffset.UtcNow;
             var affected = await database.Database.ExecuteSqlInterpolatedAsync($"""
                 UPDATE public.civilization_drafts
@@ -210,76 +264,146 @@ public sealed class CivilizationDraftService(
                     state_json = {JsonSerializer.Serialize(row.State, JsonOptions)}::jsonb, updated_at_utc = {now}
                 WHERE id = {row.Id} AND version = {row.Version}
                 """, cancellationToken);
-            if (affected != 1) return CivilizationDraftOperationResult.Failure("ConcurrentChange");
+            if (affected != 1)
+            {
+                return CivilizationDraftOperationResult.Failure("ConcurrentChange");
+            }
         }
         finally
         {
             gate.Release();
         }
+
         await notifier.NotifyAsync(shareCode);
         return CivilizationDraftOperationResult.Success(shareCode);
     }
 
-    private static void Advance(DraftState state, CivilizationDraftPhase nextPhase)
+    private static List<Guid> BuildAlternatingQueue(IReadOnlyList<TeamState> teams)
     {
-        state.ActionIndex++;
-        if (state.ActionIndex < state.Queue.Count) return;
-        state.Phase = nextPhase;
-        state.ActionIndex = 0;
+        var actionsPerTeam = teams[0].Players.Count;
+        var queue = new List<Guid>(actionsPerTeam * 2);
+        for (var round = 0; round < actionsPerTeam; round++)
+        {
+            queue.Add(teams[0].RepresentativePlayerProfileId);
+            queue.Add(teams[1].RepresentativePlayerProfileId);
+        }
+
+        return queue;
     }
 
-    private static Guid? CurrentPlayer(DraftState state) =>
-        (state.Phase is CivilizationDraftPhase.Preferences or CivilizationDraftPhase.Bans or CivilizationDraftPhase.Picks) &&
+    private static Guid? CurrentRepresentative(DraftState state) =>
+        (state.Phase is CivilizationDraftPhase.Bans or CivilizationDraftPhase.Picks) &&
         state.ActionIndex >= 0 && state.ActionIndex < state.Queue.Count
             ? state.Queue[state.ActionIndex]
             : null;
 
-    private static List<Guid> BuildSnakeQueue(IReadOnlyList<TeamState> teams)
-    {
-        var queue = new List<Guid>();
-        var maxPlayers = teams.Max(x => x.Players.Count);
-        for (var round = 0; round < maxPlayers; round++)
-        {
-            var ordered = round % 2 == 0 ? teams : teams.Reverse();
-            queue.AddRange(ordered.Where(x => x.Players.Count > round).Select(x => x.Players[round].PlayerProfileId));
-        }
-        return queue;
-    }
+    private static TeamState? FindRepresentedTeam(DraftState state, Guid representativeId) =>
+        state.Teams.SingleOrDefault(x => x.RepresentativePlayerProfileId == representativeId);
 
-    private static ParticipantState? FindParticipant(DraftState state, Guid id) =>
-        state.Teams.SelectMany(x => x.Players).SingleOrDefault(x => x.PlayerProfileId == id);
+    private static bool IsFactionAvailable(DraftState state, Guid factionId) =>
+        state.Pool.Any(x => x.Id == factionId) &&
+        !state.BannedFactionIds.Contains(factionId) &&
+        state.Teams.SelectMany(x => x.Players).All(x => x.PickFactionId != factionId);
 
-    private CivilizationDraftView ToView(DraftRow row, Guid viewerId)
+    private CivilizationDraftView ToView(DraftRow row)
     {
         var state = row.State;
-        var own = FindParticipant(state, viewerId);
-        var revealBans = state.Phase is CivilizationDraftPhase.Picks or CivilizationDraftPhase.Review or CivilizationDraftPhase.Completed;
-        var reserved = state.Teams.SelectMany(x => x.Players).SelectMany(x => x.PreferenceFactionIds).ToHashSet();
-        var factions = state.Pool.Select(faction => new CivilizationDraftFactionView(
-            faction.Id, faction.Name, faction.ImageUrl ?? $"/images/civilizations/{faction.Slug}.png",
-            revealBans && state.BannedFactionIds.Contains(faction.Id), state.ProtectedFactionIds.Contains(faction.Id),
-            reserved.Contains(faction.Id) || state.BannedFactionIds.Contains(faction.Id))).ToArray();
+        NormalizeLegacyState(state);
+        var allPlayers = state.Teams.SelectMany(x => x.Players).ToArray();
+        var factions = state.Pool.OrderBy(x => x.Name).Select(faction =>
+        {
+            var pickedPlayer = allPlayers.SingleOrDefault(x => x.PickFactionId == faction.Id);
+            var pickedTeam = pickedPlayer is null ? null : state.Teams.Single(x => x.Players.Contains(pickedPlayer));
+            return new CivilizationDraftFactionView(
+                faction.Id,
+                faction.Name,
+                faction.ImageUrl ?? CivilizationImagePath(faction.Slug),
+                state.BannedFactionIds.Contains(faction.Id),
+                pickedPlayer is not null,
+                pickedPlayer?.DisplayName,
+                pickedTeam?.Name);
+        }).ToArray();
+
         CivilizationDraftParticipantView MapPlayer(ParticipantState player)
         {
             var picked = player.PickFactionId.HasValue ? state.Pool.SingleOrDefault(x => x.Id == player.PickFactionId.Value) : null;
-            return new(player.PlayerProfileId, player.DisplayName, player.AvatarUrl, player.Ready, player.FinalConfirmed,
-                player.PickFactionId, picked?.Name, picked is null ? null : picked.ImageUrl ?? $"/images/civilizations/{picked.Slug}.png", player.PickWasProtected);
+            return new CivilizationDraftParticipantView(
+                player.PlayerProfileId,
+                player.DisplayName,
+                player.AvatarUrl,
+                player.PickFactionId,
+                picked?.Name,
+                picked is null ? null : picked.ImageUrl ?? CivilizationImagePath(picked.Slug));
         }
-        var totalPlayers = state.Teams.Sum(x => x.Players.Count);
-        var total = state.Phase switch
+
+        var teams = state.Teams.Select(team =>
         {
-            CivilizationDraftPhase.Lobby => totalPlayers,
-            CivilizationDraftPhase.Preferences => totalPlayers,
-            CivilizationDraftPhase.Bans => totalPlayers,
-            CivilizationDraftPhase.Picks => state.Queue.Count,
-            CivilizationDraftPhase.Review => totalPlayers,
-            _ => totalPlayers
+            var representative = team.Players.Single(x => x.PlayerProfileId == team.RepresentativePlayerProfileId);
+            return new CivilizationDraftTeamView(
+                team.Name,
+                team.RepresentativePlayerProfileId,
+                representative.DisplayName,
+                team.RepresentativeReady,
+                team.Players.Select(MapPlayer).ToArray());
+        }).ToArray();
+        var actionsPerPhase = state.Teams.Count == 2 ? state.Teams[0].Players.Count * 2 : 0;
+        var completedActions = state.Phase switch
+        {
+            CivilizationDraftPhase.Lobby => state.Teams.Count(x => x.RepresentativeReady),
+            CivilizationDraftPhase.Bans => state.ActionIndex,
+            CivilizationDraftPhase.Picks => state.BannedFactionIds.Count + state.ActionIndex,
+            CivilizationDraftPhase.Completed => actionsPerPhase * 2,
+            _ => 0
         };
-        return new(row.Id, row.ShareCode, state.Title, state.EditionName, state.MapName, state.GameMode, state.Phase,
-            row.CreatorPlayerProfileId, CurrentPlayer(state), state.Teams.Select(x => new CivilizationDraftTeamView(x.Name, x.Players.Select(MapPlayer).ToArray())).ToArray(),
-            factions, own?.PreferenceFactionIds.ToArray() ?? [], revealBans ? state.BannedFactionIds.ToArray() : [],
-            state.Phase == CivilizationDraftPhase.Lobby ? state.Teams.SelectMany(x => x.Players).Count(x => x.Ready) : state.ActionIndex,
-            total, row.Version, row.UpdatedAtUtc);
+        var totalActions = state.Phase == CivilizationDraftPhase.Lobby ? 2 : actionsPerPhase * 2;
+
+        return new CivilizationDraftView(
+            row.Id, row.ShareCode, state.Title, state.EditionName, state.MapName, state.GameMode, state.Phase,
+            row.CreatorPlayerProfileId, CurrentRepresentative(state), teams, factions, completedActions,
+            totalActions, row.Version, row.UpdatedAtUtc);
+    }
+
+    private async Task CompletePoolAsync(DraftRow row, CancellationToken cancellationToken)
+    {
+        var knownIds = row.State.Pool.Select(x => x.Id).ToHashSet();
+        var catalog = await LoadFactionsAsync(row.GameEditionId, cancellationToken);
+        row.State.Pool.AddRange(catalog.Where(x => !knownIds.Contains(x.Id)));
+        row.State.Pool = row.State.Pool.OrderBy(x => x.Name).ToList();
+    }
+
+    private async Task<List<FactionState>> LoadFactionsAsync(Guid editionId, CancellationToken cancellationToken) =>
+        await database.Factions.AsNoTracking()
+            .Where(x => x.GameEditionId == editionId)
+            .OrderBy(x => x.Name)
+            .Select(x => new FactionState { Id = x.Id, Name = x.Name, Slug = x.Slug, ImageUrl = x.ImageUrl })
+            .ToListAsync(cancellationToken);
+
+    private static void NormalizeLegacyState(DraftState state)
+    {
+        var legacyState = state.Teams.Any(x => x.RepresentativePlayerProfileId == Guid.Empty);
+        foreach (var team in state.Teams)
+        {
+            if (team.RepresentativePlayerProfileId == Guid.Empty && team.Players.Count > 0)
+            {
+                team.RepresentativePlayerProfileId = team.Players[0].PlayerProfileId;
+            }
+        }
+
+        if (legacyState && state.Teams.Count == 2 && state.Teams[0].Players.Count == state.Teams[1].Players.Count)
+        {
+            state.Phase = CivilizationDraftPhase.Lobby;
+            state.Queue.Clear();
+            state.ActionIndex = 0;
+            state.BannedFactionIds.Clear();
+            foreach (var team in state.Teams)
+            {
+                team.RepresentativeReady = false;
+                foreach (var player in team.Players)
+                {
+                    player.PickFactionId = null;
+                }
+            }
+        }
     }
 
     private async Task<DraftRow?> GetRowAsync(string shareCode, CancellationToken cancellationToken)
@@ -290,29 +414,21 @@ public sealed class CivilizationDraftService(
             FROM public.civilization_drafts WHERE share_code = @code LIMIT 1
             """;
         AddParameter(command, "@code", NormalizeCode(shareCode));
-        if (command.Connection!.State != ConnectionState.Open) await command.Connection.OpenAsync(cancellationToken);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        if (!await reader.ReadAsync(cancellationToken)) return null;
-        return new DraftRow(reader.GetGuid(0), reader.GetString(1), reader.GetGuid(2), reader.GetGuid(3), reader.GetInt32(4),
-            JsonSerializer.Deserialize<DraftState>(reader.GetString(5), JsonOptions)!, new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(6), DateTimeKind.Utc)));
-    }
-
-    private async Task<Dictionary<Guid, int>> GetPoolUsageCountsAsync(Guid editionId, CancellationToken cancellationToken)
-    {
-        var result = new Dictionary<Guid, int>();
-        await using var command = database.Database.GetDbConnection().CreateCommand();
-        command.CommandText = "SELECT state_json::text FROM public.civilization_drafts WHERE game_edition_id = @edition AND status <> 'Cancelled'";
-        AddParameter(command, "@edition", editionId);
-        if (command.Connection!.State != ConnectionState.Open) await command.Connection.OpenAsync(cancellationToken);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        if (command.Connection!.State != ConnectionState.Open)
         {
-            var state = JsonSerializer.Deserialize<DraftState>(reader.GetString(0), JsonOptions);
-            if (state is null) continue;
-            foreach (var faction in state.Pool.Where(x => !state.BannedFactionIds.Contains(x.Id)))
-                result[faction.Id] = result.GetValueOrDefault(faction.Id) + 1;
+            await command.Connection.OpenAsync(cancellationToken);
         }
-        return result;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new DraftRow(
+            reader.GetGuid(0), reader.GetString(1), reader.GetGuid(2), reader.GetGuid(3), reader.GetInt32(4),
+            JsonSerializer.Deserialize<DraftState>(reader.GetString(5), JsonOptions)!,
+            new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(6), DateTimeKind.Utc)));
     }
 
     private async Task<string> CreateUniqueShareCodeAsync(CancellationToken cancellationToken)
@@ -324,11 +440,22 @@ public sealed class CivilizationDraftService(
             await using var command = database.Database.GetDbConnection().CreateCommand();
             command.CommandText = "SELECT EXISTS (SELECT 1 FROM public.civilization_drafts WHERE share_code = @code)";
             AddParameter(command, "@code", code);
-            if (command.Connection!.State != ConnectionState.Open) await command.Connection.OpenAsync(cancellationToken);
-            if (!(bool)(await command.ExecuteScalarAsync(cancellationToken))!) return code;
+            if (command.Connection!.State != ConnectionState.Open)
+            {
+                await command.Connection.OpenAsync(cancellationToken);
+            }
+
+            if (!(bool)(await command.ExecuteScalarAsync(cancellationToken))!)
+            {
+                return code;
+            }
         }
+
         throw new InvalidOperationException("Não foi possível gerar um código único para o draft.");
     }
+
+    private static string CivilizationImagePath(string slug) =>
+        $"/images/civilizations/{(string.Equals(slug, "indians", StringComparison.OrdinalIgnoreCase) ? "hindustanis" : slug)}.png";
 
     private static void AddParameter(DbCommand command, string name, object value)
     {
@@ -340,7 +467,10 @@ public sealed class CivilizationDraftService(
 
     private static string NormalizeCode(string code) => code.Trim().ToUpperInvariant();
 
-    private sealed record DraftRow(Guid Id, string ShareCode, Guid CreatorPlayerProfileId, Guid GameEditionId, int Version, DraftState State, DateTimeOffset UpdatedAtUtc);
+    private sealed record DraftRow(
+        Guid Id, string ShareCode, Guid CreatorPlayerProfileId, Guid GameEditionId, int Version,
+        DraftState State, DateTimeOffset UpdatedAtUtc);
+
     private sealed class DraftState
     {
         public string Title { get; set; } = "";
@@ -353,24 +483,24 @@ public sealed class CivilizationDraftService(
         public List<Guid> Queue { get; set; } = [];
         public int ActionIndex { get; set; }
         public List<Guid> BannedFactionIds { get; set; } = [];
-        public List<Guid> ProtectedFactionIds { get; set; } = [];
     }
+
     private sealed class TeamState
     {
         public string Name { get; set; } = "";
+        public Guid RepresentativePlayerProfileId { get; set; }
+        public bool RepresentativeReady { get; set; }
         public List<ParticipantState> Players { get; set; } = [];
     }
+
     private sealed class ParticipantState
     {
         public Guid PlayerProfileId { get; set; }
         public string DisplayName { get; set; } = "";
         public string? AvatarUrl { get; set; }
-        public bool Ready { get; set; }
-        public List<Guid> PreferenceFactionIds { get; set; } = [];
         public Guid? PickFactionId { get; set; }
-        public bool PickWasProtected { get; set; }
-        public bool FinalConfirmed { get; set; }
     }
+
     private sealed class FactionState
     {
         public Guid Id { get; set; }

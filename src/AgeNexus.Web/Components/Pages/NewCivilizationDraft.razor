@@ -10,7 +10,7 @@
 <LoadingOverlay Visible="@Loading" Message="Preparando o draft..." />
 
 <section class="page-heading compact-heading">
-    <div><span class="eyebrow">Sala compartilhada</span><h1>Draft de civilizações</h1><p>Monte os times e crie a sala. Isso não registra uma partida.</p></div>
+    <div><span class="eyebrow">Sala compartilhada</span><h1>Draft de civilizações</h1><p>Cadastre as equipes e escolha quem representará cada uma na sala.</p></div>
     <a class="button button-secondary" href="/partidas">Voltar</a>
 </section>
 
@@ -26,24 +26,24 @@
             <label class="form-field"><span>Edição</span><select @bind="EditionId" @bind:after="EditionChangedAsync">@foreach (var item in Catalog.GameEditions) { <option value="@item.Id">@item.Name</option> }</select></label>
             <label class="form-field"><span>Mapa</span><select @bind="MapId"><option value="">A definir</option>@foreach (var item in Catalog.Maps) { <option value="@item.Id">@item.Name</option> }</select></label>
             <label class="form-field"><span>Tipo de jogo</span><select @bind="GameMode">@foreach (var mode in Enum.GetValues<AgeNexus.Domain.Matches.MatchGameMode>()) { <option value="@mode">@ModeLabel(mode)</option> }</select></label>
+            <label class="form-field"><span>Formato</span><select value="@TeamSize" @onchange="TeamSizeChanged">@for (var size = 1; size <= 4; size++) { <option value="@size">@size x @size</option> }</select></label>
         </div>
 
         <div class="draft-team-editor">
             @foreach (var team in Teams)
             {
                 <article class="draft-team-edit-card">
-                    <header><input @bind="team.Name" maxlength="40" aria-label="Nome do time" /><button type="button" class="table-action-button table-action-danger" @onclick="() => RemoveTeam(team)" disabled="@(Teams.Count <= 2)">Remover</button></header>
+                    <header><span class="draft-team-number">Equipe</span><input @bind="team.Name" maxlength="40" aria-label="Nome do time" /></header>
                     @foreach (var slot in team.Players)
                     {
-                        <div class="draft-player-select"><select @bind="slot.PlayerId"><option value="">Selecione um jogador</option>@foreach (var player in AvailablePlayers(slot.PlayerId)) { <option value="@player.Id">@player.Name</option> }</select><button type="button" @onclick="() => team.Players.Remove(slot)" disabled="@(team.Players.Count <= 1)" aria-label="Remover jogador">×</button></div>
+                        <div class="draft-player-select"><select @bind="slot.PlayerId"><option value="">Selecione um jogador</option>@foreach (var player in AvailablePlayers(slot.PlayerId)) { <option value="@player.Id">@player.Name</option> }</select></div>
                     }
-                    <button type="button" class="table-action-button" @onclick="() => AddPlayer(team)" disabled="@(TotalPlayers >= 8)">+ Jogador</button>
+                    <label class="form-field draft-representative-field"><span>Representante online</span><select @bind="team.RepresentativePlayerId"><option value="">Selecione o representante</option>@foreach (var slot in team.Players.Where(x => x.PlayerId.HasValue)) { var player = Catalog.Players.Single(x => x.Id == slot.PlayerId); <option value="@player.Id">@player.Name</option> }</select><small>Esta pessoa fará os bans e picks da equipe.</small></label>
                 </article>
             }
         </div>
         <div class="draft-create-actions">
-            <button type="button" class="button button-secondary" @onclick="AddTeam" disabled="@(Teams.Count >= 8 || TotalPlayers >= 8)">+ Time</button>
-            <span>@TotalPlayers de 8 jogadores</span>
+            <span>@TeamSize ban(s) e @TeamSize pick(s) por equipe · @TotalPlayers jogadores</span>
             <button type="button" class="button button-primary" @onclick="CreateAsync" disabled="@Saving">@(Saving ? "Criando sala..." : "Criar sala compartilhável")</button>
         </div>
     </section>
@@ -53,7 +53,7 @@
     [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
     private AgeNexus.Application.Queries.MatchRegistrationCatalog? Catalog;
     private AgeNexus.Infrastructure.Identity.PublicProfile? Profile;
-    private readonly List<TeamForm> Teams = [new("Time 1"), new("Time 2")];
+    private readonly List<TeamForm> Teams = [new("Equipe 1"), new("Equipe 2")];
     private string Title = "Draft de civilizações";
     private Guid EditionId;
     private Guid? MapId;
@@ -61,6 +61,7 @@
     private bool Loading = true;
     private bool Saving;
     private string? Error;
+    private int TeamSize = 1;
     private int TotalPlayers => Teams.Sum(x => x.Players.Count);
 
     protected override async Task OnInitializedAsync()
@@ -69,15 +70,26 @@
         Profile = await Accounts.GetProfileAsync(auth.User, CancellationToken.None);
         Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync();
         EditionId = Catalog.GameEditions.FirstOrDefault()?.Id ?? Guid.Empty;
-        foreach (var team in Teams) team.Players.Add(new());
+        ResizeTeams();
         Loading = false;
     }
 
     private IEnumerable<AgeNexus.Application.Queries.CatalogOption> AvailablePlayers(Guid? current) =>
         Catalog!.Players.Where(x => x.Id == current || !Teams.SelectMany(t => t.Players).Any(p => p.PlayerId == x.Id));
-    private void AddTeam() { var team = new TeamForm($"Time {Teams.Count + 1}"); team.Players.Add(new()); Teams.Add(team); }
-    private void RemoveTeam(TeamForm team) { if (Teams.Count > 2) Teams.Remove(team); }
-    private void AddPlayer(TeamForm team) { if (TotalPlayers < 8) team.Players.Add(new()); }
+    private void TeamSizeChanged(ChangeEventArgs args)
+    {
+        TeamSize = int.TryParse(args.Value?.ToString(), out var size) ? Math.Clamp(size, 1, 4) : 1;
+        ResizeTeams();
+    }
+    private void ResizeTeams()
+    {
+        foreach (var team in Teams)
+        {
+            while (team.Players.Count < TeamSize) team.Players.Add(new());
+            while (team.Players.Count > TeamSize) team.Players.RemoveAt(team.Players.Count - 1);
+            if (!team.Players.Any(x => x.PlayerId == team.RepresentativePlayerId)) team.RepresentativePlayerId = null;
+        }
+    }
     private async Task EditionChangedAsync() { Catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(EditionId); MapId = null; }
 
     private async Task CreateAsync()
@@ -86,9 +98,10 @@
         if (Profile is null) { Error = "Conclua seu perfil antes de criar um draft."; return; }
         var playerIds = Teams.SelectMany(x => x.Players).Select(x => x.PlayerId).ToArray();
         if (playerIds.Any(x => !x.HasValue) || playerIds.Distinct().Count() != playerIds.Length) { Error = "Selecione jogadores diferentes em todos os espaços."; return; }
+        if (Teams.Any(x => !x.RepresentativePlayerId.HasValue || !x.Players.Any(p => p.PlayerId == x.RepresentativePlayerId))) { Error = "Escolha um representante entre os jogadores de cada equipe."; return; }
         Saving = true;
         var request = new AgeNexus.Application.Drafts.CreateCivilizationDraftRequest(Title, EditionId, MapId, GameMode,
-            Teams.Select(x => new AgeNexus.Application.Drafts.CivilizationDraftTeamInput(x.Name, x.Players.Select(p => p.PlayerId!.Value).ToArray())).ToArray());
+            Teams.Select(x => new AgeNexus.Application.Drafts.CivilizationDraftTeamInput(x.Name, x.Players.Select(p => p.PlayerId!.Value).ToArray(), x.RepresentativePlayerId!.Value)).ToArray());
         var result = await Drafts.CreateAsync(Profile.Id, request);
         Saving = false;
         if (result.Succeeded) Navigation.NavigateTo($"/partidas/drafts/{result.ShareCode}");
@@ -104,6 +117,6 @@
         AgeNexus.Domain.Matches.MatchGameMode.EmpireWars => "Guerras de Impérios", AgeNexus.Domain.Matches.MatchGameMode.BattleRoyale => "Battle Royale",
         AgeNexus.Domain.Matches.MatchGameMode.Other => "Outro", _ => "Padrão"
     };
-    private sealed class TeamForm(string name) { public string Name { get; set; } = name; public List<PlayerSlot> Players { get; } = []; }
+    private sealed class TeamForm(string name) { public string Name { get; set; } = name; public Guid? RepresentativePlayerId { get; set; } public List<PlayerSlot> Players { get; } = []; }
     private sealed class PlayerSlot { public Guid? PlayerId { get; set; } }
 }
