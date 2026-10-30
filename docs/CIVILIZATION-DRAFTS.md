@@ -13,6 +13,8 @@ O draft é uma sala compartilhável independente do cadastro de partidas. Conclu
 7. Todo ban ou pick manual exige uma confirmação antes de ser enviado ao servidor.
 8. Ao final do último pick, todos veem o aviso de draft finalizado e a sala libera uma imagem PNG para compartilhamento.
 
+Durante bans e picks, um painel flutuante permanece visível enquanto o usuário percorre a lista de civilizações. Ele resume a ação atual, a equipe da vez, a última escolha e o tempo restante; no celular fica acima da navegação inferior e pode ser recolhido sem ocultar a etapa ou o relógio.
+
 O servidor valida a identidade do representante, a equipe, o tipo da ação, a vez e a disponibilidade da civilização antes de aceitar cada escolha. A ordem sorteada, o prazo, a autoria e o histórico recente ficam persistidos no PostgreSQL; as telas conectadas recebem a atualização imediatamente pelo circuito do Blazor Server e também conferem periodicamente o vencimento do relógio.
 
 ## Catálogo

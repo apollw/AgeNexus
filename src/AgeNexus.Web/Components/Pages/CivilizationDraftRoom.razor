@@ -69,13 +69,6 @@ else if (Draft is not null && Profile is not null)
     }
     else if (Draft.Phase is AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans or AgeNexus.Application.Drafts.CivilizationDraftPhase.Picks)
     {
-        @if (Draft.LastAction is not null)
-        {
-            <div class="draft-turn-notice" role="status" aria-live="polite">
-                <strong>@Draft.LastAction.TeamName @(Draft.LastAction.Kind == AgeNexus.Application.Drafts.CivilizationDraftActionKind.Ban ? "baniu" : "escolheu") @Draft.LastAction.FactionName@(Draft.LastAction.WasAutomatic ? " automaticamente" : "").</strong>
-                <span>@(IsMyTurn ? "Agora é a sua vez." : $"Agora é a vez de {CurrentTeam?.Name}.")</span>
-            </div>
-        }
         <section class="panel draft-action-panel">
             <div><span class="eyebrow">@ActionTitle</span><h2>@ActionInstruction</h2><p>@ActionHelp</p></div>
             <div class="draft-clock" aria-label="Tempo restante"><span>@RemainingSeconds</span><small>segundos</small></div>
@@ -98,6 +91,35 @@ else if (Draft is not null && Profile is not null)
             }
         </div>
     </section>
+
+    @if (IsActive)
+    {
+        <aside class="draft-floating-status @(IsMyTurn ? "is-my-turn" : null) @(FloatingStatusCollapsed ? "is-collapsed" : null)" aria-label="Situação atual do draft">
+            <header>
+                <div>
+                    <span>@ActionTitle</span>
+                    <strong>@(IsMyTurn ? "Sua vez" : $"Vez de {CurrentTeam?.Name}")</strong>
+                </div>
+                <button type="button" @onclick="ToggleFloatingStatus" aria-label="@(FloatingStatusCollapsed ? "Expandir aviso do draft" : "Recolher aviso do draft")" title="@(FloatingStatusCollapsed ? "Expandir" : "Recolher")">
+                    @(FloatingStatusCollapsed ? "+" : "−")
+                </button>
+            </header>
+            @if (!FloatingStatusCollapsed)
+            {
+                <div class="draft-floating-body">
+                    <p aria-live="polite">@ActionInstruction</p>
+                    @if (Draft.LastAction is not null)
+                    {
+                        <small><strong>@Draft.LastAction.TeamName</strong> @(Draft.LastAction.Kind == AgeNexus.Application.Drafts.CivilizationDraftActionKind.Ban ? "baniu" : "escolheu") @Draft.LastAction.FactionName@(Draft.LastAction.WasAutomatic ? " automaticamente" : "").</small>
+                    }
+                </div>
+            }
+            <footer>
+                <span>@(Draft.CurrentAction == AgeNexus.Application.Drafts.CivilizationDraftActionKind.Ban ? "Escolha um ban" : "Escolha um pick")</span>
+                <strong class="@(RemainingSeconds <= 10 ? "is-ending" : null)">@RemainingSeconds<small>s</small></strong>
+            </footer>
+        </aside>
+    }
 
     @if (IsOrganizer && Draft.Phase is not AgeNexus.Application.Drafts.CivilizationDraftPhase.Completed and not AgeNexus.Application.Drafts.CivilizationDraftPhase.Cancelled)
     {
@@ -133,6 +155,7 @@ else if (Draft is not null && Profile is not null)
     private DraftAction? PendingAction;
     private readonly CancellationTokenSource ClockCancellation = new();
     private bool Loading = true, OperationFailed, Copied;
+    private bool FloatingStatusCollapsed;
     private string? Message;
     private bool IsOrganizer => Draft?.CreatedByPlayerProfileId == Profile?.Id;
     private bool IsMyTurn => Draft?.CurrentPlayerProfileId == Profile?.Id;
@@ -226,6 +249,7 @@ else if (Draft is not null && Profile is not null)
         PendingFactionId = null;
         PendingAction = null;
     }
+    private void ToggleFloatingStatus() => FloatingStatusCollapsed = !FloatingStatusCollapsed;
     private bool FactionDisabled(AgeNexus.Application.Drafts.CivilizationDraftFactionView faction) => !IsMyTurn || faction.IsBanned || faction.IsPicked;
     private async Task CopyLinkAsync() { await JavaScript.InvokeVoidAsync("ageNexusDraft.copy", Navigation.Uri); Copied = true; }
     private async Task DownloadImageAsync() { await JavaScript.InvokeVoidAsync("ageNexusDraft.download", new { Draft!.Title, Draft.MapName, Mode = ModeLabel(Draft.GameMode), Teams = Draft.Teams.Select(t => new { t.Name, Players = t.Players.Select(p => new { p.DisplayName }), Picks = t.Picks.Select(p => p.FactionName) }) }, $"draft-{Draft.ShareCode}.png"); }
