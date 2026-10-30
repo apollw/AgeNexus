@@ -36,6 +36,10 @@ public sealed class MatchWorkflowService(
         {
             return MatchWorkflowResult.Failure(matchId, "NotAuthorized");
         }
+        if (request.Type == DomainMatchType.HumansVersusAi)
+        {
+            return MatchWorkflowResult.Failure(matchId, "UnsupportedMatchType");
+        }
 
         try
         {

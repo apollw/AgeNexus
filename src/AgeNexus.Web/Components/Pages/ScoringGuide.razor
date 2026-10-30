@@ -12,9 +12,9 @@
     <section class="guide-overview" aria-labelledby="guide-rankings">
         <h2 id="guide-rankings">Cada ranking mede uma coisa</h2>
         <dl class="guide-definitions">
-            <div class="guide-ranking-card guide-ranking-competitive"><dt><span class="guide-card-label">Habilidade</span>Geral competitivo</dt><dd>É seu rating de habilidade: começa em @ScoringRuleSet.InitialRating.ToString("0") e sobe ou desce conforme os resultados contra humanos. Vencer adversários mais fortes rende mais; perder para mais fracos custa mais. Partidas com IA auxiliando os lados humanos têm peso reduzido. Humanos contra uma equipe só de IA não alteram esse rating.</dd></div>
-            <div class="guide-ranking-card"><dt><span class="guide-card-label">Progressão</span>Carreira</dt><dd>Soma a participação e os resultados ao longo do tempo: pontos de partidas contra humanos, bônus de MVP e @((ScoringRuleSet.PveCareerContribution * 100).ToString("0"))% dos pontos obtidos contra IA. Uma derrota também pode render pontos de carreira.</dd></div>
-            <div class="guide-ranking-card"><dt><span class="guide-card-label">Desafio</span>Domínio contra IA</dt><dd>Reúne apenas pontos contra IA com comprovação verificada ou auditada. Fica separado do rating competitivo.</dd></div>
+            <div class="guide-ranking-card guide-ranking-competitive"><dt><span class="guide-card-label">Habilidade</span>Geral competitivo</dt><dd>É seu rating de habilidade: começa em @ScoringRuleSet.InitialRating.ToString("0") e sobe ou desce conforme os resultados contra humanos. Vencer adversários mais fortes rende mais; perder para mais fracos custa mais. Partidas mistas, com IA auxiliando os lados humanos, têm peso reduzido.</dd></div>
+            <div class="guide-ranking-card"><dt><span class="guide-card-label">Progressão</span>Carreira</dt><dd>Soma a participação, os resultados e os bônus de MVP ao longo das partidas competitivas. Uma derrota também pode render pontos de carreira.</dd></div>
+            <div class="guide-ranking-card"><dt><span class="guide-card-label">Análise</span>Desempenho das IAs</dt><dd>Agrupa as estatísticas das IAs pela dificuldade escolhida. A média da IA Difícil, por exemplo, reúne todas as suas participações em partidas mistas, independentemente da civilização utilizada.</dd></div>
         </dl>
         <p class="guide-example"><strong>Exemplo:</strong> perder um 1×1 contra outro jogador reduz seu rating, mas acrescenta 25 pontos de carreira. São medidas diferentes.</p>
     </section>
@@ -38,23 +38,16 @@
         <p>Em confrontos como 2×3, a equipe menor ganha um multiplicador maior se vencer. Com IA ajudando um dos lados humanos, a base é reduzida a 70% e ajustada pela dificuldade do confronto.</p>
     </section>
 
-    <section class="guide-panel" aria-labelledby="guide-ai">
-        <span class="guide-kicker">02 · Desafios contra IA</span>
-        <h2 id="guide-ai">Como contam as partidas contra IA?</h2>
-        <p>Somam-se os valores das IAs adversárias e divide-se pelo número de humanos da equipe. Os seis níveis — Mais Fácil, Padrão, Moderado, Difícil, Muito Difícil e Extremo — rendem <strong>8, 15, 30, 50, 75 ou 100 pontos por IA derrotada</strong>; uma derrota válida parte de 1, 2, 4, 6, 8 ou 10 pontos por IA.</p>
-        <p>A comprovação também conta: sem evidência, não há pontos; evidência básica vale 40%, com teto de 150 pontos por temporada, e não entra no ranking oficial contra IA. Evidência verificada ou auditada vale 100%, antes das reduções por repetição.</p>
-        <p class="guide-example"><strong>Exemplo:</strong> dois humanos vencem duas IAs Moderadas. São (30 + 30) ÷ 2 = <strong>30 pontos contra IA e 10,5 de carreira para cada jogador</strong>, com comprovação completa e sem redução por repetição.</p>
-    </section>
-
     <section class="guide-panel" aria-labelledby="guide-mvp">
-        <span class="guide-kicker">03 · Destaques da partida</span>
+        <span class="guide-kicker">02 · Destaques da partida</span>
         <h2 id="guide-mvp">MVP e desempenho</h2>
-        <p>Na versão atual, o administrador indica o MVP de cada equipe ao revisar as estatísticas. Após finalizar o relatório, o MVP recebe <strong>+2 pontos de carreira em partidas só entre humanos</strong>, ou <strong>+1 com IA auxiliando</strong>. Contra uma equipe só de IA, o MVP não dá pontos extras. Esse bônus não altera o rating.</p>
+        <p>O administrador indica o MVP somente nas equipes com dois ou mais integrantes. Por isso, partidas 1×1 e equipes individuais de um todos-contra-todos não possuem MVP. Em partidas mistas, uma IA pode ser escolhida como MVP; ela recebe o destaque no seu histórico por dificuldade, mas não pontos de carreira.</p>
+        <p>Quando o MVP é humano, ele recebe <strong>+2 pontos de carreira em partidas só entre humanos</strong> ou <strong>+1 em partidas mistas</strong>. Esse bônus não altera o rating.</p>
         <p>O índice de desempenho compara militar, economia, tecnologia e sociedade entre os jogadores da partida. Ele ajuda a analisar a atuação, mas não escolhe automaticamente o MVP nem concede um bônus por cada estatística liderada.</p>
     </section>
 
     <section class="guide-panel" aria-labelledby="guide-position">
-        <span class="guide-kicker">04 · Sua classificação</span>
+        <span class="guide-kicker">03 · Sua classificação</span>
         <h2 id="guide-position">Quando apareço e como subo?</h2>
         <p>Os rankings usam os resultados validados; salvar um rascunho não basta. Quanto maior a pontuação daquele ranking, melhor a posição. No competitivo, você fica <strong>provisório nas primeiras 9 partidas contabilizadas</strong> e classificado a partir da 10ª.</p>
         <p><strong>Equipes fixas:</strong> cada combinação exata de jogadores tem rating próprio. Trocar um integrante cria outra formação, provisória até completar 5 partidas. <strong>Clãs:</strong> o quadro está disponível, mas o registro atual de partidas ainda não gera pontuação de clã automaticamente.</p>
@@ -63,7 +56,6 @@
     <details class="guide-details">
         <summary>Detalhes dos ajustes e casos especiais</summary>
         <p><strong>Rating:</strong> considera a força média e o tamanho das equipes. As primeiras 10 partidas têm ajuste mais rápido. Os pesos são 100% no 1×1, 90% no 2×2, 85% no 3×3, 80% no 4×4 e 75% em equipes desiguais. A variação final é arredondada e limitada a ±40 por partida; confrontos híbridos têm redução adicional.</p>
-        <p><strong>Repetição contra IA:</strong> uma vitória vale 100% enquanto houver menos de 3 registros equivalentes já pontuados na temporada; com 3 a 9, vale 25%; com 10 ou mais, não rende novos pontos. Hoje esse contador inclui derrotas que renderam pontos. A equivalência considera edição, mapa, dificuldades das IAs, jogadores humanos e civilizações.</p>
         <p><strong>Desempenho:</strong> os pesos militar/economia/tecnologia/sociedade são 45/35/10/10% em duelos e 40/30/10/20% quando há equipe com mais de um humano. A comparação é relativa à própria partida.</p>
         <p><strong>Todos contra todos:</strong> ainda não recebe a pontuação base de rating e carreira usada nos confrontos entre duas equipes. Excluir uma partida remove seus pontos e bônus. Empates na pontuação do ranking não usam confronto direto como desempate.</p>
     </details>

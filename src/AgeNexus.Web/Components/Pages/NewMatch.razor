@@ -98,7 +98,6 @@ else
                     <InputSelect @bind-Value="Form.Type" @bind-Value:after="MatchTypeChanged">
                         <option value="@AgeNexus.Domain.Matches.MatchType.PlayerVersusPlayer">PvP puro</option>
                         <option value="@AgeNexus.Domain.Matches.MatchType.Mixed">PvP híbrido</option>
-                        <option value="@AgeNexus.Domain.Matches.MatchType.HumansVersusAi">Humanos contra IA</option>
                         <option value="@AgeNexus.Domain.Matches.MatchType.FreeForAll">Todos contra todos (3 a 8 equipes)</option>
                     </InputSelect>
                 </label>
@@ -451,6 +450,7 @@ else
         Error = result.ErrorCode switch
         {
             "NotAuthorized" => "sua conta não possui permissão para registrar esta partida.",
+            "UnsupportedMatchType" => "partidas exclusivamente entre humanos e IA não são mais registradas.",
             "InvalidMatch" => "revise as equipes, os participantes e o resultado informado.",
             _ => "ocorreu um problema inesperado. Revise os dados e tente novamente."
         };

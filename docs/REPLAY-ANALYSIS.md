@@ -24,16 +24,16 @@ O upload aceita `.aoe2record`, `.mgz` e `.mgx`, com limite de 50 MB. O arquivo �
 - Dados manuais e transcritos de capturas seguem o mesmo fluxo de confirmação das equipes.
 - Relatórios contestados não geram bônus.
 - O bônus nunca altera rating competitivo.
-- Em PvE, o resultado de desempenho gera somente distintivo, sem pontos de carreira.
+- Partidas exclusivamente entre humanos e IA não são mais registradas; o tipo permanece apenas para compatibilidade com dados antigos.
 
 ## Fórmula de desempenho
 
-As quatro pontuações finais oficiais são normalizadas entre os humanos da mesma partida. Em 1x1, os pesos são militar 45%, economia 35%, tecnologia 10% e sociedade 10%. Em jogos com equipes humanas, são 40%, 30%, 10% e 20%, respectivamente.
+As quatro pontuações finais oficiais são normalizadas entre os humanos da mesma partida. Em 1x1, os pesos são militar 45%, economia 35%, tecnologia 10% e sociedade 10%. Em jogos com equipes humanas, são 40%, 30%, 10% e 20%, respectivamente. O MVP é informado por equipe e só existe quando aquela equipe possui mais de um integrante. Assim, 1x1 e equipes individuais de partidas multiequipe não recebem MVP.
 
-| Distinção | PvP humano | PvP híbrido | PvE puro |
-| --- | ---: | ---: | ---: |
-| MVP único | +2 carreira | +1 carreira | distintivo |
-| MVP empatado (diferença até 0,02) | +1 por jogador | +1 por jogador | distintivo |
-| Destaque da equipe derrotada | +1 carreira | +1 carreira | não se aplica |
+| Distinção | PvP humano | PvP híbrido |
+| --- | ---: | ---: |
+| MVP humano | +2 carreira | +1 carreira |
+| MVP controlado pela IA | não se aplica | distintivo por dificuldade |
+| Destaque da equipe derrotada | +1 carreira | +1 carreira |
 
-O destaque da derrota precisa liderar ao menos um pilar, alcançar índice geral mínimo de 0,55 e ficar no máximo 0,15 atrás do líder. Um jogador que já recebeu MVP não acumula esse destaque. Partidas PvE com apenas um humano não concedem MVP automático.
+O destaque da derrota precisa liderar ao menos um pilar, alcançar índice geral mínimo de 0,55 e ficar no máximo 0,15 atrás do líder. Um jogador que já recebeu MVP não acumula esse destaque. As estatísticas das IAs são agrupadas pela dificuldade escolhida, independentemente da civilização, e exibidas como média no ranking exclusivo de IAs.

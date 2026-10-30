@@ -10,17 +10,16 @@ public sealed class PerformanceCalculatorTests
     private readonly PerformanceCalculator _calculator = new();
 
     [Fact]
-    public void Losing_player_can_be_the_unique_mvp()
+    public void One_versus_one_does_not_award_mvp()
     {
-        var winner = Input(TeamResult.Victory, 100, 100, 100, 100);
-        var defeated = Input(TeamResult.Defeat, 200, 200, 200, 200);
+        var winner = Input(TeamResult.Victory, 200, 200, 200, 200);
+        var defeated = Input(TeamResult.Defeat, 100, 100, 100, 100);
 
         var result = _calculator.Calculate(new(
             MatchScoringCategory.PurePvp, 1, [winner, defeated]));
 
-        var mvp = result.Players.Single(x => x.PlayerProfileId == defeated.PlayerProfileId);
-        Assert.Equal(PerformanceAwardType.Mvp, mvp.AwardType);
-        Assert.Equal(2, mvp.BonusPoints);
+        Assert.All(result.Players, player => Assert.Equal(PerformanceAwardType.None, player.AwardType));
+        Assert.All(result.Players, player => Assert.Equal(0, player.BonusPoints));
     }
 
     [Fact]
@@ -45,10 +44,11 @@ public sealed class PerformanceCalculatorTests
     public void Hybrid_mvp_is_capped_at_one_career_point()
     {
         var winner = Input(TeamResult.Victory, 200, 200, 200, 200);
+        var winningAlly = Input(TeamResult.Victory, 150, 150, 150, 150, winner.TeamId);
         var defeated = Input(TeamResult.Defeat, 100, 100, 100, 100);
 
         var result = _calculator.Calculate(new(
-            MatchScoringCategory.HybridPvp, 1, [winner, defeated]));
+            MatchScoringCategory.HybridPvp, 2, [winner, winningAlly, defeated]));
 
         Assert.Equal(1, result.Players.Single(x => x.AwardType == PerformanceAwardType.Mvp).BonusPoints);
     }
@@ -133,16 +133,15 @@ public sealed class PerformanceCalculatorTests
     }
 
     [Fact]
-    public void Ai_statistics_are_linked_to_difficulty_and_cannot_be_mvp()
+    public void Ai_statistics_are_linked_to_difficulty_and_can_be_mvp()
     {
         var statistic = new PlayerMatchStatistics(
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), null, Guid.NewGuid(),
-            StatisticValueOrigin.JsonImport, new MatchStatisticValues(TotalScore: 1000));
+            StatisticValueOrigin.JsonImport, new MatchStatisticValues(TotalScore: 1000, IsTeamMvp: true));
 
         Assert.Null(statistic.PlayerProfileId);
         Assert.NotNull(statistic.AiDifficultyId);
-        Assert.Throws<DomainRuleException>(() => statistic.Apply(
-            new MatchStatisticValues(IsTeamMvp: true), StatisticValueOrigin.Manual));
+        Assert.True(statistic.IsTeamMvp);
     }
 
     [Fact]

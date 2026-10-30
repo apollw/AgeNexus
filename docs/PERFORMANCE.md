@@ -56,3 +56,9 @@ Cada marca informa seu significado e apresenta tanto o valor absoluto quanto a m
 ## Conquistas retroativas
 
 As 70 conquistas não mantêm uma segunda contagem persistida. Um único snapshot agrega as estatísticas confirmadas de partidas validadas em ordem cronológica e determina o primeiro confronto no qual cada meta foi alcançada. Vinte delas formam uma progressão de longo prazo, começando em quatro ou cinco vezes o teto anterior de cada métrica e chegando a 2.000 partidas, 1.000 vitórias e 100.000 eliminações. O painel pagina esse snapshot em memória e os perfis reutilizam o mesmo resultado por dois minutos. Alterações de partidas ou estatísticas invalidam o cache pelo interceptor comum, evitando consultas por card e mantendo o histórico recalculável.
+
+## MVP e desempenho das IAs
+
+MVP é uma comparação interna da equipe e só pode ser informado quando ela possui ao menos dois integrantes. Equipes individuais — inclusive as de 1x1 e cada lado de um todos-contra-todos — não recebem o distintivo. A correção é retroativa: MVPs antigos dessas equipes são removidos e eventuais bônus de carreira recebem eventos de estorno, preservando o livro imutável.
+
+Em partidas mistas, qualquer integrante da equipe pode ser MVP, inclusive uma IA. A IA não recebe Elo ou carreira: seu destaque e suas estatísticas alimentam o quadro **Desempenho das IAs**, agrupado exclusivamente pela dificuldade configurada. O ranking utiliza a média da pontuação total, a quantidade de amostras e o total de MVPs, independentemente da civilização usada. Partidas exclusivamente entre humanos e IA não podem mais ser cadastradas; o modelo anterior permanece somente para leitura de dados históricos.
