@@ -81,22 +81,40 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             Page = Math.Max(1, filter.Page),
             PageSize = Math.Clamp(filter.PageSize, 5, 50)
         };
-        return GetPageCoreAsync(normalized, cancellationToken);
+        var cacheKey = string.Join(':',
+            "matches", "page", normalized.Page, normalized.PageSize,
+            normalized.FromDate?.ToString("yyyyMMdd") ?? "-",
+            normalized.ToDate?.ToString("yyyyMMdd") ?? "-",
+            normalized.PlayerId?.ToString("N") ?? "-",
+            normalized.OpponentPlayerId?.ToString("N") ?? "-",
+            normalized.MapDefinitionId?.ToString("N") ?? "-",
+            normalized.GameMode?.ToString() ?? "-",
+            normalized.PendingStatisticsReview);
+        return cache.GetOrCreateAsync(
+            cacheKey,
+            token => GetPageCoreAsync(normalized, token),
+            cancellationToken);
     }
 
-    public async Task<IReadOnlyCollection<CatalogOption>> GetPlayerOptionsAsync(
+    public Task<IReadOnlyCollection<CatalogOption>> GetPlayerOptionsAsync(
         CancellationToken cancellationToken = default) =>
-        await database.PlayerProfiles.AsNoTracking()
-            .OrderBy(player => player.DisplayName)
-            .Select(player => new CatalogOption(player.Id, player.DisplayName))
-            .ToArrayAsync(cancellationToken);
+        catalogCache.GetOrCreateAsync<IReadOnlyCollection<CatalogOption>>(
+            "match-history:players",
+            async token => await database.PlayerProfiles.AsNoTracking()
+                .OrderBy(player => player.DisplayName)
+                .Select(player => new CatalogOption(player.Id, player.DisplayName))
+                .ToArrayAsync(token),
+            cancellationToken);
 
-    public async Task<IReadOnlyCollection<CatalogOption>> GetMapOptionsAsync(
+    public Task<IReadOnlyCollection<CatalogOption>> GetMapOptionsAsync(
         CancellationToken cancellationToken = default) =>
-        await database.MapDefinitions.AsNoTracking()
-            .OrderBy(map => map.Name)
-            .Select(map => new CatalogOption(map.Id, map.Name))
-            .ToArrayAsync(cancellationToken);
+        catalogCache.GetOrCreateAsync<IReadOnlyCollection<CatalogOption>>(
+            "match-history:maps",
+            async token => await database.MapDefinitions.AsNoTracking()
+                .OrderBy(map => map.Name)
+                .Select(map => new CatalogOption(map.Id, map.Name))
+                .ToArrayAsync(token),
+            cancellationToken);
 
     public async Task<MatchMetadataEditView?> GetMetadataForEditAsync(
         Guid matchId,
@@ -183,27 +201,63 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         var totalItems = await matches.CountAsync(cancellationToken);
         var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)filter.PageSize));
         var pageNumber = Math.Min(filter.Page, totalPages);
-        var pageMatchIds = await matches
+        var pageMatches = matches
             .OrderByDescending(x => x.PlayedAtUtc)
             .ThenByDescending(x => x.Id)
             .Skip((pageNumber - 1) * filter.PageSize)
-            .Take(filter.PageSize)
-            .Select(x => x.Id)
-            .ToArrayAsync(cancellationToken);
-
-        if (pageMatchIds.Length == 0)
-        {
-            return new PagedMatchHistory([], pageNumber, filter.PageSize, totalItems);
-        }
-
-        var rows = await (
-            from match in database.Matches.AsNoTracking()
-            where pageMatchIds.Contains(match.Id)
+            .Take(filter.PageSize);
+        var pageHeaders = await (
+            from match in pageMatches
             join creator in database.PlayerProfiles.AsNoTracking()
                 on match.CreatedByPlayerProfileId equals creator.Id
             join map in database.MapDefinitions.AsNoTracking()
                 on match.MapDefinitionId equals (Guid?)map.Id into maps
             from map in maps.DefaultIfEmpty()
+            join report in database.MatchStatisticsReports.AsNoTracking()
+                on match.Id equals report.MatchId into reports
+            from report in reports.DefaultIfEmpty()
+            join submitter in database.PlayerProfiles.AsNoTracking()
+                on (Guid?)report.SubmittedByPlayerProfileId equals (Guid?)submitter.Id into submitters
+            from submitter in submitters.DefaultIfEmpty()
+            select new
+            {
+                MatchId = match.Id,
+                match.CreatedByPlayerProfileId,
+                CreatedByApplicationUserId = creator.ApplicationUserId,
+                match.PlayedAtUtc,
+                MatchType = match.Type,
+                match.Status,
+                match.MapDefinitionId,
+                match.GameMode,
+                MapName = map == null ? null : map.Name,
+                YouTubeVideoUrl = database.MatchEvidence
+                    .Where(item => item.MatchId == match.Id && item.Kind == EvidenceKind.VideoLink)
+                    .Select(item => item.ExternalUrl)
+                    .FirstOrDefault(),
+                ScreenshotCount = database.MatchEvidence.Count(item =>
+                    item.MatchId == match.Id && item.Kind == EvidenceKind.ResultScreenshot),
+                HasReplay = database.MatchEvidence.Any(item =>
+                    item.MatchId == match.Id && item.Kind == EvidenceKind.Replay),
+                StatisticsStatus = report == null ? (MatchStatisticsStatus?)null : report.Status,
+                StatisticsSubmittedByPlayerProfileId = report == null
+                    ? (Guid?)null
+                    : report.SubmittedByPlayerProfileId,
+                StatisticsSubmittedByApplicationUserId = submitter == null
+                    ? (Guid?)null
+                    : submitter.ApplicationUserId,
+                StatisticsSubmittedByDisplayName = submitter == null ? null : submitter.DisplayName
+            })
+            .ToArrayAsync(cancellationToken);
+
+        if (pageHeaders.Length == 0)
+        {
+            return new PagedMatchHistory([], pageNumber, filter.PageSize, totalItems);
+        }
+
+        var pageMatchIds = pageHeaders.Select(x => x.MatchId).ToArray();
+        var participantRows = await (
+            from match in database.Matches.AsNoTracking()
+            where pageMatchIds.Contains(match.Id)
             from team in match.Teams
             from participant in team.Participants
             join human in database.PlayerProfiles.AsNoTracking()
@@ -215,14 +269,6 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             select new
             {
                 MatchId = match.Id,
-                match.CreatedByPlayerProfileId,
-                creator.ApplicationUserId,
-                match.PlayedAtUtc,
-                MatchType = match.Type,
-                match.Status,
-                match.MapDefinitionId,
-                match.GameMode,
-                MapName = map == null ? null : map.Name,
                 TeamId = team.Id,
                 team.Position,
                 team.Result,
@@ -233,45 +279,17 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     : ai.Name
             })
             .ToListAsync(cancellationToken);
+        var participantsByMatch = participantRows
+            .GroupBy(x => x.MatchId)
+            .ToDictionary(x => x.Key, x => x.ToArray());
 
-        var matchIds = rows.Select(row => row.MatchId).Distinct().ToArray();
-        var evidenceRows = await database.MatchEvidence.AsNoTracking()
-            .Where(item => matchIds.Contains(item.MatchId) &&
-                           (item.Kind == EvidenceKind.VideoLink || item.Kind == EvidenceKind.ResultScreenshot ||
-                            item.Kind == EvidenceKind.Replay))
-            .Select(item => new { item.MatchId, item.Kind, item.ExternalUrl })
-            .ToListAsync(cancellationToken);
-        var evidenceByMatch = evidenceRows.GroupBy(item => item.MatchId).ToDictionary(group => group.Key);
-        var reportRows = await (
-            from report in database.MatchStatisticsReports.AsNoTracking()
-            where matchIds.Contains(report.MatchId)
-            join submitter in database.PlayerProfiles.AsNoTracking()
-                on report.SubmittedByPlayerProfileId equals submitter.Id
-            select new
+        var summaries = pageHeaders
+            .OrderByDescending(x => x.PlayedAtUtc)
+            .ThenByDescending(x => x.MatchId)
+            .Select(header =>
             {
-                report.MatchId,
-                report.Status,
-                report.SubmittedByPlayerProfileId,
-                submitter.DisplayName
-            })
-            .ToDictionaryAsync(item => item.MatchId, cancellationToken);
-
-        var summaries = rows.GroupBy(x => new
-            {
-                x.MatchId,
-                x.CreatedByPlayerProfileId,
-                CreatedByApplicationUserId = x.ApplicationUserId,
-                x.PlayedAtUtc,
-                x.MatchType,
-                x.Status,
-                x.MapDefinitionId,
-                x.GameMode,
-                x.MapName
-            })
-            .OrderByDescending(x => x.Key.PlayedAtUtc)
-            .Select(match =>
-            {
-                var teams = match.GroupBy(x => new { x.TeamId, x.Position, x.Result })
+                var rows = participantsByMatch.GetValueOrDefault(header.MatchId) ?? [];
+                var teams = rows.GroupBy(x => new { x.TeamId, x.Position, x.Result })
                     .OrderBy(x => x.Key.Position)
                     .ToArray();
                 var humanCounts = teams
@@ -302,29 +320,27 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                             : $"IA {participant.ParticipantName ?? "configurada"}").ToArray()))
                     .ToArray();
 
-                evidenceByMatch.TryGetValue(match.Key.MatchId, out var matchEvidence);
-                reportRows.TryGetValue(match.Key.MatchId, out var statisticsReport);
                 return new MatchSummary(
-                    match.Key.MatchId,
-                    match.Key.CreatedByPlayerProfileId,
-                    match.Key.PlayedAtUtc,
+                    header.MatchId,
+                    header.CreatedByPlayerProfileId,
+                    header.PlayedAtUtc,
                     category,
                     format,
-                    match.Key.Status,
+                    header.Status,
                     teamSummaries)
                 {
-                    Type = match.Key.MatchType,
-                    MapDefinitionId = match.Key.MapDefinitionId,
-                    MapName = match.Key.MapName,
-                    GameMode = match.Key.GameMode,
-                    CreatedByApplicationUserId = match.Key.CreatedByApplicationUserId,
-                    YouTubeVideoUrl = matchEvidence?
-                        .FirstOrDefault(item => item.Kind == EvidenceKind.VideoLink)?.ExternalUrl,
-                    ScreenshotCount = matchEvidence?.Count(item => item.Kind == EvidenceKind.ResultScreenshot) ?? 0,
-                    HasReplay = matchEvidence?.Any(item => item.Kind == EvidenceKind.Replay) == true,
-                    StatisticsStatus = statisticsReport?.Status,
-                    StatisticsSubmittedByPlayerProfileId = statisticsReport?.SubmittedByPlayerProfileId,
-                    StatisticsSubmittedByDisplayName = statisticsReport?.DisplayName
+                    Type = header.MatchType,
+                    MapDefinitionId = header.MapDefinitionId,
+                    MapName = header.MapName,
+                    GameMode = header.GameMode,
+                    CreatedByApplicationUserId = header.CreatedByApplicationUserId,
+                    YouTubeVideoUrl = header.YouTubeVideoUrl,
+                    ScreenshotCount = header.ScreenshotCount,
+                    HasReplay = header.HasReplay,
+                    StatisticsStatus = header.StatisticsStatus,
+                    StatisticsSubmittedByPlayerProfileId = header.StatisticsSubmittedByPlayerProfileId,
+                    StatisticsSubmittedByApplicationUserId = header.StatisticsSubmittedByApplicationUserId,
+                    StatisticsSubmittedByDisplayName = header.StatisticsSubmittedByDisplayName
                 };
             })
             .ToArray();

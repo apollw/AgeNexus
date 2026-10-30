@@ -1,6 +1,5 @@
 @page "/partidas"
 @inject AgeNexus.Application.Queries.IMatchHistoryQueryService History
-@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
 <PageTitle>Partidas · Age Nexus</PageTitle>
 
@@ -187,7 +186,7 @@
     private IReadOnlyCollection<AgeNexus.Application.Queries.CatalogOption> Maps { get; set; } = [];
     private bool IsAdministrator { get; set; }
     private bool IsAuthenticated { get; set; }
-    private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+    private Guid? CurrentApplicationUserId { get; set; }
     private AgeNexus.Domain.Matches.MatchGameMode? SelectedGameMode =>
         Enum.TryParse<AgeNexus.Domain.Matches.MatchGameMode>(GameModeFilter, ignoreCase: true, out var mode) &&
         Enum.IsDefined(mode)
@@ -212,10 +211,12 @@
     {
         var authentication = await AuthenticationStateTask;
         IsAuthenticated = authentication.User.Identity?.IsAuthenticated == true;
-        IsAdministrator = await Accounts.IsAdministratorAsync(authentication.User);
-        CurrentProfile = IsAuthenticated
-            ? await Accounts.GetProfileAsync(authentication.User, CancellationToken.None)
-            : null;
+        IsAdministrator = authentication.User.IsInRole(AgeNexus.Infrastructure.Identity.AccountService.AdministratorRole);
+        CurrentApplicationUserId = Guid.TryParse(
+            authentication.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            out var applicationUserId)
+                ? applicationUserId
+                : null;
         Players = await History.GetPlayerOptionsAsync();
         Maps = await History.GetMapOptionsAsync();
         MatchPage = await History.GetPageAsync(new(
@@ -243,9 +244,11 @@
         {
             null => "Enviar estatísticas",
             AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft
-                when match.StatisticsSubmittedByPlayerProfileId == CurrentProfile?.Id => "Continuar envio",
+                when CurrentApplicationUserId.HasValue &&
+                     match.StatisticsSubmittedByApplicationUserId == CurrentApplicationUserId => "Continuar envio",
             AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted
-                when match.StatisticsSubmittedByPlayerProfileId == CurrentProfile?.Id => "Aguardando aprovação",
+                when CurrentApplicationUserId.HasValue &&
+                     match.StatisticsSubmittedByApplicationUserId == CurrentApplicationUserId => "Aguardando aprovação",
             AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed or
                 AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Awarded => "Ver estatísticas",
             _ => "Ver situação do envio"

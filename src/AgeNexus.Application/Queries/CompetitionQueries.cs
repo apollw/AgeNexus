@@ -64,6 +64,7 @@ public sealed record MatchSummary(
     public bool HasReplay { get; init; }
     public MatchStatisticsStatus? StatisticsStatus { get; init; }
     public Guid? StatisticsSubmittedByPlayerProfileId { get; init; }
+    public Guid? StatisticsSubmittedByApplicationUserId { get; init; }
     public string? StatisticsSubmittedByDisplayName { get; init; }
 }
 
