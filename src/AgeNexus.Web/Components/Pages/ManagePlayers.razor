@@ -91,6 +91,53 @@
         </EditForm>
     </section>
 
+    @if (HistoricalProfiles.Any() && LinkedProfiles.Any())
+    {
+        <section class="panel profile-form-card">
+            <header class="panel-header">
+                <div>
+                    <span class="eyebrow">Correção de vínculo</span>
+                    <h2>Herdar histórico competitivo</h2>
+                </div>
+            </header>
+            <p>
+                Transfere partidas, estatísticas, pontuação, Elo, MVPs e formações do perfil antigo para a conta nova.
+                Nome, avatar, bio, localização, civilização favorita e clã do perfil novo permanecem como estão.
+            </p>
+            <div class="form-grid">
+                <label class="form-field">
+                    <span>Perfil antigo, com as estatísticas</span>
+                    <select @bind="HistoricalProfileId">
+                        <option value="">Selecione o perfil antigo</option>
+                        @foreach (var profile in HistoricalProfiles)
+                        {
+                            <option value="@profile.Id">@profile.DisplayName · @profile.MatchCount partida(s)</option>
+                        }
+                    </select>
+                </label>
+                <label class="form-field">
+                    <span>Perfil novo, que receberá o histórico</span>
+                    <select @bind="LinkedProfileId">
+                        <option value="">Selecione a conta nova</option>
+                        @foreach (var profile in LinkedProfiles)
+                        {
+                            <option value="@profile.Id">@profile.DisplayName · @profile.MatchCount partida(s)</option>
+                        }
+                    </select>
+                </label>
+            </div>
+            <label class="check-field">
+                <input type="checkbox" @bind="MergeConfirmed" />
+                <span>Confirmei os dois perfis. Entendo que o perfil antigo será removido após a transferência.</span>
+            </label>
+            <div class="performance-actions">
+                <button class="button button-primary" type="button" @onclick="MergeProfilesAsync" disabled="@(!CanMerge)">
+                    Unir histórico ao perfil novo
+                </button>
+            </div>
+        </section>
+    }
+
     <section class="panel profile-form-card">
         <header class="panel-header">
             <div><span class="eyebrow">Elenco disponível</span><h2>@Profiles.Count jogador(es)</h2></div>
@@ -109,6 +156,7 @@
                         <div>
                             <strong>@profile.DisplayName</strong>
                             <small>@(profile.HasUserAccount ? "Perfil vinculado a uma conta" : "Ainda não vinculado a uma conta")</small>
+                            <small>@profile.MatchCount partida(s) registrada(s)</small>
                             @if (!string.IsNullOrWhiteSpace(profile.Location))
                             {
                                 <small>@profile.Location</small>
@@ -139,6 +187,9 @@
     private bool IsLoading { get; set; } = true;
     private int ProfilesPage { get; set; } = 1;
     private int ClaimsPage { get; set; } = 1;
+    private Guid? HistoricalProfileId { get; set; }
+    private Guid? LinkedProfileId { get; set; }
+    private bool MergeConfirmed { get; set; }
     private const int ProfilesPageSize = 10;
     private const int ClaimsPageSize = 5;
     private int CurrentProfilesPage => Math.Clamp(ProfilesPage, 1, Math.Max(1, (int)Math.Ceiling(Profiles.Count / (double)ProfilesPageSize)));
@@ -147,6 +198,11 @@
         Profiles.Skip((CurrentProfilesPage - 1) * ProfilesPageSize).Take(ProfilesPageSize);
     private IEnumerable<AgeNexus.Infrastructure.Identity.ManagedProfileClaim> VisibleClaims =>
         Claims.Skip((CurrentClaimsPage - 1) * ClaimsPageSize).Take(ClaimsPageSize);
+    private IEnumerable<AgeNexus.Infrastructure.Identity.ManagedPlayerProfile> HistoricalProfiles =>
+        Profiles.Where(x => !x.HasUserAccount);
+    private IEnumerable<AgeNexus.Infrastructure.Identity.ManagedPlayerProfile> LinkedProfiles =>
+        Profiles.Where(x => x.HasUserAccount);
+    private bool CanMerge => !Busy && MergeConfirmed && HistoricalProfileId.HasValue && LinkedProfileId.HasValue;
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 
@@ -220,6 +276,42 @@
             : "Não foi possível decidir esta solicitação; talvez o perfil já tenha sido vinculado.";
         await ReloadAsync();
         Busy = false;
+    }
+
+    private async Task MergeProfilesAsync()
+    {
+        if (!CanMerge)
+        {
+            return;
+        }
+
+        Busy = true;
+        Message = null;
+        try
+        {
+            var authentication = await AuthenticationStateTask;
+            var result = await Accounts.MergeHistoricalProfileAsync(
+                authentication.User, HistoricalProfileId!.Value, LinkedProfileId!.Value);
+            HasError = !result.Succeeded;
+            Message = result.Succeeded
+                ? "Histórico transferido. O perfil novo manteve seus dados pessoais e visuais."
+                : result.ErrorCodes.Contains("ProfilesShareMatch") || result.ErrorCodes.Contains("ProfilesShareLineup")
+                    ? "A união foi bloqueada porque os dois perfis já aparecem na mesma partida ou formação. Revise os perfis escolhidos."
+                    : result.ErrorCodes.Contains("HistoricalProfileUnavailable") || result.ErrorCodes.Contains("LinkedProfileUnavailable")
+                        ? "Um dos perfis não está mais disponível para esta união. Atualize a página e tente novamente."
+                        : "Não foi possível transferir o histórico. Nenhum dado foi alterado.";
+            if (result.Succeeded)
+            {
+                HistoricalProfileId = null;
+                LinkedProfileId = null;
+                MergeConfirmed = false;
+                await ReloadAsync();
+            }
+        }
+        finally
+        {
+            Busy = false;
+        }
     }
 
     private sealed class PlayerForm

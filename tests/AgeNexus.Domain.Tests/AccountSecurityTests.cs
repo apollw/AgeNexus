@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using AgeNexus.Application.Evidence;
+using AgeNexus.Domain.Competition;
+using AgeNexus.Domain.Matches;
 using AgeNexus.Domain.Players;
 using AgeNexus.Infrastructure.Identity;
 using AgeNexus.Infrastructure.Persistence;
@@ -109,6 +111,53 @@ public sealed class AccountSecurityTests
             [new Claim(ClaimTypes.NameIdentifier, claimant.Id.ToString())]));
         Assert.False((await accounts.UpdateProfileAsync(anonymousWithId, "Attack", null, null, null,
             CancellationToken.None)).Succeeded);
+    }
+
+    [Fact]
+    public async Task Administrator_can_merge_history_without_overwriting_the_linked_profile_identity()
+    {
+        await using var services = CreateServices("owner@example.test");
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var owner = await AddUserAsync(users, "owner@example.test");
+        var player = await AddUserAsync(users, "player@example.test");
+        var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();
+        await accounts.EnsureAdministratorRoleAsync();
+        var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+        var historical = new PlayerProfile(Guid.NewGuid(), "Nome antigo");
+        historical.UpdatePublicProfile("Nome antigo", "Bio antiga", "Local antigo", "https://example.test/old.png");
+        var linked = new PlayerProfile(Guid.NewGuid(), "Nome novo", player.Id);
+        linked.UpdatePublicProfile("Nome novo", "Bio nova", "Local novo", "https://example.test/new.png");
+        var opponent = new PlayerProfile(Guid.NewGuid(), "Adversário");
+        database.PlayerProfiles.AddRange(historical, linked, opponent);
+
+        var match = new Match(Guid.NewGuid(), Guid.NewGuid(), historical.Id, DateTimeOffset.UtcNow,
+            MatchType.PlayerVersusPlayer, MatchNature.Ranked);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        match.AddParticipant(firstTeam.Id, MatchParticipant.Human(Guid.NewGuid(), historical.Id));
+        match.AddParticipant(secondTeam.Id, MatchParticipant.Human(Guid.NewGuid(), opponent.Id));
+        database.Matches.Add(match);
+        database.RatingEvents.Add(new RatingEvent(Guid.NewGuid(), match.Id, historical.Id, null,
+            RatingScopeKind.GeneralCompetitive, 18m, "test-v1", "{}", DateTimeOffset.UtcNow));
+        database.PointEvents.Add(new PointEvent(Guid.NewGuid(), match.Id, historical.Id, null,
+            PointScopeKind.Career, 25m, "test-v1", "{}", DateTimeOffset.UtcNow));
+        await database.SaveChangesAsync();
+
+        var result = await accounts.MergeHistoricalProfileAsync(Principal(owner), historical.Id, linked.Id);
+
+        Assert.True(result.Succeeded);
+        Assert.False(await database.PlayerProfiles.AnyAsync(x => x.Id == historical.Id));
+        var preserved = await database.PlayerProfiles.SingleAsync(x => x.Id == linked.Id);
+        Assert.Equal("Nome novo", preserved.DisplayName);
+        Assert.Equal("Bio nova", preserved.Bio);
+        Assert.Equal("Local novo", preserved.Location);
+        Assert.Equal("https://example.test/new.png", preserved.AvatarUrl);
+        Assert.Equal(linked.Id, await database.MatchParticipants.Where(x => x.Id == firstTeam.Participants.Single().Id)
+            .Select(x => x.PlayerProfileId).SingleAsync());
+        Assert.Equal(linked.Id, await database.RatingEvents.Select(x => x.BeneficiaryId).SingleAsync());
+        Assert.Equal(linked.Id, await database.PointEvents.Select(x => x.BeneficiaryId).SingleAsync());
+        Assert.Equal(linked.Id, await database.Matches.Select(x => x.CreatedByPlayerProfileId).SingleAsync());
     }
 
     [Theory]
