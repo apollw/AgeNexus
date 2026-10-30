@@ -23,7 +23,7 @@ public sealed class PerformanceStatisticsService(
     IConfiguration configuration,
     ILogger<PerformanceStatisticsService> logger) : IPerformanceStatisticsService
 {
-    private const string ManualMvpRuleVersion = "2026.09-manual-mvp.1";
+    private const string ManualMvpRuleVersion = "2026.10-manual-mvp.2";
 
     public async Task<PerformanceReportView?> GetAsync(
         Guid matchId,
@@ -250,9 +250,12 @@ public sealed class PerformanceStatisticsService(
 
         var participantCount = MatchParticipants(match).Count;
         var statistics = await database.PlayerMatchStatistics.Where(x => x.ReportId == reportId).ToArrayAsync(cancellationToken);
-        var humanTeamIds = match.Teams.Where(x => x.HumanCount > 0).Select(x => x.Id).ToArray();
-        if (SingleAdministratorMode && humanTeamIds.Any(teamId =>
-                statistics.Count(x => x.TeamId == teamId && x.PlayerProfileId.HasValue && x.IsTeamMvp) != 1))
+        var invalidMvpSelection = match.Teams.Any(team =>
+        {
+            var selectedMvpCount = statistics.Count(x => x.TeamId == team.Id && x.IsTeamMvp);
+            return team.Participants.Count > 1 ? selectedMvpCount != 1 : selectedMvpCount != 0;
+        });
+        if (invalidMvpSelection)
         {
             return PerformanceOperationResult.Failure("TeamMvpRequired");
         }

@@ -5,7 +5,7 @@ namespace AgeNexus.Application.MatchPerformance;
 
 public sealed class PerformanceCalculator : IPerformanceCalculator
 {
-    public const string CurrentVersion = "2026.09-performance.1";
+    public const string CurrentVersion = "2026.10-performance.2";
     private const decimal SharedMvpTolerance = 0.02m;
     private const decimal DefeatHighlightGap = 0.15m;
 
@@ -67,12 +67,15 @@ public sealed class PerformanceCalculator : IPerformanceCalculator
 
     private static void ApplyMvp(IReadOnlyCollection<MutableResult> rows, MatchScoringCategory category)
     {
-        if (rows.Count < 2)
+        var eligibleRows = rows
+            .Where(row => rows.Count(other => other.Input.TeamId == row.Input.TeamId) > 1)
+            .ToArray();
+        if (eligibleRows.Length < 1)
         {
             return;
         }
 
-        var ordered = rows.OrderByDescending(x => x.Overall).ToArray();
+        var ordered = eligibleRows.OrderByDescending(x => x.Overall).ToArray();
         var leaders = ordered.Where(x => ordered[0].Overall - x.Overall <= SharedMvpTolerance).ToArray();
         var eligiblePoints = category switch
         {

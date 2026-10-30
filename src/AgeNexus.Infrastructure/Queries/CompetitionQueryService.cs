@@ -54,11 +54,9 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             RatingScopeKind.GeneralCompetitive, seasonId, limit, cancellationToken),
         RankingBoard.TeamLineup => GetTeamLineupRankingAsync(seasonId, limit, cancellationToken),
         RankingBoard.Career => GetPlayerPointRankingAsync(
-            PointScopeKind.Career, seasonId, limit, officialPveOnly: false, cancellationToken),
-        RankingBoard.Pve => GetPlayerPointRankingAsync(
-            PointScopeKind.Pve, seasonId, limit, officialPveOnly: true, cancellationToken),
+            PointScopeKind.Career, seasonId, limit, cancellationToken),
+        RankingBoard.AiPerformance => GetAiPerformanceRankingAsync(limit, cancellationToken),
         RankingBoard.ClanCompetitive => GetClanRatingRankingAsync(seasonId, limit, cancellationToken),
-        RankingBoard.ClanPve => GetClanPointRankingAsync(seasonId, limit, cancellationToken),
         _ => throw new ArgumentOutOfRangeException(nameof(board))
     };
 
@@ -365,9 +363,6 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     .Where(x => x.BeneficiaryId == player.Id &&
                                 (x.Scope == PointScopeKind.Career ||
                                  x.Scope == PointScopeKind.PerformanceBonus))
-                    .Sum(x => (decimal?)x.Points) ?? 0m),
-                (database.PointEvents
-                    .Where(x => x.BeneficiaryId == player.Id && x.Scope == PointScopeKind.Pve)
                     .Sum(x => (decimal?)x.Points) ?? 0m)))
             .ToListAsync(cancellationToken);
     }
@@ -396,9 +391,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                         .Sum(x => (decimal?)x.Delta) ?? 0m),
                 CareerPoints = database.PointEvents.Where(x => x.BeneficiaryId == player.Id &&
                     (x.Scope == PointScopeKind.Career || x.Scope == PointScopeKind.PerformanceBonus))
-                    .Sum(x => (decimal?)x.Points) ?? 0m,
-                PvePoints = database.PointEvents.Where(x => x.BeneficiaryId == player.Id &&
-                    x.Scope == PointScopeKind.Pve).Sum(x => (decimal?)x.Points) ?? 0m
+                    .Sum(x => (decimal?)x.Points) ?? 0m
             })
             .SingleOrDefaultAsync(cancellationToken);
         if (profile is null)
@@ -449,7 +442,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         return new PlayerPublicProfileDashboard(
             profile.Id, profile.DisplayName, profile.Bio, profile.Location, profile.AvatarUrl,
             favorite?.Name, favorite?.ImageUrl,
-            profile.CompetitiveRating, profile.CareerPoints, profile.PvePoints,
+            profile.CompetitiveRating, profile.CareerPoints,
             matches.Length, victories, draws, defeats, winRate, factionSummaries);
     }
 
@@ -737,10 +730,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         var pointRows = await database.PointEvents.AsNoTracking()
             .Where(x => (!seasonId.HasValue || x.SeasonId == seasonId) &&
                         (x.Scope == PointScopeKind.Career ||
-                         x.Scope == PointScopeKind.PerformanceBonus ||
-                         (x.Scope == PointScopeKind.Pve &&
-                          (x.EvidenceLevel == EvidenceLevel.Verified ||
-                           x.EvidenceLevel == EvidenceLevel.Audited))))
+                         x.Scope == PointScopeKind.PerformanceBonus))
             .GroupBy(x => new { x.Scope, x.BeneficiaryId })
             .Select(group => new PointRankingAggregate
             {
@@ -760,8 +750,6 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 group.Key,
                 group.Sum(x => x.Score),
                 group.Where(x => x.Scope == PointScopeKind.Career).Sum(x => x.Matches)));
-        var pve = pointRows.Where(x => x.Scope == PointScopeKind.Pve)
-            .Select(x => new RankingAggregate(x.BeneficiaryId, x.Score, x.Matches));
         var teamLineups = ratingRows.Where(x => x.Scope == RatingScopeKind.TeamLineup)
             .Select(x => new RankingAggregate(x.BeneficiaryId, x.Score, x.Matches));
         var clanCompetitive = ratingRows.Where(x => x.Scope == RatingScopeKind.ClanCompetitive)
@@ -769,7 +757,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
 
         var generalRows = OrderAndLimit(general, limit);
         var careerRows = OrderAndLimit(career, limit);
-        var pveRows = OrderAndLimit(pve, limit);
+        var aiRows = await GetAiPerformanceRankingAsync(limit, cancellationToken);
         var teamRows = OrderAndLimit(teamLineups, limit);
         var clanRows = OrderAndLimit(clanCompetitive, limit);
 
@@ -783,7 +771,6 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
 
         var playerIds = generalRows.Select(x => x.Id)
             .Concat(careerRows.Select(x => x.Id))
-            .Concat(pveRows.Select(x => x.Id))
             .Concat(lineups.Values.SelectMany(x => x.Members).Select(x => x.PlayerProfileId))
             .Distinct()
             .ToArray();
@@ -811,7 +798,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         return new RankingDashboard(
             ToPlayerEntries(generalRows, players, 10),
             ToPlayerEntries(careerRows, players, 1),
-            ToPlayerEntries(pveRows, players, 1),
+            aiRows,
             ToEntries(teamRows, LineupName, 5),
             ToEntries(clanRows, id => clanNames.GetValueOrDefault(id, "Clã"), 5));
     }
@@ -890,16 +877,11 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         PointScopeKind scope,
         Guid? seasonId,
         int limit,
-        bool officialPveOnly,
         CancellationToken cancellationToken)
     {
         var query = database.PointEvents.AsNoTracking().Where(x =>
             (x.Scope == scope || (scope == PointScopeKind.Career && x.Scope == PointScopeKind.PerformanceBonus)) &&
             (!seasonId.HasValue || x.SeasonId == seasonId));
-        if (officialPveOnly)
-        {
-            query = query.Where(x => x.EvidenceLevel == EvidenceLevel.Verified || x.EvidenceLevel == EvidenceLevel.Audited);
-        }
 
         var aggregates = await query.GroupBy(x => x.BeneficiaryId)
             .Select(x => new
@@ -915,6 +897,54 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             .Take(Math.Clamp(limit, 1, 500))
             .ToListAsync(cancellationToken);
         return await AttachPlayerNamesAsync(aggregates.Select(x => (x.Id, x.Score, x.Matches)).ToArray(), 1, cancellationToken);
+    }
+
+    private async Task<IReadOnlyCollection<RankingEntry>> GetAiPerformanceRankingAsync(
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var samples = await (
+            from statistic in database.PlayerMatchStatistics.AsNoTracking()
+            join report in database.MatchStatisticsReports.AsNoTracking() on statistic.ReportId equals report.Id
+            join match in database.Matches.AsNoTracking() on statistic.MatchId equals match.Id
+            join difficulty in database.AiDifficulties.AsNoTracking() on statistic.AiDifficultyId equals (Guid?)difficulty.Id
+            where statistic.AiDifficultyId.HasValue && statistic.TotalScore.HasValue &&
+                  match.Type == Domain.Matches.MatchType.Mixed && match.Status == MatchStatus.Validated &&
+                  (report.Status == Domain.MatchPerformance.MatchStatisticsStatus.Confirmed ||
+                   report.Status == Domain.MatchPerformance.MatchStatisticsStatus.Awarded)
+            select new
+            {
+                DifficultyId = difficulty.Id,
+                difficulty.Name,
+                TotalScore = statistic.TotalScore!.Value,
+                statistic.IsTeamMvp
+            }).ToArrayAsync(cancellationToken);
+
+        return samples
+            .GroupBy(x => new { x.DifficultyId, x.Name })
+            .Select(group => new
+            {
+                group.Key.DifficultyId,
+                group.Key.Name,
+                AverageScore = Math.Round(group.Average(x => (decimal)x.TotalScore), 2),
+                Samples = group.Count(),
+                MvpAwards = group.Count(x => x.IsTeamMvp)
+            })
+            .OrderByDescending(x => x.AverageScore)
+            .ThenByDescending(x => x.MvpAwards)
+            .ThenBy(x => x.Name)
+            .Take(Math.Clamp(limit, 1, 500))
+            .Select((x, index) => new RankingEntry(
+                index + 1,
+                x.DifficultyId,
+                $"IA {x.Name}",
+                x.AverageScore,
+                x.Samples,
+                x.Samples < 5)
+            {
+                MvpAwards = x.MvpAwards
+            })
+            .ToArray();
     }
 
     private async Task<IReadOnlyCollection<RankingEntry>> GetTeamLineupRankingAsync(
@@ -955,12 +985,6 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         int limit,
         CancellationToken cancellationToken) =>
         GetClanRankingCoreAsync(RatingScopeKind.ClanCompetitive, null, seasonId, limit, cancellationToken);
-
-    private Task<IReadOnlyCollection<RankingEntry>> GetClanPointRankingAsync(
-        Guid? seasonId,
-        int limit,
-        CancellationToken cancellationToken) =>
-        GetClanRankingCoreAsync(null, PointScopeKind.ClanPve, seasonId, limit, cancellationToken);
 
     private async Task<IReadOnlyCollection<RankingEntry>> GetClanRankingCoreAsync(
         RatingScopeKind? ratingScope,

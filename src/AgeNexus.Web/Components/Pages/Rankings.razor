@@ -4,7 +4,7 @@
 <PageTitle>Rankings · Age Nexus</PageTitle>
 
 <section class="page-heading compact-heading">
-    <div><span class="eyebrow">Competição</span><h1>Rankings</h1><p>Habilidade, carreira e domínio contra IA permanecem separados.</p></div>
+    <div><span class="eyebrow">Competição</span><h1>Rankings</h1><p>Habilidade dos jogadores e desempenho das IAs permanecem separados.</p></div>
     <a class="button button-secondary" href="/pontuacao">Como funciona a pontuação?</a>
 </section>
 
@@ -23,8 +23,15 @@
     }
     else
     {
-        <div class="data-table mobile-card-table ranking-mobile-table">
-            <div class="table-head"><span>Posição</span><span>Participante</span><span>Pontuação</span><span>Partidas</span><span>Situação</span></div>
+        <div class="data-table mobile-card-table ranking-mobile-table @(IsAiBoard ? "ranking-ai-table" : null)">
+            <div class="table-head">
+                <span>Posição</span><span>Participante</span><span>@(IsAiBoard ? "Média" : "Pontuação")</span><span>@(IsAiBoard ? "Amostras" : "Partidas")</span>
+                @if (IsAiBoard)
+                {
+                    <span>MVPs</span>
+                }
+                <span>Situação</span>
+            </div>
             @foreach (var entry in VisibleEntries)
             {
                 <div class="table-row">
@@ -40,8 +47,12 @@
                             <span>@entry.DisplayName</span>
                         }
                     </span>
-                    <span data-label="Pontuação">@entry.Score.ToString("0.##")</span>
-                    <span data-label="Partidas">@entry.ValidatedMatches</span>
+                    <span data-label="@(IsAiBoard ? "Média" : "Pontuação")">@entry.Score.ToString("0.##")</span>
+                    <span data-label="@(IsAiBoard ? "Amostras" : "Partidas")">@entry.ValidatedMatches</span>
+                    @if (IsAiBoard)
+                    {
+                        <span data-label="MVPs">@entry.MvpAwards</span>
+                    }
                     <span data-label="Situação" data-mobile-wide="true">@(entry.IsProvisional ? "Provisório" : "Classificado")</span>
                 </div>
             }
@@ -62,7 +73,8 @@
     private RankingOption SelectedOption => RankingOptions.Single(option => option.Key == SelectedKey);
     private string RankingQuery => $"quadro={SelectedKey}";
     private bool IsPlayerBoard => SelectedOption.Board is AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive or
-        AgeNexus.Application.Queries.RankingBoard.Career or AgeNexus.Application.Queries.RankingBoard.Pve;
+        AgeNexus.Application.Queries.RankingBoard.Career;
+    private bool IsAiBoard => SelectedOption.Board == AgeNexus.Application.Queries.RankingBoard.AiPerformance;
     private int CurrentPage => Math.Clamp(Page, 1, Math.Max(1, (int)Math.Ceiling(Entries.Count / (double)PageSize)));
     private IEnumerable<AgeNexus.Application.Queries.RankingEntry> VisibleEntries =>
         Entries.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
@@ -73,8 +85,8 @@
     private static readonly RankingOption[] RankingOptions =
     [
         new("geral", "Geral competitivo", "PvP puro e híbrido com peso reduzido", AgeNexus.Application.Queries.RankingBoard.GeneralCompetitive),
-        new("carreira", "Carreira", "Progressão histórica, incluindo 35% do PvE", AgeNexus.Application.Queries.RankingBoard.Career),
-        new("ia", "Domínio contra IA", "Somente partidas verificadas ou auditadas", AgeNexus.Application.Queries.RankingBoard.Pve),
+        new("carreira", "Carreira", "Progressão histórica nas partidas competitivas", AgeNexus.Application.Queries.RankingBoard.Career),
+        new("ias", "Desempenho das IAs", "Média por dificuldade nas partidas mistas, sem separar por civilização", AgeNexus.Application.Queries.RankingBoard.AiPerformance),
         new("equipes", "Equipes fixas", "Duplas, trios e quartetos pela formação exata", AgeNexus.Application.Queries.RankingBoard.TeamLineup),
         new("clas", "Clãs", "Prestígio competitivo dos clãs", AgeNexus.Application.Queries.RankingBoard.ClanCompetitive)
     ];

@@ -61,11 +61,6 @@ public sealed class PlayerMatchStatistics
             throw new DomainRuleException("Participant statistics require one human or AI identity.");
         }
 
-        if (aiDifficultyId.HasValue && values.IsTeamMvp)
-        {
-            throw new DomainRuleException("An AI participant cannot be a team MVP.");
-        }
-
         Id = id;
         ReportId = reportId;
         MatchId = matchId;
@@ -126,10 +121,6 @@ public sealed class PlayerMatchStatistics
     public void Apply(MatchStatisticValues values, StatisticValueOrigin origin)
     {
         ArgumentNullException.ThrowIfNull(values);
-        if (AiDifficultyId.HasValue && values.IsTeamMvp)
-        {
-            throw new DomainRuleException("An AI participant cannot be a team MVP.");
-        }
         Validate(values);
         Origin = origin;
         UnitsKilled = values.UnitsKilled;

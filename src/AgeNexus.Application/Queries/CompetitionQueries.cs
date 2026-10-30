@@ -7,10 +7,9 @@ public enum RankingBoard
 {
     GeneralCompetitive,
     Career,
-    Pve,
+    AiPerformance,
     TeamLineup,
-    ClanCompetitive,
-    ClanPve
+    ClanCompetitive
 }
 
 public sealed record RankingEntry(
@@ -22,6 +21,7 @@ public sealed record RankingEntry(
     bool IsProvisional)
 {
     public string? AvatarUrl { get; init; }
+    public int MvpAwards { get; init; }
 }
 
 public interface IRankingQueryService
@@ -41,7 +41,7 @@ public interface IRankingQueryService
 public sealed record RankingDashboard(
     IReadOnlyCollection<RankingEntry> GeneralCompetitive,
     IReadOnlyCollection<RankingEntry> Career,
-    IReadOnlyCollection<RankingEntry> Pve,
+    IReadOnlyCollection<RankingEntry> AiPerformance,
     IReadOnlyCollection<RankingEntry> TeamLineup,
     IReadOnlyCollection<RankingEntry> ClanCompetitive);
 
@@ -126,8 +126,7 @@ public sealed record PlayerSummary(
     string DisplayName,
     string? AvatarUrl,
     decimal CompetitiveRating,
-    decimal CareerPoints,
-    decimal PvePoints);
+    decimal CareerPoints);
 
 public interface IPlayerDirectoryQueryService
 {
@@ -154,7 +153,6 @@ public sealed record PlayerPublicProfileDashboard(
     string? FavoriteFactionImageUrl,
     decimal CompetitiveRating,
     decimal CareerPoints,
-    decimal PvePoints,
     int ValidatedMatches,
     int Victories,
     int Draws,

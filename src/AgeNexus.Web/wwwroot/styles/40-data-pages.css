@@ -32,6 +32,7 @@
 .faction-strength { color: var(--forest); font: 700 var(--font-copy) "Unbounded"; }
 .match-table .table-head, .match-table .table-row { grid-template-columns: 2fr .55fr .75fr .7fr .7fr 1.45fr; }
 .ranking-mobile-table .table-head, .ranking-mobile-table .table-row { grid-template-columns: .55fr 2fr .8fr .7fr .95fr; }
+.ranking-mobile-table.ranking-ai-table .table-head, .ranking-mobile-table.ranking-ai-table .table-row { grid-template-columns: .55fr 2fr .8fr .7fr .6fr .95fr; }
 .ranking-player { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .ranking-player > a, .ranking-player > span:last-child { overflow: hidden; color: inherit; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .table-action { color: var(--forest); font-size: var(--font-caption); font-weight: 800; }

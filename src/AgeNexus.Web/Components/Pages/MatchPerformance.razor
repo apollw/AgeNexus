@@ -295,14 +295,14 @@ else
                     }
                 </InputSelect>
             </header>
-            <p class="performance-guidance">Revise todos os participantes. As IAs são identificadas pela dificuldade e guardam estatísticas próprias, sem entrar em Elo, carreira ou MVP.</p>
+            <p class="performance-guidance">Revise todos os participantes. As IAs são identificadas pela dificuldade, guardam estatísticas próprias e podem ser MVP em equipes com mais de um integrante. Equipes individuais não possuem MVP.</p>
 
             @foreach (var row in Rows)
             {
                 <article class="performance-player" @key="row.MatchParticipantId">
                     <header class="performance-player-header">
                         <div><span class="eyebrow">@TeamResultLabel(row.TeamResult) · equipe @row.TeamPosition</span><h3>@row.DisplayName</h3></div>
-                        @if (!row.IsAi)
+                        @if (TeamHasMvp(row.TeamId))
                         {
                             <label class="mvp-choice">
                                 <input type="radio" name="mvp-@row.TeamId" checked="@row.IsTeamMvp"
@@ -312,7 +312,7 @@ else
                         }
                         else
                         {
-                            <span class="mvp-choice">Participante controlado pela IA</span>
+                            <span class="mvp-choice">Equipe individual · sem MVP</span>
                         }
                     </header>
                     <div class="performance-fields">
@@ -410,7 +410,7 @@ else
                     <div class="performance-result">
                         <div><strong>@player.DisplayName</strong><small>@TeamResultLabel(player.TeamResult)</small></div>
                         <span>@(player.AiDifficultyId.HasValue ? "Estatísticas registradas" : player.PerformanceIndex?.ToString("P1") ?? "Aguardando cálculo")</span>
-                        <b>@AwardLabel(player.AwardType) @(player.BonusPoints > 0 ? $"+{player.BonusPoints}" : "")</b>
+                        <b>@(player.Values.IsTeamMvp ? "MVP da equipe" : AwardLabel(player.AwardType)) @(player.BonusPoints > 0 ? $"+{player.BonusPoints}" : "")</b>
                     </div>
                 }
             </div>
@@ -608,6 +608,10 @@ else
         Source = View.Source ?? AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Manual;
         var positions = View.Players.Select(x => x.TeamId).Distinct().Select((id, index) => (id, index: index + 1)).ToDictionary(x => x.id, x => x.index);
         Rows.AddRange(View.Players.Select(x => PlayerForm.From(x, positions[x.TeamId])));
+        foreach (var soloTeam in Rows.GroupBy(x => x.TeamId).Where(x => x.Count() == 1))
+        {
+            soloTeam.Single().IsTeamMvp = false;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -1296,11 +1300,13 @@ else
 
     private void SetTeamMvp(Guid teamId, Guid matchParticipantId)
     {
-        foreach (var player in Rows.Where(x => x.TeamId == teamId && !x.IsAi))
+        foreach (var player in Rows.Where(x => x.TeamId == teamId))
         {
             player.IsTeamMvp = player.MatchParticipantId == matchParticipantId;
         }
     }
+
+    private bool TeamHasMvp(Guid teamId) => Rows.Count(x => x.TeamId == teamId) > 1;
 
     private void SetResult(AgeNexus.Application.MatchPerformance.PerformanceOperationResult result, string success)
     {
@@ -1312,7 +1318,7 @@ else
                 "MatchMustBeValidated" or "MatchCouldNotBeValidated" => "A partida não pôde ser validada. Revise os resultados informados para as equipes.",
                 "ReportIsIncomplete" => "Preencha todos os campos obrigatórios de todos os jogadores antes de calcular.",
                 "ReportMustBeConfirmed" => "O relatório ainda não está confirmado.",
-                "TeamMvpRequired" => "Selecione exatamente um MVP em cada equipe antes de enviar.",
+                "TeamMvpRequired" => "Selecione exatamente um MVP nas equipes com mais de um integrante. Equipes individuais não possuem MVP.",
                 "ReportOwnedByAnotherUser" => "Outro usuário já iniciou o relatório desta partida.",
                 "AdministratorReviewRequired" => "Este envio precisa ser revisado pelo administrador.",
                 "ReportCannotBeReviewed" => "Este relatório não está aguardando aprovação.",
