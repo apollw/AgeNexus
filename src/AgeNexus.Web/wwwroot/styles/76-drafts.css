@@ -1,4 +1,11 @@
 .draft-room-heading { margin-bottom: 18px; }
+.draft-room-heading,
+.draft-status-strip,
+.draft-versus-layout,
+.draft-action-panel,
+.draft-finalized-banner,
+.draft-pool-panel,
+.draft-danger-zone { width: min(100%, 1220px); margin-right: auto; margin-left: auto; }
 .draft-room-heading h1 { margin: 4px 0 8px; }
 .draft-room-heading p { margin: 0; color: var(--muted); }
 
@@ -19,10 +26,12 @@
 .draft-status-strip strong { overflow: hidden; font-size: var(--font-control); text-overflow: ellipsis; white-space: nowrap; }
 
 .draft-versus-layout { display: grid; grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr); gap: 0; align-items: center; margin-bottom: 18px; }
+.draft-versus-layout > * { min-width: 0; }
 .draft-versus-mark { display: grid; place-items: center; z-index: 1; width: 48px; height: 48px; color: var(--forest); border: 2px solid var(--gold); border-radius: 50%; background: #fffaf0; font: 700 13px "Unbounded"; }
 .draft-team-card { padding: 0; overflow: hidden; border-top: 4px solid var(--forest); }
 .draft-team-card.is-active { border-top-color: var(--gold); box-shadow: 0 10px 28px rgba(190, 139, 39, .18); }
 .draft-team-card > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); background: #faf7ef; }
+.draft-team-card > header > div { min-width: 0; }
 .draft-team-card > header span:first-child { color: var(--gold-dark); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .draft-team-card h2 { margin: 2px 0 0; font-size: 18px; }
 .draft-ready-badge { padding: 5px 8px; color: #796f5e; border: 1px solid #d9d0bf; border-radius: 999px; background: #f2ede3; font-size: 10px !important; letter-spacing: 0 !important; text-transform: none !important; }
@@ -71,9 +80,18 @@
 .draft-faction-card.picked { border-color: #d8bd73; background: #fff4cf; }
 .draft-faction-card.picked .draft-civ-mark { box-shadow: 0 0 0 3px rgba(211, 161, 49, .18); }
 
-.draft-complete { padding: 28px; margin-bottom: 18px; text-align: center; border-top: 5px solid var(--gold); }
-.draft-complete h2 { margin: 6px 0; }
+.draft-finalized-banner { display: flex; align-items: center; gap: 16px; padding: 20px 24px; margin-bottom: 18px; color: #fff; border: 1px solid #35634c; border-left: 5px solid var(--gold); border-radius: 7px; background: linear-gradient(135deg, #17392d, #204d3c); box-shadow: 0 12px 28px rgba(19, 57, 43, .18); }
+.draft-finalized-banner > span { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; color: var(--forest); border-radius: 50%; background: var(--gold-light); font-size: 23px; font-weight: 900; }
+.draft-finalized-banner strong { font: 700 18px "Unbounded"; }
+.draft-finalized-banner p { margin: 5px 0 0; color: #d7e4dd; font-size: var(--font-caption); }
 .draft-danger-zone { display: flex; justify-content: flex-end; margin-top: 18px; }
+
+.draft-confirm-backdrop { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(10, 19, 16, .68); backdrop-filter: blur(3px); }
+.draft-confirm-dialog { width: min(100%, 460px); padding: 28px; border: 1px solid #c9b98f; border-top: 5px solid var(--gold); border-radius: 8px; background: #fffaf0; box-shadow: 0 24px 70px rgba(0, 0, 0, .32); }
+.draft-confirm-dialog h2 { margin: 6px 0 12px; }
+.draft-confirm-dialog p { margin: 0; color: var(--muted); line-height: 1.65; }
+.draft-confirm-dialog p strong { color: var(--forest); }
+.draft-confirm-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 24px; }
 
 .draft-create-panel { padding: 24px; }
 .draft-create-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -95,6 +113,12 @@
     .draft-versus-mark { margin: -4px auto; }
 }
 
+@media (min-width: 901px) {
+    .draft-team-card { min-height: 100%; }
+    .draft-pool-panel { padding: 26px 28px; }
+    .draft-faction-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+}
+
 @media (max-width: 760px) {
     .draft-room-heading, .draft-action-panel, .draft-pool-heading { align-items: stretch; flex-direction: column; }
     .draft-create-grid, .draft-team-editor { grid-template-columns: 1fr; }
@@ -104,4 +128,6 @@
     .draft-player-row { grid-template-columns: 36px minmax(0, 1fr); }
     .draft-player-pick { grid-column: 2; text-align: left; }
     .draft-avatar, .draft-avatar img { width: 36px !important; min-width: 36px; max-width: 36px !important; height: 36px !important; min-height: 36px; max-height: 36px !important; }
+    .draft-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; }
+    .draft-confirm-actions .button { justify-content: center; }
 }
