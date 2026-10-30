@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
+@using Microsoft.JSInterop
 @inject AgeNexus.Application.Drafts.ICivilizationDraftService Drafts
 @inject AgeNexus.Application.Drafts.ICivilizationDraftNotifier Notifier
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
