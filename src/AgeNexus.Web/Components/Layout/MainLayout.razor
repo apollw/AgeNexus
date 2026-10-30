@@ -1,5 +1,5 @@
 @inherits LayoutComponentBase
-@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
+@inject IServiceScopeFactory ScopeFactory
 @inject ILogger<MainLayout> Logger
 
 <div class="app-shell">
@@ -84,7 +84,10 @@
             var authentication = await AuthenticationStateTask;
             if (authentication.User.Identity?.IsAuthenticated == true)
             {
-                HeaderProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+                await using var scope = ScopeFactory.CreateAsyncScope();
+                var accounts = scope.ServiceProvider
+                    .GetRequiredService<AgeNexus.Infrastructure.Identity.AccountService>();
+                HeaderProfile = await accounts.GetProfileAsync(authentication.User, CancellationToken.None);
             }
         }
         catch (Exception exception)
