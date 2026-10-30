@@ -59,6 +59,7 @@
 .icon-button { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 50%; background: transparent; cursor: pointer; }
 .icon-button svg { width: 18px; fill: none; stroke: var(--muted); stroke-width: 1.7; stroke-linecap: round; }
 .profile-chip { display: flex; align-items: center; gap: 9px; margin-left: 5px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.profile-chip .profile-chip-avatar { width: 34px; height: 34px; }
 .profile-copy { display: flex; flex-direction: column; text-align: left; }
 .profile-copy strong { font-size: var(--font-control); }
 .profile-copy small { color: var(--muted); font-size: var(--font-caption); }
