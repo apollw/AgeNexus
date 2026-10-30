@@ -9,7 +9,8 @@ O draft é uma sala compartilhável independente do cadastro de partidas. Conclu
 3. Os representantes alternam os bans. Cada equipe possui um ban por jogador: 1x1 gera um ban por lado, 2x2 gera dois e assim por diante até 4x4.
 4. Após todos os bans, os representantes alternam os picks na mesma quantidade. Em cada pick, o representante indica qual jogador da equipe receberá a civilização.
 5. A sala exibe o catálogo completo e atualiza imediatamente quais civilizações continuam disponíveis, quais foram banidas e quais foram escolhidas.
-6. Ao final do último pick, a sala libera uma imagem PNG para compartilhamento.
+6. Todo ban ou pick exige uma confirmação antes de ser enviado ao servidor.
+7. Ao final do último pick, todos veem o aviso de draft finalizado e a sala libera uma imagem PNG para compartilhamento.
 
 O servidor valida a identidade do representante, a equipe, a fase, a vez, o jogador destinatário e a disponibilidade da civilização antes de aceitar cada ação. O estado é persistido no PostgreSQL e as telas conectadas recebem a atualização imediatamente pelo circuito do Blazor Server.
 
