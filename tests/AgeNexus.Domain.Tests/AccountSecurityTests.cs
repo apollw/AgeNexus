@@ -5,6 +5,7 @@ using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Application.Matches;
 using AgeNexus.Application.Queries;
 using AgeNexus.Domain.Competition;
+using AgeNexus.Domain.GameCatalog;
 using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Domain.Players;
@@ -274,6 +275,63 @@ public sealed class AccountSecurityTests
         var submitted = await database.MatchStatisticsReports.SingleAsync(x => x.Id == report.Id);
         Assert.Equal(MatchStatisticsStatus.Submitted, submitted.Status);
         Assert.Equal(creator.Id, submitted.SubmittedByPlayerProfileId);
+    }
+
+    [Fact]
+    public async Task Only_administrator_can_correct_factions_after_match_validation()
+    {
+        await using var services = CreateServices("owner@example.test");
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var ownerUser = await AddUserAsync(users, "owner@example.test");
+        var playerUser = await AddUserAsync(users, "player@example.test");
+        var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();
+        await accounts.EnsureAdministratorRoleAsync();
+        var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+        var owner = new PlayerProfile(Guid.NewGuid(), "Administrador", ownerUser.Id);
+        var player = new PlayerProfile(Guid.NewGuid(), "Jogador", playerUser.Id);
+        database.PlayerProfiles.AddRange(owner, player);
+
+        var game = new Game(Guid.NewGuid(), "Age of Empires II", "age-of-empires-ii");
+        var edition = new GameEdition(Guid.NewGuid(), game.Id, "Definitive Edition", "definitive-edition");
+        var faction = new Faction(Guid.NewGuid(), edition.Id, "Saxões", "saxons");
+        database.Games.Add(game);
+        database.GameEditions.Add(edition);
+        database.Factions.Add(faction);
+
+        var match = new Match(Guid.NewGuid(), edition.Id, owner.Id, DateTimeOffset.UtcNow,
+            MatchType.PlayerVersusPlayer, MatchNature.Ranked);
+        var winner = match.AddTeam(Guid.NewGuid());
+        var loser = match.AddTeam(Guid.NewGuid());
+        var ownerParticipant = MatchParticipant.Human(Guid.NewGuid(), owner.Id);
+        var playerParticipant = MatchParticipant.Human(Guid.NewGuid(), player.Id);
+        match.AddParticipant(winner.Id, ownerParticipant);
+        match.AddParticipant(loser.Id, playerParticipant);
+        match.SetTeamResult(winner.Id, TeamResult.Victory);
+        match.SetTeamResult(loser.Id, TeamResult.Defeat);
+        match.Submit();
+        match.RequestConfirmation();
+        match.MarkConfirmed();
+        match.Validate();
+        database.Matches.Add(match);
+        await database.SaveChangesAsync();
+        var performance = scope.ServiceProvider.GetRequiredService<IPerformanceStatisticsService>();
+        var requested = new[]
+        {
+            new UpdateParticipantFaction(ownerParticipant.Id, faction.Id),
+            new UpdateParticipantFaction(playerParticipant.Id, null)
+        };
+
+        var blocked = await performance.UpdateParticipantFactionsAsync(match.Id, player.Id, requested);
+        var updated = await performance.UpdateParticipantFactionsAsync(match.Id, owner.Id, requested);
+
+        Assert.False(blocked.Succeeded);
+        Assert.Equal("NotAuthorized", blocked.ErrorCode);
+        Assert.True(updated.Succeeded);
+        Assert.Equal(MatchStatus.Validated, match.Status);
+        Assert.Equal(faction.Id, ownerParticipant.FactionId);
+        Assert.Equal(FactionSelection.Manual, ownerParticipant.FactionSelection);
+        Assert.Null(playerParticipant.FactionId);
     }
 
     [Theory]

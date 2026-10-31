@@ -102,6 +102,26 @@
 .performance-player-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .mvp-choice { display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; color: #76591f; border: 1px solid #d9c598; border-radius: 5px; background: #fbf4e4; font-size: var(--font-caption); font-weight: 800; text-transform: uppercase; cursor: pointer; }
 .mvp-choice input { width: 15px; height: 15px; accent-color: var(--gold); }
+.participant-faction-editor { margin-bottom: 18px; }
+.participant-faction-editor > p { color: var(--muted); font-size: var(--font-caption); line-height: 1.6; }
+.participant-faction-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 12px; margin-top: 16px; }
+.performance-mvp-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(250px,1fr)); gap: 10px; margin: 18px 0 24px; }
+.performance-player-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 6px; background: #faf8f2; }
+.performance-player-summary > div { display: grid; gap: 5px; min-width: 0; }
+.performance-player-summary strong { overflow-wrap: anywhere; font: 700 var(--font-control) "Unbounded"; }
+.performance-screen { margin-top: 18px; border: 1px solid var(--line); border-radius: 7px; background: #fffdfa; }
+.performance-screen > header { display: flex; align-items: baseline; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: #f7f2e7; }
+.performance-screen h3 { margin: 0; font: 700 17px "Unbounded"; }
+.performance-screen-table-wrap { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+.performance-screen-table { width: 100%; min-width: max-content; border-collapse: separate; border-spacing: 0; }
+.performance-screen-table th, .performance-screen-table td { min-width: 155px; padding: 9px 10px; border-right: 1px solid #ebe4d7; border-bottom: 1px solid #ebe4d7; }
+.performance-screen-table th:first-child { position: sticky; left: 0; z-index: 1; min-width: 210px; max-width: 210px; color: #5e574c; background: #faf7f0; text-align: left; font-size: var(--font-caption); }
+.performance-screen-table thead th { color: var(--forest); background: #f1ede4; font: 700 var(--font-caption) "Unbounded"; text-align: center; }
+.performance-screen-table thead th:first-child { z-index: 2; background: #ebe4d6; }
+.performance-screen-table tr:last-child > * { border-bottom: 0; }
+.performance-screen-table tr > *:last-child { border-right: 0; }
+.performance-screen-table input, .performance-screen-table select { width: 100%; min-width: 130px; }
+.performance-screen-table .era-time-inputs { min-width: 220px; }
 .performance-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .performance-fields fieldset { display: grid; gap: 10px; margin: 0; padding: 15px; border: 1px solid var(--line); }
 .performance-fields legend { padding: 0 7px; color: var(--gold); font-size: var(--font-caption); font-weight: 800; text-transform: uppercase; }

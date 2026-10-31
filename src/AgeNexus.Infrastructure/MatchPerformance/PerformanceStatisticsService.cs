@@ -96,6 +96,7 @@ public sealed class PerformanceStatisticsService(
                 : $"IA {difficultyNames.GetValueOrDefault(participant.AiDifficultyId!.Value, "Configurada")}";
             return new PerformancePlayerView(
                 participant.Id,
+                participant.FactionId,
                 participant.PlayerProfileId,
                 participant.AiDifficultyId,
                 x.Team.Id,
@@ -110,6 +111,7 @@ public sealed class PerformanceStatisticsService(
 
         return new PerformanceReportView(
             match.Id,
+            match.GameEditionId,
             match.CreatedByPlayerProfileId,
             match.Status.ToString(),
             match.ScoringCategory.ToString(),
@@ -616,6 +618,61 @@ public sealed class PerformanceStatisticsService(
         catch (DomainRuleException)
         {
             return PerformanceOperationResult.Failure("ReportCannotBeReopened");
+        }
+    }
+
+    public async Task<PerformanceOperationResult> UpdateParticipantFactionsAsync(
+        Guid matchId,
+        Guid administratorPlayerProfileId,
+        IReadOnlyCollection<UpdateParticipantFaction> requestedParticipants,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(requestedParticipants);
+        if (!await accounts.IsAdministratorProfileAsync(administratorPlayerProfileId, cancellationToken))
+        {
+            return PerformanceOperationResult.Failure("NotAuthorized");
+        }
+
+        var match = await LoadMatchAsync(matchId, cancellationToken);
+        if (match is null)
+        {
+            return PerformanceOperationResult.Failure("MatchNotFound");
+        }
+
+        var participants = match.Teams.SelectMany(team => team.Participants)
+            .ToDictionary(participant => participant.Id);
+        if (requestedParticipants.Count != participants.Count ||
+            requestedParticipants.Select(x => x.MatchParticipantId).Distinct().Count() != requestedParticipants.Count ||
+            requestedParticipants.Any(x => !participants.ContainsKey(x.MatchParticipantId)))
+        {
+            return PerformanceOperationResult.Failure("FactionsMustIncludeEveryParticipant");
+        }
+
+        var factionIds = requestedParticipants.Where(x => x.FactionId.HasValue)
+            .Select(x => x.FactionId!.Value).Distinct().ToArray();
+        var validFactionCount = await database.Factions.AsNoTracking()
+            .CountAsync(x => factionIds.Contains(x.Id) && x.GameEditionId == match.GameEditionId, cancellationToken);
+        if (validFactionCount != factionIds.Length)
+        {
+            return PerformanceOperationResult.Failure("InvalidFaction");
+        }
+
+        try
+        {
+            foreach (var requested in requestedParticipants)
+            {
+                participants[requested.MatchParticipantId].SetFaction(requested.FactionId);
+            }
+
+            await database.SaveChangesAsync(cancellationToken);
+            var reportId = await database.MatchStatisticsReports.AsNoTracking()
+                .Where(x => x.MatchId == matchId).Select(x => (Guid?)x.Id)
+                .SingleOrDefaultAsync(cancellationToken);
+            return PerformanceOperationResult.Success(reportId ?? matchId);
+        }
+        catch (DomainRuleException)
+        {
+            return PerformanceOperationResult.Failure("InvalidFaction");
         }
     }
 
