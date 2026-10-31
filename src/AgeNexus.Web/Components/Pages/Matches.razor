@@ -245,10 +245,12 @@
             null => "Enviar estatísticas",
             AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Draft
                 when CurrentApplicationUserId.HasValue &&
-                     match.StatisticsSubmittedByApplicationUserId == CurrentApplicationUserId => "Continuar envio",
+                     (match.StatisticsSubmittedByApplicationUserId == CurrentApplicationUserId ||
+                      match.CreatedByApplicationUserId == CurrentApplicationUserId) => "Continuar envio",
             AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted
                 when CurrentApplicationUserId.HasValue &&
-                     match.StatisticsSubmittedByApplicationUserId == CurrentApplicationUserId => "Aguardando aprovação",
+                     (match.StatisticsSubmittedByApplicationUserId == CurrentApplicationUserId ||
+                      match.CreatedByApplicationUserId == CurrentApplicationUserId) => "Aguardando aprovação",
             AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Confirmed or
                 AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Awarded => "Ver estatísticas",
             _ => "Ver situação do envio"

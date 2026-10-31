@@ -1,12 +1,15 @@
 using System.Security.Claims;
 using AgeNexus.Application;
 using AgeNexus.Application.Evidence;
+using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Application.Matches;
 using AgeNexus.Domain.Competition;
+using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Domain.Players;
 using AgeNexus.Infrastructure.Competition;
 using AgeNexus.Infrastructure.Identity;
+using AgeNexus.Infrastructure.MatchPerformance;
 using AgeNexus.Infrastructure.Persistence;
 using AgeNexus.Web.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -194,6 +197,59 @@ public sealed class AccountSecurityTests
         Assert.False(await users.IsInRoleAsync(user, AccountService.AdministratorRole));
     }
 
+    [Fact]
+    public async Task Match_creator_can_resume_and_submit_a_saved_draft()
+    {
+        await using var services = CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var creatorUser = await AddUserAsync(users, "creator@example.test");
+        var draftUser = await AddUserAsync(users, "draft@example.test");
+        var otherUser = await AddUserAsync(users, "other@example.test");
+        var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+        var creator = new PlayerProfile(Guid.NewGuid(), "Criador", creatorUser.Id);
+        var opponent = new PlayerProfile(Guid.NewGuid(), "Adversário", draftUser.Id);
+        var other = new PlayerProfile(Guid.NewGuid(), "Outro", otherUser.Id);
+        database.PlayerProfiles.AddRange(creator, opponent, other);
+        await database.SaveChangesAsync();
+        var workflow = scope.ServiceProvider.GetRequiredService<IMatchWorkflowService>();
+        var registration = await workflow.RegisterAsync(new RegisterMatchRequest(
+            Guid.NewGuid(), creator.Id, DateTimeOffset.UtcNow, MatchType.PlayerVersusPlayer,
+            MatchNature.Ranked, MatchGameMode.Standard, null, null, null,
+            [
+                new RegisterMatchTeam(TeamResult.Victory,
+                    [new RegisterMatchParticipant(ParticipantType.Human, creator.Id, null, null, FactionSelection.Unknown)]),
+                new RegisterMatchTeam(TeamResult.Defeat,
+                    [new RegisterMatchParticipant(ParticipantType.Human, opponent.Id, null, null, FactionSelection.Unknown)])
+            ]));
+        Assert.True(registration.Succeeded);
+        var match = await database.Matches.Include(x => x.Teams).ThenInclude(x => x.Participants)
+            .SingleAsync(x => x.Id == registration.MatchId);
+        var report = new MatchStatisticsReport(
+            Guid.NewGuid(), match.Id, opponent.Id, MatchStatisticsSource.Manual, DateTimeOffset.UtcNow);
+        database.MatchStatisticsReports.Add(report);
+        await database.SaveChangesAsync();
+        var participants = match.Teams.SelectMany(x => x.Participants).ToArray();
+        var completeValues = new MatchStatisticValues(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+        var performance = scope.ServiceProvider.GetRequiredService<IPerformanceStatisticsService>();
+        var submittedRows = participants
+            .Select(x => new SavePlayerStatistics(x.Id, completeValues)).ToArray();
+
+        var blocked = await performance.SaveManualAsync(new SavePerformanceReportRequest(
+            match.Id, other.Id, MatchStatisticsSource.Manual, submittedRows));
+        var save = await performance.SaveManualAsync(new SavePerformanceReportRequest(
+            match.Id, creator.Id, MatchStatisticsSource.Manual, submittedRows));
+        var submit = await performance.SubmitAsync(report.Id, creator.Id);
+
+        Assert.False(blocked.Succeeded);
+        Assert.Equal("ReportOwnedByAnotherUser", blocked.ErrorCode);
+        Assert.True(save.Succeeded);
+        Assert.True(submit.Succeeded);
+        var submitted = await database.MatchStatisticsReports.SingleAsync(x => x.Id == report.Id);
+        Assert.Equal(MatchStatisticsStatus.Submitted, submitted.Status);
+        Assert.Equal(creator.Id, submitted.SubmittedByPlayerProfileId);
+    }
+
     [Theory]
     [InlineData("stamp")]
     [InlineData("role")]
@@ -238,6 +294,8 @@ public sealed class AccountSecurityTests
         services.AddAgeNexusApplication();
         services.AddScoped<AccountService>();
         services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
+        services.AddScoped<AgeNexusDbContextFactory>();
+        services.AddScoped<IPerformanceStatisticsService, PerformanceStatisticsService>();
         return services.BuildServiceProvider();
     }
 

@@ -543,7 +543,8 @@ else
         View.Status == AgeNexus.Domain.MatchPerformance.MatchStatisticsStatus.Submitted &&
         CurrentProfile is not null;
     private bool IsReportOwner => CurrentProfile is not null &&
-        View?.SubmittedByPlayerProfileId == CurrentProfile.Id;
+        (View?.SubmittedByPlayerProfileId == CurrentProfile.Id ||
+         View?.CreatedByPlayerProfileId == CurrentProfile.Id);
     private bool CanEditReport => View?.ReportId is null || IsAdministrator || IsReportOwner;
     private string SubmissionOwnerLabel => View?.SubmittedByDisplayName is null
         ? "Ainda não iniciado"

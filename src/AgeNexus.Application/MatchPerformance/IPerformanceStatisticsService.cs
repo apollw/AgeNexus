@@ -62,6 +62,7 @@ public sealed record PerformanceOperationResult(
 
 public sealed record PerformanceReportView(
     Guid MatchId,
+    Guid CreatedByPlayerProfileId,
     string MatchStatus,
     string Category,
     Guid? ReportId,
