@@ -1,27 +1,86 @@
 @page "/clas"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using System.ComponentModel.DataAnnotations
 @inject AgeNexus.Application.Queries.IClanQueryService ClanQueries
+@inject AgeNexus.Application.Queries.IClanService Clans
+@inject AgeNexus.Application.Queries.IPlayerDirectoryQueryService Players
+@inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
 <PageTitle>Clãs · Age Nexus</PageTitle>
+<LoadingOverlay Visible="@(Loading || Saving)" Message="@(Saving ? "Criando clã..." : "Carregando clãs...")" />
 
 <section class="page-heading compact-heading">
     <div><span class="eyebrow">Comunidade</span><h1>Clãs</h1><p>Reúna jogadores, acompanhe os membros e construa o prestígio do grupo.</p></div>
+    @if (CanCreateClan)
+    {
+        <button class="button button-primary" type="button" @onclick="() => ShowCreation = !ShowCreation">
+            @(ShowCreation ? "Fechar" : "+ Criar clã")
+        </button>
+    }
 </section>
 
+@if (ShowCreation && CanCreateClan && CurrentProfile is not null)
+{
+    <section class="panel clan-create-panel">
+        <header class="panel-header"><div><span class="eyebrow">Novo grupo</span><h2>Criar clã</h2></div></header>
+        <EditForm Model="Form" OnValidSubmit="CreateClanAsync" class="account-form clan-create-form">
+            <DataAnnotationsValidator />
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <div class="form-alert form-alert-error">@Error</div>
+            }
+            <div class="form-grid">
+                <label class="form-field"><span>Nome do clã</span><InputText @bind-Value="Form.Name" placeholder="Ex.: Guardiões do Nexus" /><ValidationMessage For="() => Form.Name" /></label>
+                <label class="form-field"><span>Tag</span><InputText @bind-Value="Form.Tag" placeholder="Ex.: GDN" /><ValidationMessage For="() => Form.Tag" /></label>
+            </div>
+            <div class="clan-member-picker">
+                <div><strong>Integrantes iniciais</strong><small>Você entra automaticamente como líder. Cada jogador pode pertencer a um clã por vez.</small></div>
+                <div class="clan-member-grid">
+                    @foreach (var player in PlayerItems)
+                    {
+                        var isFounder = player.PlayerId == CurrentProfile.Id;
+                        var unavailable = ActiveMemberIds.Contains(player.PlayerId) && !isFounder;
+                        <label class="clan-member-option @(unavailable ? "disabled" : null)">
+                            <input type="checkbox"
+                                   checked="@(isFounder || SelectedMemberIds.Contains(player.PlayerId))"
+                                   disabled="@(isFounder || unavailable)"
+                                   @onchange="args => ToggleMember(player.PlayerId, args)" />
+                            <PlayerAvatar DisplayName="@player.DisplayName" Url="@player.AvatarUrl" Size="compact" />
+                            <span>@player.DisplayName</span>
+                            @if (isFounder) { <small>Líder</small> }
+                            else if (unavailable) { <small>Já pertence a um clã</small> }
+                        </label>
+                    }
+                </div>
+            </div>
+            <button class="button button-primary" type="submit" disabled="@Saving">Criar clã</button>
+        </EditForm>
+    </section>
+}
+
 <section class="panel table-panel">
-    @if (ClanItems.Count == 0)
+    @if (!Loading && ClanItems.Count == 0)
     {
-        <div class="panel-empty page-empty"><strong>Nenhum clã criado</strong><p>Os primeiros clãs aparecerão aqui.</p></div>
+        <div class="panel-empty page-empty"><strong>Nenhum clã criado</strong><p>Crie o primeiro clã da comunidade.</p></div>
     }
     else
     {
         <div class="data-table clan-table mobile-card-table">
-            <div class="table-head"><span>Tag</span><span>Clã</span><span>Membros</span></div>
+            <div class="table-head"><span>Tag</span><span>Clã</span><span>Integrantes</span></div>
             @foreach (var clan in VisibleClans)
             {
                 <div class="table-row">
                     <span data-label="Tag">[@clan.Tag]</span>
-                    <span data-label="Clã">@clan.Name</span>
-                    <span data-label="Membros" data-mobile-wide="true">@clan.ActiveMembers</span>
+                    <span data-label="Clã"><strong>@clan.Name</strong></span>
+                    <span class="clan-roster" data-label="Integrantes" data-mobile-wide="true">
+                        @foreach (var member in clan.Members)
+                        {
+                            <a href="/jogadores/@member.PlayerProfileId" title="@member.DisplayName">
+                                <PlayerAvatar DisplayName="@member.DisplayName" Url="@member.AvatarUrl" Size="compact" />
+                                <span>@member.DisplayName</span>
+                            </a>
+                        }
+                    </span>
                 </div>
             }
         </div>
@@ -30,11 +89,96 @@
 <PaginationNav CurrentPage="@CurrentPage" TotalItems="@ClanItems.Count" PageSize="@PageSize" BasePath="/clas" />
 
 @code {
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
     private const int PageSize = 15;
     [SupplyParameterFromQuery(Name = "pagina")] private int Page { get; set; } = 1;
     private IReadOnlyCollection<AgeNexus.Application.Queries.ClanSummary> ClanItems { get; set; } = [];
+    private IReadOnlyCollection<AgeNexus.Application.Queries.PlayerSummary> PlayerItems { get; set; } = [];
+    private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+    private HashSet<Guid> SelectedMemberIds { get; } = [];
+    private HashSet<Guid> ActiveMemberIds => ClanItems.SelectMany(x => x.Members).Select(x => x.PlayerProfileId).ToHashSet();
+    private ClanForm Form { get; } = new();
+    private bool Loading { get; set; } = true;
+    private bool Saving { get; set; }
+    private bool ShowCreation { get; set; }
+    private string? Error { get; set; }
+    private bool CanCreateClan => CurrentProfile is not null && !ActiveMemberIds.Contains(CurrentProfile.Id);
     private int CurrentPage => Math.Clamp(Page, 1, Math.Max(1, (int)Math.Ceiling(ClanItems.Count / (double)PageSize)));
-    private IEnumerable<AgeNexus.Application.Queries.ClanSummary> VisibleClans =>
-        ClanItems.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
-    protected override async Task OnParametersSetAsync() => ClanItems = await ClanQueries.GetAsync();
+    private IEnumerable<AgeNexus.Application.Queries.ClanSummary> VisibleClans => ClanItems.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authentication = await AuthenticationStateTask;
+            CurrentProfile = await Accounts.GetProfileAsync(authentication.User, CancellationToken.None);
+            await ReloadAsync();
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        ClanItems = await ClanQueries.GetAsync();
+        PlayerItems = await Players.GetAsync(500);
+    }
+
+    private void ToggleMember(Guid playerId, ChangeEventArgs args)
+    {
+        if (args.Value is true || string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedMemberIds.Add(playerId);
+        }
+        else
+        {
+            SelectedMemberIds.Remove(playerId);
+        }
+    }
+
+    private async Task CreateClanAsync()
+    {
+        if (CurrentProfile is null) return;
+        Saving = true;
+        Error = null;
+        try
+        {
+            var result = await Clans.CreateAsync(CurrentProfile.Id, Form.Name, Form.Tag, SelectedMemberIds.ToArray());
+            if (!result.Succeeded)
+            {
+                Error = result.ErrorCode switch
+                {
+                    "MemberAlreadyInClan" => "Um dos jogadores selecionados já pertence a outro clã.",
+                    "DuplicateClan" or "DuplicateOrConflictingClan" => "Já existe um clã com esse nome ou essa tag.",
+                    "NotAuthorized" => "Seu perfil precisa estar vinculado e ativo para criar um clã.",
+                    "InvalidMembers" => "Revise os integrantes selecionados.",
+                    _ => "Revise o nome, a tag e os integrantes do clã."
+                };
+                return;
+            }
+
+            Form.Name = string.Empty;
+            Form.Tag = string.Empty;
+            SelectedMemberIds.Clear();
+            ShowCreation = false;
+            await ReloadAsync();
+        }
+        finally
+        {
+            Saving = false;
+        }
+    }
+
+    private sealed class ClanForm
+    {
+        [Required(ErrorMessage = "Informe o nome do clã.")]
+        [StringLength(100, ErrorMessage = "Use no máximo 100 caracteres.")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Informe a tag.")]
+        [StringLength(8, MinimumLength = 2, ErrorMessage = "A tag deve ter de 2 a 8 caracteres.")]
+        public string Tag { get; set; } = string.Empty;
+    }
 }
