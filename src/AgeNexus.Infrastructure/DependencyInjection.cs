@@ -12,6 +12,7 @@ using AgeNexus.Application.Evidence;
 using AgeNexus.Infrastructure.Evidence;
 using AgeNexus.Application.Drafts;
 using AgeNexus.Infrastructure.Drafts;
+using AgeNexus.Infrastructure.Clans;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -130,6 +131,7 @@ public static class DependencyInjection
         services.AddScoped<IAchievementQueryService, AchievementQueryService>();
         services.AddScoped<IStatisticsQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
         services.AddScoped<IClanQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
+        services.AddScoped<IClanService, ClanService>();
         services.AddScoped<ICatalogQueryService>(x => x.GetRequiredService<CompetitionQueryService>());
 
         return services;

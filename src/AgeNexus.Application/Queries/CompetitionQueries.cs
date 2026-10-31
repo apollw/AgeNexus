@@ -262,11 +262,36 @@ public interface IStatisticsQueryService
         CancellationToken cancellationToken = default);
 }
 
-public sealed record ClanSummary(Guid ClanId, string Name, string Tag, int ActiveMembers);
+public sealed record ClanMemberSummary(Guid PlayerProfileId, string DisplayName, string? AvatarUrl);
+
+public sealed record ClanSummary(
+    Guid ClanId,
+    string Name,
+    string Tag,
+    IReadOnlyCollection<ClanMemberSummary> Members)
+{
+    public int ActiveMembers => Members.Count;
+}
 
 public interface IClanQueryService
 {
     Task<IReadOnlyCollection<ClanSummary>> GetAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IClanService
+{
+    Task<ClanOperationResult> CreateAsync(
+        Guid createdByPlayerProfileId,
+        string name,
+        string tag,
+        IReadOnlyCollection<Guid> memberPlayerProfileIds,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record ClanOperationResult(bool Succeeded, Guid? ClanId = null, string? ErrorCode = null)
+{
+    public static ClanOperationResult Success(Guid clanId) => new(true, clanId);
+    public static ClanOperationResult Failure(string errorCode) => new(false, null, errorCode);
 }
 
 public sealed record CatalogOption(Guid Id, string Name);
@@ -278,7 +303,8 @@ public sealed record MatchRegistrationCatalog(
     IReadOnlyCollection<CatalogOption> Maps,
     IReadOnlyCollection<CatalogOption> AiDifficulties,
     IReadOnlyCollection<CatalogOption> Seasons,
-    IReadOnlyCollection<CatalogOption> Patches);
+    IReadOnlyCollection<CatalogOption> Patches,
+    IReadOnlyCollection<ClanSummary> Clans);
 
 public interface ICatalogQueryService
 {

@@ -108,7 +108,7 @@
     .match-team-adder { align-items: stretch; flex-direction: column; padding: 20px 18px; }
     .match-team-actions { align-items: stretch; flex-direction: column; width: 100%; }
     .onboarding-result, .public-profile-hero, .public-profile-identity { align-items: flex-start; flex-direction: column; }.onboarding-result .button { width: 100%; }
-    .public-profile-hero { min-height: 0; }.public-profile-avatar { width: 82px; height: 82px; }.public-profile-favorite { width: 100%; }.public-profile-identity h1 { font-size: 30px; }
+    .public-profile-hero { min-height: 0; }.public-profile-avatar { width: 96px; height: 96px; }.public-profile-favorite { width: 100%; }.public-profile-identity h1 { font-size: 30px; }
     .public-profile-stats .stat-card { min-height: 132px; }.public-profile-stats .stat-card > div { display: grid; gap: 2px; }
     .profile-achievements-header { align-items: flex-start; }.achievement-pool { grid-template-columns: 1fr; padding: 14px; }.achievement-card { min-height: 145px; }.achievement-summary strong { font-size: 18px; }
     .profile-claim-row { grid-template-columns: auto minmax(0,1fr); }.profile-claim-actions { grid-column: 1 / -1; width: 100%; }.profile-claim-actions .button, .profile-claim-actions .table-action-button { flex: 1; }
@@ -124,4 +124,6 @@
     .evidence-replay-card { grid-template-columns: 1fr; padding: 18px; }
     .catalog-setup { grid-template-columns: 1fr; padding: 25px 18px; }.catalog-setup-form { padding: 18px 14px; }
     .catalog-sync-banner { align-items: flex-start; flex-direction: column; }.catalog-sync-banner .button { width: 100%; }
+    .clan-create-form { padding: 0 16px 20px; }.clan-member-grid { grid-template-columns: 1fr; }.clan-roster a { flex: 1 1 130px; }
+    .match-clan-loader { grid-template-columns: 1fr; }.match-clan-loader .button { width: 100%; }
 }
