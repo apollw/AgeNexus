@@ -8,6 +8,7 @@
 @inject AgeNexus.Application.MatchPerformance.AgeExtractorJsonComposer JsonComposer
 @inject AgeNexus.Application.MatchPerformance.IAgeExtractorService AgeExtractorService
 @inject AgeNexus.Application.Evidence.IMatchEvidenceService EvidenceService
+@inject AgeNexus.Application.Queries.ICatalogQueryService CatalogQueries
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 @inject ILogger<MatchPerformance> Logger
 @inject Microsoft.JSInterop.IJSRuntime JS
@@ -56,6 +57,34 @@ else
         <div><span class="eyebrow">Relatório</span><strong>@ReportStatusLabel(View.Status)</strong><small>Preenchimento: @SourceLabel(View.Source)</small></div>
         <div><span class="eyebrow">Envio</span><strong>@(View.IsComplete ? "Completo" : "Pendente")</strong><small>@SubmissionOwnerLabel</small></div>
     </section>
+
+    @if (IsAdministrator)
+    {
+        <section class="panel profile-form-card participant-faction-editor">
+            <header class="panel-header">
+                <div><span class="eyebrow">Edição administrativa</span><h2>Civilizações dos participantes</h2></div>
+            </header>
+            <p>Corrija as civilizações mesmo depois da validação. A alteração atualiza o histórico e as estatísticas de civilizações sem reabrir o relatório.</p>
+            <div class="participant-faction-grid">
+                @foreach (var row in Rows)
+                {
+                    <label class="form-field" @key="row.MatchParticipantId">
+                        <span>@row.DisplayName · equipe @row.TeamPosition</span>
+                        <InputSelect @bind-Value="row.FactionId" disabled="@Busy">
+                            <option value="">Aleatória ou desconhecida</option>
+                            @foreach (var faction in Factions)
+                            {
+                                <option value="@faction.Id">@faction.Name</option>
+                            }
+                        </InputSelect>
+                    </label>
+                }
+            </div>
+            <div class="performance-actions">
+                <button class="button button-secondary" type="button" @onclick="SaveFactionsAsync" disabled="@Busy">Salvar civilizações</button>
+            </div>
+        </section>
+    }
 
     @if (IsAdministrator)
     {
@@ -295,13 +324,13 @@ else
                     }
                 </InputSelect>
             </header>
-            <p class="performance-guidance">Revise todos os participantes. As IAs são identificadas pela dificuldade, guardam estatísticas próprias e podem ser MVP em equipes com mais de um integrante. Equipes individuais não possuem MVP.</p>
+            <p class="performance-guidance">Preencha uma tela do jogo por vez, comparando os participantes lado a lado. O AgeExtractor continua preenchendo estes mesmos campos automaticamente. Equipes individuais não possuem MVP.</p>
 
-            @foreach (var row in Rows)
-            {
-                <article class="performance-player" @key="row.MatchParticipantId">
-                    <header class="performance-player-header">
-                        <div><span class="eyebrow">@TeamResultLabel(row.TeamResult) · equipe @row.TeamPosition</span><h3>@row.DisplayName</h3></div>
+            <div class="performance-mvp-grid">
+                @foreach (var row in Rows)
+                {
+                    <article class="performance-player-summary" @key="row.MatchParticipantId">
+                        <div><span class="eyebrow">@TeamResultLabel(row.TeamResult) · equipe @row.TeamPosition</span><strong>@row.DisplayName</strong></div>
                         @if (TeamHasMvp(row.TeamId))
                         {
                             <label class="mvp-choice">
@@ -314,49 +343,84 @@ else
                         {
                             <span class="mvp-choice">Equipe individual · sem MVP</span>
                         }
-                    </header>
-                    <div class="performance-fields">
-                        <fieldset><legend>Militar</legend>
-                            <label class="form-field"><span>Unidades eliminadas *</span><InputNumber @bind-Value="row.UnitsKilled" /></label>
-                            <label class="form-field"><span>Unidades perdidas *</span><InputNumber @bind-Value="row.UnitsLost" /></label>
-                            <label class="form-field"><span>Edifícios destruídos *</span><InputNumber @bind-Value="row.BuildingsDestroyed" /></label>
-                            <label class="form-field"><span>Edifícios perdidos *</span><InputNumber @bind-Value="row.BuildingsLost" /></label>
-                            <label class="form-field"><span>Maior exército *</span><InputNumber @bind-Value="row.LargestArmy" /></label>
-                            <label class="form-field"><span>Conversões</span><InputNumber @bind-Value="row.UnitsConverted" /></label>
-                            <label class="form-field"><span>Pontuação militar *</span><InputNumber @bind-Value="row.MilitaryScore" /></label>
-                        </fieldset>
-                        <fieldset><legend>Economia</legend>
-                            <label class="form-field"><span>Comida *</span><InputNumber @bind-Value="row.FoodCollected" /></label>
-                            <label class="form-field"><span>Madeira *</span><InputNumber @bind-Value="row.WoodCollected" /></label>
-                            <label class="form-field"><span>Ouro *</span><InputNumber @bind-Value="row.GoldCollected" /></label>
-                            <label class="form-field"><span>Pedra *</span><InputNumber @bind-Value="row.StoneCollected" /></label>
-                            <label class="form-field"><span>Ouro comercial</span><InputNumber @bind-Value="row.TradeGold" /></label>
-                            <label class="form-field"><span>Ouro de relíquias</span><InputNumber @bind-Value="row.RelicGold" /></label>
-                            <label class="form-field"><span>Tributo enviado</span><InputNumber @bind-Value="row.TributeSent" /></label>
-                            <label class="form-field"><span>Tributo recebido</span><InputNumber @bind-Value="row.TributeReceived" /></label>
-                            <label class="form-field"><span>Pontuação econômica *</span><InputNumber @bind-Value="row.EconomyScore" /></label>
-                        </fieldset>
-                        <fieldset><legend>Tecnologia</legend>
-                            <label class="form-field"><span>Tecnologias</span><InputNumber @bind-Value="row.ResearchCount" /></label>
-                            <label class="form-field"><span>Pesquisas concluídas (%)</span><InputNumber @bind-Value="row.ResearchPercent" step="0.01" /></label>
-                            <label class="form-field"><span>Mapa explorado (%)</span><InputNumber @bind-Value="row.ExploredPercent" /></label>
-                            <label class="form-field"><span>Pontuação tecnológica *</span><InputNumber @bind-Value="row.TechnologyScore" /></label>
-                            <div class="form-field era-time-field"><span>Chegada à Era Feudal (hh:mm:ss)</span><EraTimeInputs Value="row.FeudalAge" /></div>
-                            <div class="form-field era-time-field"><span>Chegada à Era dos Castelos (hh:mm:ss)</span><EraTimeInputs Value="row.CastleAge" /></div>
-                            <div class="form-field era-time-field"><span>Chegada à Era Imperial (hh:mm:ss)</span><EraTimeInputs Value="row.ImperialAge" /></div>
-                        </fieldset>
-                        <fieldset><legend>Sociedade e placar</legend>
-                            <label class="form-field"><span>Máximo de aldeões *</span><InputNumber @bind-Value="row.PeakVillagers" /></label>
-                            <label class="form-field"><span>Maravilhas construídas</span><InputNumber @bind-Value="row.WondersBuilt" /></label>
-                            <label class="form-field"><span>Castelos construídos</span><InputNumber @bind-Value="row.CastlesBuilt" /></label>
-                            <label class="form-field"><span>Relíquias capturadas</span><InputNumber @bind-Value="row.RelicsCaptured" /></label>
-                            <label class="form-field"><span>Sobreviveu até o fim</span><InputSelect @bind-Value="row.Survived"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></InputSelect></label>
-                            <label class="form-field"><span>Pontuação social *</span><InputNumber @bind-Value="row.SocietyScore" /></label>
-                            <label class="form-field"><span>Pontuação total *</span><InputNumber @bind-Value="row.TotalScore" /></label>
-                        </fieldset>
-                    </div>
-                </article>
-            }
+                    </article>
+                }
+            </div>
+
+            <section class="performance-screen">
+                <header><span class="eyebrow">Tela 1</span><h3>Placar</h3></header>
+                <div class="performance-screen-table-wrap"><table class="performance-screen-table">
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <tbody>
+                        <tr><th>Pontuação militar *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.MilitaryScore" /></td> }</tr>
+                        <tr><th>Pontuação econômica *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.EconomyScore" /></td> }</tr>
+                        <tr><th>Pontuação tecnológica *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TechnologyScore" /></td> }</tr>
+                        <tr><th>Pontuação social *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.SocietyScore" /></td> }</tr>
+                        <tr><th>Pontuação total *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TotalScore" /></td> }</tr>
+                    </tbody>
+                </table></div>
+            </section>
+
+            <section class="performance-screen">
+                <header><span class="eyebrow">Tela 2</span><h3>Militar</h3></header>
+                <div class="performance-screen-table-wrap"><table class="performance-screen-table">
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <tbody>
+                        <tr><th>Unidades eliminadas *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.UnitsKilled" /></td> }</tr>
+                        <tr><th>Unidades perdidas *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.UnitsLost" /></td> }</tr>
+                        <tr><th>Edifícios destruídos *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.BuildingsDestroyed" /></td> }</tr>
+                        <tr><th>Edifícios perdidos *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.BuildingsLost" /></td> }</tr>
+                        <tr><th>Conversões</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.UnitsConverted" /></td> }</tr>
+                        <tr><th>Maior exército *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.LargestArmy" /></td> }</tr>
+                    </tbody>
+                </table></div>
+            </section>
+
+            <section class="performance-screen">
+                <header><span class="eyebrow">Tela 3</span><h3>Economia</h3></header>
+                <div class="performance-screen-table-wrap"><table class="performance-screen-table">
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <tbody>
+                        <tr><th>Comida *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.FoodCollected" /></td> }</tr>
+                        <tr><th>Madeira *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.WoodCollected" /></td> }</tr>
+                        <tr><th>Ouro *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.GoldCollected" /></td> }</tr>
+                        <tr><th>Pedra *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.StoneCollected" /></td> }</tr>
+                        <tr><th>Ouro comercial</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TradeGold" /></td> }</tr>
+                        <tr><th>Ouro de relíquias</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.RelicGold" /></td> }</tr>
+                        <tr><th>Tributo enviado</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TributeSent" /></td> }</tr>
+                        <tr><th>Tributo recebido</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TributeReceived" /></td> }</tr>
+                    </tbody>
+                </table></div>
+            </section>
+
+            <section class="performance-screen">
+                <header><span class="eyebrow">Tela 4</span><h3>Tecnologia</h3></header>
+                <div class="performance-screen-table-wrap"><table class="performance-screen-table">
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <tbody>
+                        <tr><th>Tecnologias</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.ResearchCount" /></td> }</tr>
+                        <tr><th>Pesquisas concluídas (%)</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.ResearchPercent" step="0.01" /></td> }</tr>
+                        <tr><th>Mapa explorado (%)</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.ExploredPercent" /></td> }</tr>
+                        <tr><th>Era Feudal (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.FeudalAge" /></td> }</tr>
+                        <tr><th>Era dos Castelos (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.CastleAge" /></td> }</tr>
+                        <tr><th>Era Imperial (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.ImperialAge" /></td> }</tr>
+                    </tbody>
+                </table></div>
+            </section>
+
+            <section class="performance-screen">
+                <header><span class="eyebrow">Tela 5</span><h3>Sociedade</h3></header>
+                <div class="performance-screen-table-wrap"><table class="performance-screen-table">
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <tbody>
+                        <tr><th>Máximo de aldeões *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.PeakVillagers" /></td> }</tr>
+                        <tr><th>Maravilhas construídas</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.WondersBuilt" /></td> }</tr>
+                        <tr><th>Castelos construídos</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.CastlesBuilt" /></td> }</tr>
+                        <tr><th>Relíquias capturadas</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.RelicsCaptured" /></td> }</tr>
+                        <tr><th>Sobreviveu até o fim</th>@foreach (var row in Rows) { <td><InputSelect @bind-Value="row.Survived"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></InputSelect></td> }</tr>
+                    </tbody>
+                </table></div>
+            </section>
 
             @if (!string.IsNullOrWhiteSpace(Message))
             {
@@ -497,6 +561,7 @@ else
 
     private AgeNexus.Application.MatchPerformance.PerformanceReportView? View { get; set; }
     private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
+    private IReadOnlyCollection<AgeNexus.Application.Queries.CatalogOption> Factions { get; set; } = [];
     private AgeNexus.Application.Evidence.MatchEvidenceGallery? EvidenceGallery { get; set; }
     private List<PlayerForm> Rows { get; } = [];
     private AgeNexus.Domain.MatchPerformance.MatchStatisticsSource Source { get; set; } = AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.Manual;
@@ -569,6 +634,10 @@ else
             CurrentProfile = await Accounts.GetProfileAsync(authentication.User, timeout.Token);
             IsAdministrator = await Accounts.IsAdministratorAsync(authentication.User, timeout.Token);
             ApplyPerformanceView(await PerformanceService.GetAsync(MatchId, timeout.Token));
+            if (IsAdministrator && View is not null)
+            {
+                Factions = (await CatalogQueries.GetMatchRegistrationCatalogAsync(View.GameEditionId, timeout.Token)).Factions;
+            }
             LoadEvidenceAfterRender = IsAdministrator && View is not null && CurrentProfile is not null;
             if (NewMatch == "1" && View?.ReportId is null)
             {
@@ -1299,6 +1368,27 @@ else
         Busy = false;
     }
 
+    private async Task SaveFactionsAsync()
+    {
+        if (!IsAdministrator || CurrentProfile is null)
+        {
+            return;
+        }
+
+        Busy = true;
+        var result = await PerformanceService.UpdateParticipantFactionsAsync(
+            MatchId,
+            CurrentProfile.Id,
+            Rows.Select(row => new AgeNexus.Application.MatchPerformance.UpdateParticipantFaction(
+                row.MatchParticipantId, row.FactionId)).ToArray());
+        SetResult(result, "Civilizações atualizadas.");
+        if (result.Succeeded)
+        {
+            await ReloadAsync();
+        }
+        Busy = false;
+    }
+
     private void SetTeamMvp(Guid teamId, Guid matchParticipantId)
     {
         foreach (var player in Rows.Where(x => x.TeamId == teamId))
@@ -1323,6 +1413,8 @@ else
                 "ReportOwnedByAnotherUser" => "Outro usuário já iniciou o relatório desta partida.",
                 "AdministratorReviewRequired" => "Este envio precisa ser revisado pelo administrador.",
                 "ReportCannotBeReviewed" => "Este relatório não está aguardando aprovação.",
+                "FactionsMustIncludeEveryParticipant" => "Revise a civilização de todos os participantes.",
+                "InvalidFaction" => "Uma das civilizações não pertence à edição desta partida.",
                 "NotAuthorized" => "Sua conta não possui permissão para concluir esta operação.",
                 _ => "Não foi possível concluir a operação. Atualize a página e tente novamente."
             };
@@ -1388,6 +1480,7 @@ else
     private sealed class PlayerForm
     {
         public Guid MatchParticipantId { get; init; }
+        public Guid? FactionId { get; set; }
         public Guid? PlayerProfileId { get; init; }
         public Guid? AiDifficultyId { get; init; }
         public bool IsAi => AiDifficultyId.HasValue;
@@ -1434,7 +1527,8 @@ else
             var value = view.Values;
             return new PlayerForm
             {
-                MatchParticipantId = view.MatchParticipantId, PlayerProfileId = view.PlayerProfileId,
+                MatchParticipantId = view.MatchParticipantId, FactionId = view.FactionId,
+                PlayerProfileId = view.PlayerProfileId,
                 AiDifficultyId = view.AiDifficultyId, TeamId = view.TeamId, DisplayName = view.DisplayName,
                 TeamResult = view.TeamResult, TeamPosition = teamPosition,
                 UnitsKilled = value.UnitsKilled, UnitsLost = value.UnitsLost,

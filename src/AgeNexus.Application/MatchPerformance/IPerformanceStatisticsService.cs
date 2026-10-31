@@ -30,6 +30,11 @@ public interface IPerformanceStatisticsService
         Guid reportId,
         Guid administratorPlayerProfileId,
         CancellationToken cancellationToken = default);
+    Task<PerformanceOperationResult> UpdateParticipantFactionsAsync(
+        Guid matchId,
+        Guid administratorPlayerProfileId,
+        IReadOnlyCollection<UpdateParticipantFaction> participants,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record SavePerformanceReportRequest(
@@ -43,6 +48,8 @@ public sealed record SavePlayerStatistics(
     Guid MatchParticipantId,
     MatchStatisticValues Values,
     StatisticValueOrigin Origin = StatisticValueOrigin.Manual);
+
+public sealed record UpdateParticipantFaction(Guid MatchParticipantId, Guid? FactionId);
 
 public sealed record PerformanceOperationResult(
     bool Succeeded,
@@ -62,6 +69,7 @@ public sealed record PerformanceOperationResult(
 
 public sealed record PerformanceReportView(
     Guid MatchId,
+    Guid GameEditionId,
     Guid CreatedByPlayerProfileId,
     string MatchStatus,
     string Category,
@@ -78,6 +86,7 @@ public sealed record PerformanceReportView(
 
 public sealed record PerformancePlayerView(
     Guid MatchParticipantId,
+    Guid? FactionId,
     Guid? PlayerProfileId,
     Guid? AiDifficultyId,
     Guid TeamId,

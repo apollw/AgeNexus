@@ -63,5 +63,16 @@ public sealed class MatchParticipant
 
         return new(id, ParticipantType.ArtificialIntelligence, null, aiDifficultyId, factionId, factionSelection);
     }
+
+    public void SetFaction(Guid? factionId)
+    {
+        if (factionId == Guid.Empty)
+        {
+            throw new DomainRuleException("Faction id cannot be empty.");
+        }
+
+        FactionId = factionId;
+        FactionSelection = factionId.HasValue ? FactionSelection.Manual : FactionSelection.Unknown;
+    }
 }
 
