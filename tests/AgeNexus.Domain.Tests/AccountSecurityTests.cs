@@ -9,6 +9,7 @@ using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Domain.Players;
 using AgeNexus.Infrastructure.Competition;
+using AgeNexus.Infrastructure.Clans;
 using AgeNexus.Infrastructure.Identity;
 using AgeNexus.Infrastructure.MatchPerformance;
 using AgeNexus.Infrastructure.Persistence;
@@ -319,6 +320,7 @@ public sealed class AccountSecurityTests
         services.AddAgeNexusApplication();
         services.AddScoped<AccountService>();
         services.AddScoped<IMatchWorkflowService, MatchWorkflowService>();
+        services.AddScoped<IClanService, ClanService>();
         services.AddScoped<AgeNexusDbContextFactory>();
         services.AddScoped<IPerformanceStatisticsService, PerformanceStatisticsService>();
         return services.BuildServiceProvider();
