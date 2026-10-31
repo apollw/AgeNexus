@@ -18,6 +18,8 @@ Existe somente um relatório por partida. O primeiro usuário que salvar assume 
 
 Na listagem de partidas, contas comuns recebem as ações **Enviar estatísticas**, **Continuar envio** ou **Aguardando aprovação**, conforme o estado do relatório. Para o administrador, envios submetidos aparecem como **Revisar estatísticas**, e o atalho **Revisões pendentes** filtra somente o que aguarda decisão.
 
+Um rascunho pode ser retomado pelo usuário que o iniciou ou pelo jogador que registrou a partida. Outros usuários não podem sobrescrevê-lo. Depois do envio, somente o administrador pode aprovar e publicar ou devolver para correção.
+
 ## Build e atualização
 
 `AGEXTRACTOR_COMMIT` no `Dockerfile` identifica a revisão incorporada. Para atualizar o extrator, execute primeiro seus testes no repositório próprio, altere o SHA no AgeNexus e valide o build completo do contêiner. O CI do AgeNexus monta a imagem e confirma que Python, OpenCV, pytesseract e o pacote `agextractor` podem ser importados.
