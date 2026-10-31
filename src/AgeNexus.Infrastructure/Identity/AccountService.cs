@@ -7,10 +7,12 @@ using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.GameCatalog;
 using AgeNexus.Domain.Players;
 using AgeNexus.Infrastructure.Persistence;
+using AgeNexus.Infrastructure.Queries;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace AgeNexus.Infrastructure.Identity;
@@ -22,6 +24,7 @@ public sealed class AccountService(
     AgeNexusDbContext database,
     IEvidenceObjectStorage storage,
     IConfiguration configuration,
+    IServiceProvider services,
     ILogger<AccountService> logger)
 {
     public const string GoogleProvider = "Google";
@@ -684,6 +687,11 @@ public sealed class AccountService(
             {
                 await transaction.CommitAsync(cancellationToken);
             }
+
+            // ExecuteUpdate/Delete bypass SaveChanges interceptors. Invalidate both caches only
+            // after the atomic transfer commits so no request can keep offering the removed profile.
+            services.GetService<CompetitionQueryCache>()?.Invalidate();
+            services.GetService<CatalogQueryCache>()?.Invalidate();
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
