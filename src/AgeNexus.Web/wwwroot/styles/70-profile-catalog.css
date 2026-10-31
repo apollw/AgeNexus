@@ -53,7 +53,7 @@
 .public-profile-identity h1 { margin: 7px 0 5px; font: 700 clamp(28px,4vw,44px) "Unbounded"; letter-spacing: -.05em; overflow-wrap: anywhere; }
 .public-profile-identity p { max-width: 620px; margin: 13px 0 0; color: #c7c5bb; line-height: 1.65; }
 .public-profile-location { display: inline-flex; margin-top: 5px; color: #e2bd72; font-size: var(--font-copy); font-weight: 700; }
-.public-profile-avatar { flex: 0 0 auto; width: 112px; height: 112px; border: 4px solid rgba(255,255,255,.16); border-radius: 50%; object-fit: cover; }
+.public-profile-avatar { flex: 0 0 auto; width: 132px; height: 132px; border: 4px solid rgba(255,255,255,.16); border-radius: 50%; object-fit: cover; }
 .public-profile-favorite { display: flex; flex: 0 0 auto; align-items: center; gap: 13px; padding: 14px 17px; border: 1px solid rgba(215,174,89,.35); border-radius: 9px; background: rgba(190,139,54,.12); }
 .public-profile-favorite img { width: 47px; height: 47px; object-fit: contain; }.public-profile-favorite span { display: grid; gap: 3px; color: #cfc9ba; font-size: var(--font-sm); }.public-profile-favorite strong { color: #f5d99a; }
 .public-profile-stats { margin-top: 18px; }
@@ -98,4 +98,19 @@
 .catalog-setup-form { padding: 24px; border: 1px solid #e7dfd1; border-radius: 7px; background: #faf7ef; }
 .catalog-sync-banner { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 18px; border: 1px solid #d9c598; border-radius: 7px; background: #fbf4e4; }
 .catalog-sync-banner div { display: grid; gap: 4px; }.catalog-sync-banner strong { font-size: var(--font-copy); }.catalog-sync-banner span { color: #786f5f; font-size: var(--font-caption); }
+.clan-create-panel { max-width: 1050px; margin-bottom: 20px; overflow: hidden; }
+.clan-create-form { padding: 0 24px 26px; }
+.clan-member-picker { display: grid; gap: 12px; }
+.clan-member-picker > div:first-child { display: grid; gap: 3px; }
+.clan-member-picker small { color: var(--muted); }
+.clan-member-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
+.clan-member-option { display: grid; grid-template-columns: auto auto minmax(0,1fr); align-items: center; gap: 9px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fffdf8; cursor: pointer; }
+.clan-member-option input { width: 17px; height: 17px; accent-color: var(--forest); }
+.clan-member-option > span { min-width: 0; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clan-member-option small { grid-column: 3; }
+.clan-member-option.disabled { opacity: .52; cursor: not-allowed; }
+.clan-roster { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.clan-roster a { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: var(--font-sm); font-weight: 750; }
+.match-clan-loader { display: grid; grid-template-columns: minmax(240px,1fr) auto; align-items: end; gap: 12px; margin: 0 0 18px; padding: 14px; border: 1px solid #dfd3bb; border-radius: 8px; background: #faf5e9; }
+.match-clan-loader .form-field { margin: 0; }
 .validation-message { color: var(--red); font-size: var(--font-sm); font-weight: 600; letter-spacing: 0; text-transform: none; }
