@@ -64,6 +64,17 @@ public sealed partial class MatchStatisticsReport
         }
     }
 
+    public void TransferDraftOwnership(Guid playerProfileId)
+    {
+        EnsureDraft();
+        if (playerProfileId == Guid.Empty)
+        {
+            throw new DomainRuleException("A draft owner requires a player profile id.");
+        }
+
+        SubmittedByPlayerProfileId = playerProfileId;
+    }
+
     public void ApplyJsonImport(string importDetails)
     {
         EnsureDraft();
