@@ -334,6 +334,50 @@ public sealed class AccountSecurityTests
         Assert.Null(playerParticipant.FactionId);
     }
 
+    [Fact]
+    public async Task Death_match_discards_age_advancement_times_from_manual_or_extracted_values()
+    {
+        await using var services = CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var creatorUser = await AddUserAsync(users, "deathmatch@example.test");
+        var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+        var creator = new PlayerProfile(Guid.NewGuid(), "Criador", creatorUser.Id);
+        var opponent = new PlayerProfile(Guid.NewGuid(), "Adversário");
+        database.PlayerProfiles.AddRange(creator, opponent);
+        var match = new Match(Guid.NewGuid(), Guid.NewGuid(), creator.Id, DateTimeOffset.UtcNow,
+            MatchType.PlayerVersusPlayer, MatchNature.Ranked);
+        match.SetGameMode(MatchGameMode.DeathMatch);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        var first = MatchParticipant.Human(Guid.NewGuid(), creator.Id);
+        var second = MatchParticipant.Human(Guid.NewGuid(), opponent.Id);
+        match.AddParticipant(firstTeam.Id, first);
+        match.AddParticipant(secondTeam.Id, second);
+        database.Matches.Add(match);
+        await database.SaveChangesAsync();
+        var values = new MatchStatisticValues(
+            UnitsKilled: 1, UnitsLost: 1, BuildingsDestroyed: 1, BuildingsLost: 1,
+            LargestArmy: 1, PeakVillagers: 1, FoodCollected: 1, WoodCollected: 1,
+            GoldCollected: 1, StoneCollected: 1, MilitaryScore: 1, EconomyScore: 1,
+            TechnologyScore: 1, SocietyScore: 1, TotalScore: 1,
+            FeudalAgeSeconds: 600, CastleAgeSeconds: 1_200, ImperialAgeSeconds: 1_800);
+        var performance = scope.ServiceProvider.GetRequiredService<IPerformanceStatisticsService>();
+
+        var saved = await performance.SaveManualAsync(new SavePerformanceReportRequest(
+            match.Id, creator.Id, MatchStatisticsSource.JsonImport,
+            [new SavePlayerStatistics(first.Id, values), new SavePlayerStatistics(second.Id, values)]));
+
+        Assert.True(saved.Succeeded);
+        var statistics = await database.PlayerMatchStatistics.ToArrayAsync();
+        Assert.All(statistics, statistic =>
+        {
+            Assert.Null(statistic.FeudalAgeSeconds);
+            Assert.Null(statistic.CastleAgeSeconds);
+            Assert.Null(statistic.ImperialAgeSeconds);
+        });
+    }
+
     [Theory]
     [InlineData("stamp")]
     [InlineData("role")]

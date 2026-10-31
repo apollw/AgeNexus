@@ -59,6 +59,8 @@ Cada marca informa seu significado e apresenta tanto o valor absoluto quanto a m
 
 As 70 conquistas não mantêm uma segunda contagem persistida. Um único snapshot agrega as estatísticas confirmadas de partidas validadas em ordem cronológica e determina o primeiro confronto no qual cada meta foi alcançada. Vinte delas formam uma progressão de longo prazo, começando em quatro ou cinco vezes o teto anterior de cada métrica e chegando a 2.000 partidas, 1.000 vitórias e 100.000 eliminações. O painel pagina esse snapshot em memória e os perfis reutilizam o mesmo resultado por dois minutos. Alterações de partidas ou estatísticas invalidam o cache pelo interceptor comum, evitando consultas por card e mantendo o histórico recalculável.
 
+A união de um perfil histórico a uma conta vinculada usa atualizações e exclusões em lote no PostgreSQL. O servidor deixa de carregar cada evento, estatística e participação para alterá-los linha a linha; toda a transferência continua atômica, com rollback em caso de conflito, limite operacional de 60 segundos na interface e registro do tempo total no log. A limpeza opcional do avatar antigo tem limite próprio e não bloqueia a conclusão da transferência.
+
 ## MVP e desempenho das IAs
 
 MVP é uma comparação interna da equipe e só pode ser informado quando ela possui ao menos dois integrantes. Equipes individuais — inclusive as de 1x1 e cada lado de um todos-contra-todos — não recebem o distintivo. A correção é retroativa: MVPs antigos dessas equipes são removidos e eventuais bônus de carreira recebem eventos de estorno, preservando o livro imutável.
