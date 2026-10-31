@@ -30,6 +30,7 @@ Revisão de código e configuração versionada, sem acesso ao banco de produç�
 - Uploads de avatar: até 2 MiB; capturas: até 4 MiB e 5 itens; replays: até 50 MiB, extensões restritas, acesso de escrita administrativo. Imagens validam assinatura e extensão; isso não equivale a decodificação completa ou antivírus. Replays são downloads binários, sem execução no servidor.
 - Storage usa URL HTTPS configurada no servidor e chave service-role no backend. Objetos usam chaves geradas, não caminhos arbitrários do usuário. Evidências são públicas por projeto: não devem conter material privado.
 - Perfis públicos usam projeções de dados do jogador; e-mail e ProviderKey não aparecem nessas projeções. Bio, localização e avatar escolhidos pelo jogador são públicos. Histórico interno inclui ID da conta criadora, mas não foi encontrado uso desse campo na renderização pública.
+- Salas de draft são deliberadamente legíveis por qualquer pessoa que possua o código compartilhável, inclusive sem cadastro. Essa leitura expõe somente os nomes, avatares e estado competitivo já apresentados na sala; todas as mutações continuam validando no servidor o perfil autenticado do organizador ou do representante da equipe. As escolhas correntes do pedra, papel e tesoura não são incluídas na projeção pública antes de ambos responderem.
 - Produção usa tratamento genérico de erros, HSTS e redirecionamento HTTPS. Endpoint público /health/database permite consultas ao banco; não expõe credenciais, mas merece controle de frequência se houver abuso.
 
 ## Verificações

@@ -10,7 +10,8 @@ public enum CivilizationDraftPhase
     Picks,
     Review,
     Completed,
-    Cancelled
+    Cancelled,
+    RockPaperScissors
 }
 
 public enum CivilizationDraftActionKind
@@ -19,12 +20,26 @@ public enum CivilizationDraftActionKind
     Pick
 }
 
+public enum CivilizationDraftOpeningAction
+{
+    Ban,
+    Pick
+}
+
+public enum CivilizationDraftRpsChoice
+{
+    Rock,
+    Paper,
+    Scissors
+}
+
 public sealed record CreateCivilizationDraftRequest(
     string Title,
     Guid GameEditionId,
     Guid? MapDefinitionId,
     MatchGameMode GameMode,
-    IReadOnlyCollection<CivilizationDraftTeamInput> Teams);
+    IReadOnlyCollection<CivilizationDraftTeamInput> Teams,
+    CivilizationDraftOpeningAction OpeningAction = CivilizationDraftOpeningAction.Ban);
 
 public sealed record CivilizationDraftTeamInput(
     string Name,
@@ -45,11 +60,13 @@ public sealed record CivilizationDraftView(
     string? MapName,
     MatchGameMode GameMode,
     CivilizationDraftPhase Phase,
+    CivilizationDraftOpeningAction OpeningAction,
     Guid CreatedByPlayerProfileId,
     Guid? CurrentPlayerProfileId,
     CivilizationDraftActionKind? CurrentAction,
     DateTimeOffset? TurnDeadlineUtc,
     CivilizationDraftActionView? LastAction,
+    CivilizationDraftRpsView RockPaperScissors,
     IReadOnlyCollection<CivilizationDraftTeamView> Teams,
     IReadOnlyCollection<CivilizationDraftFactionView> Pool,
     int CompletedActions,
@@ -62,8 +79,21 @@ public sealed record CivilizationDraftTeamView(
     Guid RepresentativePlayerProfileId,
     string RepresentativeDisplayName,
     bool RepresentativeReady,
+    bool RpsChoiceSubmitted,
     IReadOnlyCollection<CivilizationDraftParticipantView> Players,
     IReadOnlyCollection<CivilizationDraftTeamPickView> Picks);
+
+public sealed record CivilizationDraftRpsView(
+    int Round,
+    CivilizationDraftRpsResultView? LastResult);
+
+public sealed record CivilizationDraftRpsResultView(
+    string FirstTeamName,
+    CivilizationDraftRpsChoice FirstTeamChoice,
+    string SecondTeamName,
+    CivilizationDraftRpsChoice SecondTeamChoice,
+    bool IsTie,
+    string? WinnerTeamName);
 
 public sealed record CivilizationDraftTeamPickView(
     Guid FactionId,
@@ -109,6 +139,7 @@ public interface ICivilizationDraftService
 
     Task<CivilizationDraftOperationResult> SetReadyAsync(string shareCode, Guid playerProfileId, bool ready, CancellationToken cancellationToken = default);
     Task<CivilizationDraftOperationResult> StartAsync(string shareCode, Guid organizerPlayerProfileId, CancellationToken cancellationToken = default);
+    Task<CivilizationDraftOperationResult> SubmitRockPaperScissorsAsync(string shareCode, Guid playerProfileId, CivilizationDraftRpsChoice choice, CancellationToken cancellationToken = default);
     Task<CivilizationDraftOperationResult> SubmitBanAsync(string shareCode, Guid playerProfileId, Guid factionId, CancellationToken cancellationToken = default);
     Task<CivilizationDraftOperationResult> SubmitPickAsync(string shareCode, Guid playerProfileId, Guid factionId, CancellationToken cancellationToken = default);
     Task<CivilizationDraftOperationResult> CancelAsync(string shareCode, Guid organizerPlayerProfileId, CancellationToken cancellationToken = default);
