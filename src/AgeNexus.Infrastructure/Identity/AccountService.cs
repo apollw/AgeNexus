@@ -693,6 +693,15 @@ public sealed class AccountService(
             services.GetService<CompetitionQueryCache>()?.Invalidate();
             services.GetService<CatalogQueryCache>()?.Invalidate();
         }
+        catch (OperationCanceledException)
+        {
+            if (transaction is not null)
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+            }
+            database.ChangeTracker.Clear();
+            throw;
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception,
