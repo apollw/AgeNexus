@@ -33,7 +33,8 @@ internal sealed class CompetitionCacheInvalidationInterceptor(CompetitionQueryCa
             cache.Invalidate();
             if (context.ChangeTracker.Entries().Any(entry =>
                 (entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted) &&
-                (entry.Entity is Domain.Players.PlayerProfile or Domain.Competition.Season ||
+                (entry.Entity is Domain.Players.PlayerProfile or Domain.Competition.Season or
+                    Domain.Clans.Clan or Domain.Clans.ClanMembership ||
                  entry.Entity.GetType().Namespace == typeof(Domain.GameCatalog.GameEdition).Namespace)))
             {
                 catalogCache.Invalidate();
