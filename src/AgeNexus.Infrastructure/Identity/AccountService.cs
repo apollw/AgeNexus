@@ -145,7 +145,7 @@ public sealed class AccountService(
             from selected in database.PlayerFavoriteFactions.AsNoTracking()
             join faction in database.Factions.AsNoTracking() on selected.FactionId equals faction.Id
             where selected.PlayerProfileId == profile.Id && selected.Priority == 1
-            select new { faction.Id, faction.Name, faction.ImageUrl })
+            select new { faction.Id, faction.Name, faction.Slug, faction.ImageUrl })
             .SingleOrDefaultAsync(cancellationToken);
         return favorite is null
             ? profile
@@ -153,7 +153,8 @@ public sealed class AccountService(
             {
                 FavoriteFactionId = favorite.Id,
                 FavoriteFactionName = favorite.Name,
-                FavoriteFactionImageUrl = favorite.ImageUrl
+                FavoriteFactionImageUrl = favorite.ImageUrl ??
+                    AgeNexus.Infrastructure.GameCatalog.Age2DefinitiveEditionCatalog.GetCivilizationImagePath(favorite.Slug)
             };
     }
 
@@ -215,9 +216,14 @@ public sealed class AccountService(
 
     public async Task<IReadOnlyCollection<ProfileFactionOption>> GetFactionOptionsAsync(
         CancellationToken cancellationToken = default) =>
-        await database.Factions.AsNoTracking().OrderBy(x => x.Name)
-            .Select(x => new ProfileFactionOption(x.Id, x.Name, x.ImageUrl))
-            .ToArrayAsync(cancellationToken);
+        (await database.Factions.AsNoTracking().OrderBy(x => x.Name)
+            .Select(x => new { x.Id, x.Name, x.Slug, x.ImageUrl })
+            .ToArrayAsync(cancellationToken))
+            .Select(x => new ProfileFactionOption(
+                x.Id,
+                x.Name,
+                x.ImageUrl ?? AgeNexus.Infrastructure.GameCatalog.Age2DefinitiveEditionCatalog.GetCivilizationImagePath(x.Slug)))
+            .ToArray();
 
     public async Task<ProfileOnboardingView?> GetProfileOnboardingAsync(
         ClaimsPrincipal principal,
