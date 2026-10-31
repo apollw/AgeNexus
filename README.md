@@ -4,6 +4,8 @@ Plataforma para registrar, comprovar e analisar partidas da série *Age of Empir
 
 O núcleo competitivo já inclui catálogo multi-jogo, partidas PvP/PvE/híbridas, comprovação por vídeo e capturas, confirmação e moderação, regras versionadas de rating e carreira, formações, clãs, rankings, estatísticas de civilizações e 50 conquistas retroativas. A autenticação é exclusivamente pelo Google; jogadores vinculam nicks históricos com aprovação administrativa e personalizam perfis públicos com foto e civilização favorita. Consulte a estrutura em [`docs/architecture`](docs/architecture/solution-structure.md), a especificação em [`Age-Nexus-Specs.md`](Age-Nexus-Specs.md) e as decisões em [`docs/adr`](docs/adr/0001-modular-monolith.md).
 
+Jogadores com perfil vinculado podem criar clãs e definir o elenco inicial. No registro de uma partida, cada lado pode carregar todos os integrantes ativos de um clã de uma vez e continuar ajustando participantes e civilizações individualmente antes do envio.
+
 Para configurar o ambiente e iniciar a aplicação, consulte [Como rodar o Age Nexus](docs/COMO-RODAR.md).
 
 Para banco PostgreSQL, autenticação e armazenamento no Supabase, consulte [Supabase no Age Nexus](docs/SUPABASE.md).
