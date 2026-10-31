@@ -62,11 +62,11 @@
 .match-team-card div { display: grid; gap: 3px; min-width: 0; }.match-team-card small { color: var(--muted); font-size: var(--font-xs); font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }.match-team-card.result-victory small { color: #347058; }
 .match-team-card strong { overflow: hidden; font: 700 var(--font-caption) "Unbounded"; text-overflow: ellipsis; white-space: nowrap; }
 .match-participant-list { display: grid; gap: 7px; margin-top: 4px; }
-.match-participant-civilization { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.match-participant-civilization > img { width: 28px; height: 28px; flex: 0 0 auto; object-fit: contain; }
-.match-participant-civilization > span { display: grid; gap: 1px; min-width: 0; }
-.match-participant-civilization strong { font: 750 var(--font-caption) inherit; }
-.match-participant-civilization small { color: var(--muted); font-size: var(--font-xs); font-weight: 700; letter-spacing: 0; text-transform: none; }
+.match-participant-civilization { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.match-participant-civilization > img { width: 22px; min-width: 22px; max-width: 22px; height: 22px; min-height: 22px; max-height: 22px; flex: 0 0 22px; object-fit: contain; }
+.match-participant-civilization > span { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.match-participant-civilization strong { font-family: inherit; font-size: var(--font-caption); font-weight: 800; line-height: 1.15; }
+.match-participant-civilization small { color: var(--muted); font-size: var(--font-xs); font-weight: 700; line-height: 1.2; letter-spacing: .02em; text-transform: none; }
 .match-history-main > footer { padding-top: 13px; border-top: 1px solid #ece6dc; font-size: var(--font-caption); }.match-history-main > footer > span { color: var(--muted); font-weight: 800; }.match-history-main > footer b { color: var(--forest); }.match-history-main > footer b span { color: var(--gold); }
 .match-history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 15px; padding: 11px 22px; border-top: 1px solid #ece6dc; background: #fbf8f1; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 11px; }.pagination a, .pagination button { display: grid; place-items: center; min-width: 38px; height: 38px; padding: 0 9px; color: var(--forest); border: 1px solid var(--line); border-radius: 5px; background: #fffdf8; font-family: inherit; font-size: var(--font-caption); font-weight: 800; cursor: pointer; }.pagination a.active, .pagination button.active { color: #fff; border-color: var(--forest); background: var(--forest); }.pagination a.disabled, .pagination button.disabled, .pagination button:disabled { pointer-events: none; opacity: .35; }
