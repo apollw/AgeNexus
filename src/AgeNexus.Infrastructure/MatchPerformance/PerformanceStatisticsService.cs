@@ -110,6 +110,7 @@ public sealed class PerformanceStatisticsService(
 
         return new PerformanceReportView(
             match.Id,
+            match.CreatedByPlayerProfileId,
             match.Status.ToString(),
             match.ScoringCategory.ToString(),
             report?.Id,
@@ -153,6 +154,7 @@ public sealed class PerformanceStatisticsService(
 
         try
         {
+            var transferOwnershipToCreator = false;
             var report = await database.MatchStatisticsReports.SingleOrDefaultAsync(
                 x => x.MatchId == request.MatchId,
                 cancellationToken);
@@ -169,17 +171,27 @@ public sealed class PerformanceStatisticsService(
                     coverageDetails: request.Source == MatchStatisticsSource.JsonImport ? request.ImportDetails : null);
                 database.MatchStatisticsReports.Add(report);
             }
-            else if (!isAdministrator && report.SubmittedByPlayerProfileId != request.SubmittedByPlayerProfileId)
+            else
             {
-                return PerformanceOperationResult.Failure("ReportOwnedByAnotherUser");
-            }
-            else if (report.Status != MatchStatisticsStatus.Draft)
-            {
-                return PerformanceOperationResult.Failure("ReportIsLocked");
-            }
-            else if (request.Source == MatchStatisticsSource.JsonImport && request.ImportDetails is not null)
-            {
-                report.ApplyJsonImport(request.ImportDetails);
+                if (report.Status != MatchStatisticsStatus.Draft)
+                {
+                    return PerformanceOperationResult.Failure("ReportIsLocked");
+                }
+
+                if (!isAdministrator && report.SubmittedByPlayerProfileId != request.SubmittedByPlayerProfileId)
+                {
+                    if (match.CreatedByPlayerProfileId != request.SubmittedByPlayerProfileId)
+                    {
+                        return PerformanceOperationResult.Failure("ReportOwnedByAnotherUser");
+                    }
+
+                    transferOwnershipToCreator = true;
+                }
+
+                if (request.Source == MatchStatisticsSource.JsonImport && request.ImportDetails is not null)
+                {
+                    report.ApplyJsonImport(request.ImportDetails);
+                }
             }
 
             var existing = await database.PlayerMatchStatistics
@@ -206,6 +218,10 @@ public sealed class PerformanceStatisticsService(
                 }
             }
 
+            if (transferOwnershipToCreator)
+            {
+                report.TransferDraftOwnership(request.SubmittedByPlayerProfileId);
+            }
             report.MarkManualCompletion();
             await database.SaveChangesAsync(cancellationToken);
             return PerformanceOperationResult.Success(report.Id);
@@ -238,7 +254,11 @@ public sealed class PerformanceStatisticsService(
         }
 
         var isAdministrator = await accounts.IsAdministratorProfileAsync(playerProfileId, cancellationToken);
-        if (!isAdministrator && report.SubmittedByPlayerProfileId != playerProfileId)
+        var transferOwnershipToCreator = !isAdministrator &&
+                                         report.SubmittedByPlayerProfileId != playerProfileId &&
+                                         match.CreatedByPlayerProfileId == playerProfileId;
+        if (!isAdministrator && report.SubmittedByPlayerProfileId != playerProfileId &&
+            !transferOwnershipToCreator)
         {
             return PerformanceOperationResult.Failure("ReportOwnedByAnotherUser");
         }
@@ -263,6 +283,10 @@ public sealed class PerformanceStatisticsService(
         try
         {
             var now = DateTimeOffset.UtcNow;
+            if (transferOwnershipToCreator)
+            {
+                report.TransferDraftOwnership(playerProfileId);
+            }
             report.Submit(now, statistics.Length == participantCount && statistics.All(x => x.IsComplete));
             if (SingleAdministratorMode && isAdministrator)
             {
