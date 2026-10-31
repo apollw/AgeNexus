@@ -68,7 +68,9 @@ public sealed class MatchHistoryQueryTests
         Assert.Equal(MatchStatisticsStatus.Draft, summary.StatisticsStatus);
         var participants = summary.Teams.SelectMany(x => x.Participants).ToArray();
         Assert.Equal(["Primeiro", "Segundo"], participants.Select(x => x.DisplayName).ToArray());
-        Assert.Equal(["Mongóis", "Romanos"], participants.Select(x => x.FactionName).ToArray());
+        Assert.Collection(participants,
+            first => Assert.Equal("Mongóis", first.FactionName),
+            second => Assert.Equal("Romanos", second.FactionName));
         Assert.Equal("/images/civilizations/mongols.png", participants[0].FactionImageUrl);
         Assert.Equal("https://example.test/romans.png", participants[1].FactionImageUrl);
     }
