@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AgeNexus.Infrastructure.Clans;
 
-internal sealed class ClanService(AgeNexusDbContext database, AccountService accounts) : IClanService
+public sealed class ClanService(AgeNexusDbContext database, AccountService accounts) : IClanService
 {
     public async Task<ClanOperationResult> CreateAsync(
         Guid createdByPlayerProfileId,
