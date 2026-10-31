@@ -126,7 +126,21 @@
                         {
                             <div class="match-team-card result-@ResultClass(team.Result)">
                                 <span class="match-result-mark" aria-hidden="true">@ResultMark(team.Result)</span>
-                                <div><small>@ResultLabel(team.Result)</small><strong>@string.Join(" + ", team.Participants)</strong></div>
+                                <div>
+                                    <small>@ResultLabel(team.Result)</small>
+                                    <div class="match-participant-list">
+                                        @foreach (var participant in team.Participants)
+                                        {
+                                            <span class="match-participant-civilization">
+                                                @if (!string.IsNullOrWhiteSpace(participant.FactionImageUrl))
+                                                {
+                                                    <img src="@participant.FactionImageUrl" alt="" loading="lazy" />
+                                                }
+                                                <span><strong>@participant.DisplayName</strong><small>@(participant.FactionName ?? "Civilização não informada")</small></span>
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
                             </div>
                         }
                     </div>
