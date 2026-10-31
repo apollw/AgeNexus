@@ -2,7 +2,7 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using System.ComponentModel.DataAnnotations
 @inject AgeNexus.Application.Queries.IClanQueryService ClanQueries
-@inject AgeNexus.Application.Queries.IClanService Clans
+@inject AgeNexus.Application.Queries.IClanService ClanCommands
 @inject AgeNexus.Application.Queries.IPlayerDirectoryQueryService Players
 @inject AgeNexus.Infrastructure.Identity.AccountService Accounts
 
@@ -145,7 +145,7 @@
         Error = null;
         try
         {
-            var result = await Clans.CreateAsync(CurrentProfile.Id, Form.Name, Form.Tag, SelectedMemberIds.ToArray());
+            var result = await ClanCommands.CreateAsync(CurrentProfile.Id, Form.Name, Form.Tag, SelectedMemberIds.ToArray());
             if (!result.Succeeded)
             {
                 Error = result.ErrorCode switch
