@@ -42,7 +42,7 @@
                             <div class="home-match-teams">
                                 @foreach (var team in match.Teams)
                                 {
-                                    <strong class="@(team.Result == AgeNexus.Domain.Matches.TeamResult.Victory ? "winner" : null)"><span>@TeamResultMark(team.Result)</span>@string.Join(" + ", team.Participants)</strong>
+                                    <strong class="@(team.Result == AgeNexus.Domain.Matches.TeamResult.Victory ? "winner" : null)"><span>@TeamResultMark(team.Result)</span>@string.Join(" + ", team.Participants.Select(x => x.DisplayName))</strong>
                                 }
                             </div>
                             <span class="home-match-versus">VS</span>
