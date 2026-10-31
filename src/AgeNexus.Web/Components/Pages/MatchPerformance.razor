@@ -260,7 +260,7 @@ else
                                         <td>@FormatNumber(player.Values.UnitsLost)</td>
                                         <td>@UnitBalance(player.Values)</td>
                                         <td>@FormatNumber(ResourceTotal(player.Values))</td>
-                                        <td>@FormatEra(player.Values.FeudalAgeSeconds)</td>
+                                        <td>@(IgnoresEraTimes ? "Ignorado" : FormatEra(player.Values.FeudalAgeSeconds))</td>
                                     </tr>
                                 }
                             </tbody>
@@ -401,9 +401,16 @@ else
                         <tr><th>Tecnologias</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.ResearchCount" /></td> }</tr>
                         <tr><th>Pesquisas concluídas (%)</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.ResearchPercent" step="0.01" /></td> }</tr>
                         <tr><th>Mapa explorado (%)</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.ExploredPercent" /></td> }</tr>
-                        <tr><th>Era Feudal (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.FeudalAge" /></td> }</tr>
-                        <tr><th>Era dos Castelos (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.CastleAge" /></td> }</tr>
-                        <tr><th>Era Imperial (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.ImperialAge" /></td> }</tr>
+                        @if (IgnoresEraTimes)
+                        {
+                            <tr><th>Tempos de avanço</th><td colspan="@Rows.Count"><span class="ignored-statistic">Ignorados em Combate Mortal, pois a partida já começa na Era Imperial.</span></td></tr>
+                        }
+                        else
+                        {
+                            <tr><th>Era Feudal (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.FeudalAge" /></td> }</tr>
+                            <tr><th>Era dos Castelos (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.CastleAge" /></td> }</tr>
+                            <tr><th>Era Imperial (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.ImperialAge" /></td> }</tr>
+                        }
                     </tbody>
                 </table></div>
             </section>
@@ -588,6 +595,7 @@ else
     private bool LoadEvidenceAfterRender { get; set; }
     private bool IsLoading { get; set; } = true;
     private string? LoadError { get; set; }
+    private bool IgnoresEraTimes => View?.GameMode == AgeNexus.Domain.Matches.MatchGameMode.DeathMatch;
 
     private string JsonImportSummary => JsonImportResult?.Status switch
     {
@@ -1382,10 +1390,6 @@ else
             Rows.Select(row => new AgeNexus.Application.MatchPerformance.UpdateParticipantFaction(
                 row.MatchParticipantId, row.FactionId)).ToArray());
         SetResult(result, "Civilizações atualizadas.");
-        if (result.Succeeded)
-        {
-            await ReloadAsync();
-        }
         Busy = false;
     }
 

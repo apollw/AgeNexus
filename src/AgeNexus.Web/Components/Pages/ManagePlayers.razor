@@ -290,8 +290,9 @@
         try
         {
             var authentication = await AuthenticationStateTask;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var result = await Accounts.MergeHistoricalProfileAsync(
-                authentication.User, HistoricalProfileId!.Value, LinkedProfileId!.Value);
+                authentication.User, HistoricalProfileId!.Value, LinkedProfileId!.Value, timeout.Token);
             HasError = !result.Succeeded;
             Message = result.Succeeded
                 ? "Histórico transferido. O perfil novo manteve seus dados pessoais e visuais."
@@ -299,7 +300,9 @@
                     ? "A união foi bloqueada porque os dois perfis já aparecem na mesma partida ou formação. Revise os perfis escolhidos."
                     : result.ErrorCodes.Contains("HistoricalProfileUnavailable") || result.ErrorCodes.Contains("LinkedProfileUnavailable")
                         ? "Um dos perfis não está mais disponível para esta união. Atualize a página e tente novamente."
-                        : "Não foi possível transferir o histórico. Nenhum dado foi alterado.";
+                        : result.ErrorCodes.Contains("ProfileMergeConflict")
+                            ? "A transferência encontrou um conflito nos dados e foi desfeita por segurança. Nenhum dado foi alterado."
+                            : "Não foi possível transferir o histórico. Nenhum dado foi alterado.";
             if (result.Succeeded)
             {
                 HistoricalProfileId = null;
@@ -307,6 +310,16 @@
                 MergeConfirmed = false;
                 await ReloadAsync();
             }
+        }
+        catch (OperationCanceledException)
+        {
+            HasError = true;
+            Message = "A transferência ultrapassou 60 segundos e foi cancelada sem alterar os dados. Tente novamente.";
+        }
+        catch (Exception)
+        {
+            HasError = true;
+            Message = "A transferência falhou inesperadamente e foi interrompida sem concluir a união.";
         }
         finally
         {

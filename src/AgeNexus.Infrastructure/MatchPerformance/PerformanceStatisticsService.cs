@@ -115,6 +115,7 @@ public sealed class PerformanceStatisticsService(
             match.CreatedByPlayerProfileId,
             match.Status.ToString(),
             match.ScoringCategory.ToString(),
+            match.GameMode,
             report?.Id,
             report?.Source,
             report?.Status,
@@ -202,6 +203,7 @@ public sealed class PerformanceStatisticsService(
             foreach (var submitted in request.Players)
             {
                 var participant = participants[submitted.MatchParticipantId];
+                var values = NormalizeForGameMode(match.GameMode, submitted.Values);
                 var origin = request.Source switch
                 {
                     MatchStatisticsSource.ScreenshotTranscription => StatisticValueOrigin.Screenshot,
@@ -210,13 +212,13 @@ public sealed class PerformanceStatisticsService(
                 };
                 if (existing.TryGetValue(submitted.MatchParticipantId, out var statistic))
                 {
-                    statistic.Apply(submitted.Values, origin);
+                    statistic.Apply(values, origin);
                 }
                 else
                 {
                     database.PlayerMatchStatistics.Add(new PlayerMatchStatistics(
                         Guid.NewGuid(), report.Id, match.Id, participant.TeamId, participant.ParticipantId,
-                        participant.PlayerProfileId, participant.AiDifficultyId, origin, submitted.Values));
+                        participant.PlayerProfileId, participant.AiDifficultyId, origin, values));
                 }
             }
 
@@ -717,5 +719,17 @@ public sealed class PerformanceStatisticsService(
         values.FoodCollected.HasValue && values.WoodCollected.HasValue && values.GoldCollected.HasValue &&
         values.StoneCollected.HasValue && values.MilitaryScore.HasValue && values.EconomyScore.HasValue &&
         values.TechnologyScore.HasValue && values.SocietyScore.HasValue && values.TotalScore.HasValue;
+
+    private static MatchStatisticValues NormalizeForGameMode(
+        MatchGameMode gameMode,
+        MatchStatisticValues values) =>
+        gameMode == MatchGameMode.DeathMatch
+            ? values with
+            {
+                FeudalAgeSeconds = null,
+                CastleAgeSeconds = null,
+                ImperialAgeSeconds = null
+            }
+            : values;
 
 }

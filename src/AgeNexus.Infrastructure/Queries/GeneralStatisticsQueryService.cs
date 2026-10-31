@@ -38,7 +38,7 @@ internal sealed class GeneralStatisticsQueryService(
             where statistic.PlayerProfileId.HasValue && match.Status == MatchStatus.Validated &&
                   (report.Status == MatchStatisticsStatus.Confirmed ||
                    report.Status == MatchStatisticsStatus.Awarded)
-            select new { Statistic = statistic, team.Result, PlayerId = player.Id, player.DisplayName, player.AvatarUrl };
+            select new { Statistic = statistic, team.Result, match.GameMode, PlayerId = player.Id, player.DisplayName, player.AvatarUrl };
 
         var rows = await source
             .GroupBy(x => new { x.PlayerId, x.DisplayName, x.AvatarUrl })
@@ -79,15 +79,15 @@ internal sealed class GeneralStatisticsQueryService(
                 ExploredPercent = group.Average(x => (decimal?)x.Statistic.ExploredPercent),
                 ExploredPercentTotal = group.Sum(x => (decimal?)x.Statistic.ExploredPercent),
                 ExploredPercentMatches = group.Count(x => x.Statistic.ExploredPercent.HasValue),
-                FeudalAgeSeconds = group.Min(x => (decimal?)x.Statistic.FeudalAgeSeconds),
-                FeudalAgeSecondsTotal = group.Sum(x => (decimal?)x.Statistic.FeudalAgeSeconds),
-                FeudalAgeMatches = group.Count(x => x.Statistic.FeudalAgeSeconds.HasValue),
-                CastleAgeSeconds = group.Min(x => (decimal?)x.Statistic.CastleAgeSeconds),
-                CastleAgeSecondsTotal = group.Sum(x => (decimal?)x.Statistic.CastleAgeSeconds),
-                CastleAgeMatches = group.Count(x => x.Statistic.CastleAgeSeconds.HasValue),
-                ImperialAgeSeconds = group.Min(x => (decimal?)x.Statistic.ImperialAgeSeconds),
-                ImperialAgeSecondsTotal = group.Sum(x => (decimal?)x.Statistic.ImperialAgeSeconds),
-                ImperialAgeMatches = group.Count(x => x.Statistic.ImperialAgeSeconds.HasValue),
+                FeudalAgeSeconds = group.Min(x => x.GameMode == MatchGameMode.DeathMatch ? null : (decimal?)x.Statistic.FeudalAgeSeconds),
+                FeudalAgeSecondsTotal = group.Sum(x => x.GameMode == MatchGameMode.DeathMatch ? null : (decimal?)x.Statistic.FeudalAgeSeconds),
+                FeudalAgeMatches = group.Count(x => x.GameMode != MatchGameMode.DeathMatch && x.Statistic.FeudalAgeSeconds.HasValue),
+                CastleAgeSeconds = group.Min(x => x.GameMode == MatchGameMode.DeathMatch ? null : (decimal?)x.Statistic.CastleAgeSeconds),
+                CastleAgeSecondsTotal = group.Sum(x => x.GameMode == MatchGameMode.DeathMatch ? null : (decimal?)x.Statistic.CastleAgeSeconds),
+                CastleAgeMatches = group.Count(x => x.GameMode != MatchGameMode.DeathMatch && x.Statistic.CastleAgeSeconds.HasValue),
+                ImperialAgeSeconds = group.Min(x => x.GameMode == MatchGameMode.DeathMatch ? null : (decimal?)x.Statistic.ImperialAgeSeconds),
+                ImperialAgeSecondsTotal = group.Sum(x => x.GameMode == MatchGameMode.DeathMatch ? null : (decimal?)x.Statistic.ImperialAgeSeconds),
+                ImperialAgeMatches = group.Count(x => x.GameMode != MatchGameMode.DeathMatch && x.Statistic.ImperialAgeSeconds.HasValue),
                 PeakVillagers = group.Max(x => (decimal?)x.Statistic.PeakVillagers),
                 PeakVillagersTotal = group.Sum(x => (decimal?)x.Statistic.PeakVillagers),
                 PeakVillagersMatches = group.Count(x => x.Statistic.PeakVillagers.HasValue),

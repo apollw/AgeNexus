@@ -23,6 +23,7 @@ Slogan opcional: **Toda partida deixa uma história.**
 5. Partidas contra IA não devem inflar o ranking competitivo humano.
 6. Estatísticas sempre devem mostrar tamanho da amostra e nunca tratar duas partidas como evidência equivalente a cinquenta.
 7. Toda alteração relevante em uma partida validada deve ser auditável e provocar o recálculo dos rankings e das estatísticas afetadas.
+8. Modos que começam em uma era avançada não podem produzir recordes artificiais de avanço; em Combate Mortal, todos os tempos de chegada às eras são ignorados independentemente da origem dos dados.
 
 ## 3. Escopo funcional
 

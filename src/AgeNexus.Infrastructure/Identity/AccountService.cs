@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Diagnostics;
 using AgeNexus.Application.Evidence;
 using AgeNexus.Domain.Common;
 using AgeNexus.Domain.Competition;
@@ -570,6 +571,7 @@ public sealed class AccountService(
         Guid linkedProfileId,
         CancellationToken cancellationToken = default)
     {
+        var elapsed = Stopwatch.StartNew();
         if (!await IsAdministratorAsync(principal, cancellationToken))
         {
             return AccountOperationResult.Failure(["NotAuthorized"]);
@@ -663,70 +665,31 @@ public sealed class AccountService(
                 database.TeamLineups.Remove(replacement.Old);
             }
 
-            SetNullableGuid(await database.MatchParticipants
-                .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
-                nameof(AgeNexus.Domain.Matches.MatchParticipant.PlayerProfileId), linkedProfileId);
-            SetNullableGuid(await database.PlayerMatchStatistics
-                .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
-                nameof(AgeNexus.Domain.MatchPerformance.PlayerMatchStatistics.PlayerProfileId), linkedProfileId);
-            SetGuid(await database.PlayerPerformanceScores
-                .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
-                nameof(AgeNexus.Domain.MatchPerformance.PlayerPerformanceScore.PlayerProfileId), linkedProfileId);
-            SetGuid(await database.RatingEvents
-                .Where(x => x.BeneficiaryId == historicalProfileId &&
-                            x.Scope != RatingScopeKind.TeamLineup && x.Scope != RatingScopeKind.ClanCompetitive)
-                .ToArrayAsync(cancellationToken), nameof(RatingEvent.BeneficiaryId), linkedProfileId);
-            SetGuid(await database.PointEvents
-                .Where(x => x.BeneficiaryId == historicalProfileId &&
-                            x.Scope != PointScopeKind.ClanPrestige && x.Scope != PointScopeKind.ClanPve)
-                .ToArrayAsync(cancellationToken), nameof(PointEvent.BeneficiaryId), linkedProfileId);
-            SetGuid(await database.Matches
-                .Where(x => x.CreatedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
-                nameof(AgeNexus.Domain.Matches.Match.CreatedByPlayerProfileId), linkedProfileId);
-            SetGuid(await database.MatchConfirmations
-                .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
-                nameof(AgeNexus.Domain.Matches.MatchConfirmation.PlayerProfileId), linkedProfileId);
-            SetGuid(await database.MatchStatisticsReports
-                .Where(x => x.SubmittedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
-                nameof(AgeNexus.Domain.MatchPerformance.MatchStatisticsReport.SubmittedByPlayerProfileId), linkedProfileId);
-            SetGuid(await database.StatisticsConfirmations
-                .Where(x => x.ConfirmedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
-                nameof(AgeNexus.Domain.MatchPerformance.StatisticsConfirmation.ConfirmedByPlayerProfileId), linkedProfileId);
-            SetGuid(await database.MatchEvidence
-                .Where(x => x.SubmittedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
-                nameof(AgeNexus.Domain.EvidenceAndModeration.MatchEvidence.SubmittedByPlayerProfileId), linkedProfileId);
-            SetGuid(await database.Clans
-                .Where(x => x.CreatedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
-                nameof(AgeNexus.Domain.Clans.Clan.CreatedByPlayerProfileId), linkedProfileId);
-
-            // A identidade atual prevalece: avatar, preferências, solicitações, clã e tickets antigos não são herdados.
-            database.PlayerFavoriteFactions.RemoveRange(await database.PlayerFavoriteFactions
-                .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken));
-            database.PlayerProfileClaims.RemoveRange(await database.PlayerProfileClaims
-                .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken));
-            database.ClanMemberships.RemoveRange(await database.ClanMemberships
-                .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken));
-            database.ChallengeTickets.RemoveRange(await database.ChallengeTickets
-                .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken));
-            var historicalAvatar = await database.PlayerProfileAvatars
-                .SingleOrDefaultAsync(x => x.PlayerProfileId == historicalProfileId, cancellationToken);
-            if (historicalAvatar is not null)
+            if (database.Database.IsRelational())
             {
-                database.PlayerProfileAvatars.Remove(historicalAvatar);
+                // Persist the few lineup replacements first, then transfer the potentially large
+                // history with set-based SQL instead of loading and updating every row in memory.
+                if (replacementLineups.Length > 0)
+                {
+                    await database.SaveChangesAsync(cancellationToken);
+                }
+                await BulkTransferProfileHistoryAsync(historicalProfileId, linkedProfileId, cancellationToken);
             }
-
-            database.PlayerProfiles.Remove(historicalProfile);
-            await database.SaveChangesAsync(cancellationToken);
+            else
+            {
+                await TransferProfileHistoryInMemoryAsync(
+                    historicalProfile, historicalProfileId, linkedProfileId, cancellationToken);
+            }
             if (transaction is not null)
             {
                 await transaction.CommitAsync(cancellationToken);
             }
         }
-        catch (DbUpdateException exception)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception,
-                "Falha ao mesclar o perfil historico {HistoricalProfileId} no perfil {LinkedProfileId}.",
-                historicalProfileId, linkedProfileId);
+                "Falha ao mesclar o perfil historico {HistoricalProfileId} no perfil {LinkedProfileId} apos {ElapsedMs} ms.",
+                historicalProfileId, linkedProfileId, elapsed.ElapsedMilliseconds);
             if (transaction is not null)
             {
                 await transaction.RollbackAsync(CancellationToken.None);
@@ -738,10 +701,129 @@ public sealed class AccountService(
         if (historicalAvatarKey is not null &&
             historicalAvatarKey.StartsWith($"profiles/{historicalProfileId:N}/", StringComparison.Ordinal))
         {
-            await TryDeleteStorageObjectAsync(historicalAvatarKey, cancellationToken);
+            using var cleanupTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await TryDeleteStorageObjectAsync(historicalAvatarKey, cleanupTimeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogWarning("A limpeza do avatar antigo {ObjectKey} excedeu 5 segundos e foi ignorada.", historicalAvatarKey);
+            }
         }
 
+        logger.LogInformation(
+            "Perfil historico {HistoricalProfileId} mesclado em {LinkedProfileId} em {ElapsedMs} ms.",
+            historicalProfileId, linkedProfileId, elapsed.ElapsedMilliseconds);
         return AccountOperationResult.Success();
+    }
+
+    private async Task BulkTransferProfileHistoryAsync(
+        Guid historicalProfileId,
+        Guid linkedProfileId,
+        CancellationToken cancellationToken)
+    {
+        await database.MatchParticipants.Where(x => x.PlayerProfileId == historicalProfileId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.PlayerProfileId, (Guid?)linkedProfileId), cancellationToken);
+        await database.PlayerMatchStatistics.Where(x => x.PlayerProfileId == historicalProfileId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.PlayerProfileId, (Guid?)linkedProfileId), cancellationToken);
+        await database.PlayerPerformanceScores.Where(x => x.PlayerProfileId == historicalProfileId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.PlayerProfileId, linkedProfileId), cancellationToken);
+        await database.RatingEvents.Where(x => x.BeneficiaryId == historicalProfileId &&
+                                               x.Scope != RatingScopeKind.TeamLineup &&
+                                               x.Scope != RatingScopeKind.ClanCompetitive)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.BeneficiaryId, linkedProfileId), cancellationToken);
+        await database.PointEvents.Where(x => x.BeneficiaryId == historicalProfileId &&
+                                              x.Scope != PointScopeKind.ClanPrestige &&
+                                              x.Scope != PointScopeKind.ClanPve)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.BeneficiaryId, linkedProfileId), cancellationToken);
+        await database.Matches.Where(x => x.CreatedByPlayerProfileId == historicalProfileId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.CreatedByPlayerProfileId, linkedProfileId), cancellationToken);
+        await database.MatchConfirmations.Where(x => x.PlayerProfileId == historicalProfileId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.PlayerProfileId, linkedProfileId), cancellationToken);
+        await database.MatchStatisticsReports.Where(x => x.SubmittedByPlayerProfileId == historicalProfileId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.SubmittedByPlayerProfileId, linkedProfileId), cancellationToken);
+        await database.StatisticsConfirmations.Where(x => x.ConfirmedByPlayerProfileId == historicalProfileId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.ConfirmedByPlayerProfileId, linkedProfileId), cancellationToken);
+        await database.MatchEvidence.Where(x => x.SubmittedByPlayerProfileId == historicalProfileId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.SubmittedByPlayerProfileId, linkedProfileId), cancellationToken);
+        await database.Clans.Where(x => x.CreatedByPlayerProfileId == historicalProfileId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.CreatedByPlayerProfileId, linkedProfileId), cancellationToken);
+
+        // A identidade atual prevalece: avatar, preferências, solicitações, clã e tickets antigos não são herdados.
+        await database.PlayerFavoriteFactions.Where(x => x.PlayerProfileId == historicalProfileId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await database.PlayerProfileClaims.Where(x => x.PlayerProfileId == historicalProfileId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await database.ClanMemberships.Where(x => x.PlayerProfileId == historicalProfileId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await database.ChallengeTickets.Where(x => x.PlayerProfileId == historicalProfileId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await database.PlayerProfileAvatars.Where(x => x.PlayerProfileId == historicalProfileId)
+            .ExecuteDeleteAsync(cancellationToken);
+        await database.PlayerProfiles.Where(x => x.Id == historicalProfileId)
+            .ExecuteDeleteAsync(cancellationToken);
+        database.ChangeTracker.Clear();
+    }
+
+    private async Task TransferProfileHistoryInMemoryAsync(
+        PlayerProfile historicalProfile,
+        Guid historicalProfileId,
+        Guid linkedProfileId,
+        CancellationToken cancellationToken)
+    {
+        SetNullableGuid(await database.MatchParticipants
+            .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
+            nameof(AgeNexus.Domain.Matches.MatchParticipant.PlayerProfileId), linkedProfileId);
+        SetNullableGuid(await database.PlayerMatchStatistics
+            .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
+            nameof(AgeNexus.Domain.MatchPerformance.PlayerMatchStatistics.PlayerProfileId), linkedProfileId);
+        SetGuid(await database.PlayerPerformanceScores
+            .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
+            nameof(AgeNexus.Domain.MatchPerformance.PlayerPerformanceScore.PlayerProfileId), linkedProfileId);
+        SetGuid(await database.RatingEvents
+            .Where(x => x.BeneficiaryId == historicalProfileId &&
+                        x.Scope != RatingScopeKind.TeamLineup && x.Scope != RatingScopeKind.ClanCompetitive)
+            .ToArrayAsync(cancellationToken), nameof(RatingEvent.BeneficiaryId), linkedProfileId);
+        SetGuid(await database.PointEvents
+            .Where(x => x.BeneficiaryId == historicalProfileId &&
+                        x.Scope != PointScopeKind.ClanPrestige && x.Scope != PointScopeKind.ClanPve)
+            .ToArrayAsync(cancellationToken), nameof(PointEvent.BeneficiaryId), linkedProfileId);
+        SetGuid(await database.Matches
+            .Where(x => x.CreatedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
+            nameof(AgeNexus.Domain.Matches.Match.CreatedByPlayerProfileId), linkedProfileId);
+        SetGuid(await database.MatchConfirmations
+            .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
+            nameof(AgeNexus.Domain.Matches.MatchConfirmation.PlayerProfileId), linkedProfileId);
+        SetGuid(await database.MatchStatisticsReports
+            .Where(x => x.SubmittedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
+            nameof(AgeNexus.Domain.MatchPerformance.MatchStatisticsReport.SubmittedByPlayerProfileId), linkedProfileId);
+        SetGuid(await database.StatisticsConfirmations
+            .Where(x => x.ConfirmedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
+            nameof(AgeNexus.Domain.MatchPerformance.StatisticsConfirmation.ConfirmedByPlayerProfileId), linkedProfileId);
+        SetGuid(await database.MatchEvidence
+            .Where(x => x.SubmittedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
+            nameof(AgeNexus.Domain.EvidenceAndModeration.MatchEvidence.SubmittedByPlayerProfileId), linkedProfileId);
+        SetGuid(await database.Clans
+            .Where(x => x.CreatedByPlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken),
+            nameof(AgeNexus.Domain.Clans.Clan.CreatedByPlayerProfileId), linkedProfileId);
+
+        database.PlayerFavoriteFactions.RemoveRange(await database.PlayerFavoriteFactions
+            .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken));
+        database.PlayerProfileClaims.RemoveRange(await database.PlayerProfileClaims
+            .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken));
+        database.ClanMemberships.RemoveRange(await database.ClanMemberships
+            .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken));
+        database.ChallengeTickets.RemoveRange(await database.ChallengeTickets
+            .Where(x => x.PlayerProfileId == historicalProfileId).ToArrayAsync(cancellationToken));
+        var historicalAvatar = await database.PlayerProfileAvatars
+            .SingleOrDefaultAsync(x => x.PlayerProfileId == historicalProfileId, cancellationToken);
+        if (historicalAvatar is not null)
+        {
+            database.PlayerProfileAvatars.Remove(historicalAvatar);
+        }
+        database.PlayerProfiles.Remove(historicalProfile);
+        await database.SaveChangesAsync(cancellationToken);
     }
 
     private void SetGuid<TEntity>(IEnumerable<TEntity> entities, string propertyName, Guid value)

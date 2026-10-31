@@ -73,6 +73,7 @@ public sealed record PerformanceReportView(
     Guid CreatedByPlayerProfileId,
     string MatchStatus,
     string Category,
+    MatchGameMode GameMode,
     Guid? ReportId,
     MatchStatisticsSource? Source,
     MatchStatisticsStatus? Status,
