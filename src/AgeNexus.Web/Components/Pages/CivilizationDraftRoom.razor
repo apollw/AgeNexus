@@ -1,5 +1,4 @@
 @page "/partidas/drafts/{ShareCode}"
-@attribute [Authorize]
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @implements IDisposable
 @using Microsoft.JSInterop
@@ -17,7 +16,7 @@
 {
     <section class="panel panel-empty page-empty"><strong>Draft não encontrado</strong><p>Confira o link compartilhado.</p><a class="button button-secondary" href="/partidas">Voltar às partidas</a></section>
 }
-else if (Draft is not null && Profile is not null)
+else if (Draft is not null)
 {
     <section class="page-heading compact-heading draft-room-heading">
         <div><span class="eyebrow">@PhaseLabel(Draft.Phase)</span><h1>@Draft.Title</h1><p>@(Draft.MapName ?? "Mapa a definir") · @ModeLabel(Draft.GameMode) · sala <strong>@Draft.ShareCode</strong></p></div>
@@ -29,9 +28,14 @@ else if (Draft is not null && Profile is not null)
         <div class="form-alert @(OperationFailed ? "form-alert-error" : "form-alert-success")">@Message</div>
     }
 
+    @if (!IsRepresentative)
+    {
+        <div class="draft-spectator-banner"><strong>Modo espectador</strong><span>Você pode acompanhar este draft ao vivo. Somente os representantes definidos podem confirmar presença e realizar escolhas.</span></div>
+    }
+
     <section class="draft-status-strip" aria-label="Estado do draft">
         <div><span>Etapa atual</span><strong>@PhaseLabel(Draft.Phase)</strong></div>
-        <div><span>Vez de</span><strong>@(CurrentRepresentativeName ?? "Aguardando início")</strong></div>
+        <div><span>Vez de</span><strong>@(CurrentRepresentativeName ?? (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.RockPaperScissors ? "Em disputa" : "Aguardando início"))</strong></div>
         <div><span>Progresso</span><strong>@Draft.CompletedActions de @Draft.TotalActions ações</strong></div>
         <div><span>Tempo da jogada</span><strong class="draft-timer @(RemainingSeconds <= 10 ? "is-ending" : null)">@(IsActive ? $"{RemainingSeconds}s" : "—")</strong></div>
         <div><span>Civilizações livres</span><strong>@AvailableFactions de @Draft.Pool.Count</strong></div>
@@ -66,7 +70,31 @@ else if (Draft is not null && Profile is not null)
 
     @if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Lobby)
     {
-        <section class="panel draft-action-panel"><div><span class="eyebrow">Confirmação</span><h2>Os dois representantes devem entrar</h2><p>Somente o representante definido de cada equipe confirma presença e executa as escolhas.</p></div><div class="draft-action-buttons">@if (MyTeam is not null) { <button class="button @(MyTeam.RepresentativeReady ? "button-secondary" : "button-primary")" @onclick="ToggleReadyAsync">@(MyTeam.RepresentativeReady ? "Cancelar presença" : "Confirmar presença")</button> }@if (IsOrganizer) { <button class="button button-primary" @onclick="StartAsync">Sortear e iniciar draft</button> }</div></section>
+        <section class="panel draft-action-panel"><div><span class="eyebrow">Confirmação</span><h2>Os dois representantes devem entrar</h2><p>Somente o representante definido de cada equipe confirma presença e executa as escolhas. Depois, pedra, papel e tesoura definirá quem começa.</p></div><div class="draft-action-buttons">@if (MyTeam is not null) { <button class="button @(MyTeam.RepresentativeReady ? "button-secondary" : "button-primary")" @onclick="ToggleReadyAsync">@(MyTeam.RepresentativeReady ? "Cancelar presença" : "Confirmar presença")</button> }@if (IsOrganizer) { <button class="button button-primary" @onclick="StartAsync" disabled="@(!RepresentativesReady)">Iniciar disputa</button> }</div></section>
+    }
+    else if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.RockPaperScissors)
+    {
+        <section class="panel draft-rps-panel">
+            <div class="draft-rps-copy"><span class="eyebrow">Quem começa?</span><h2>Pedra, papel e tesoura</h2><p>Rodada @Draft.RockPaperScissors.Round. As escolhas permanecem ocultas até os dois representantes responderem.</p></div>
+            @if (MyTeam is not null && !MyTeam.RpsChoiceSubmitted)
+            {
+                <div class="draft-rps-actions" aria-label="Escolha pedra, papel ou tesoura">
+                    <button type="button" @onclick="() => SubmitRpsAsync(AgeNexus.Application.Drafts.CivilizationDraftRpsChoice.Rock)"><span aria-hidden="true">✊</span><strong>Pedra</strong></button>
+                    <button type="button" @onclick="() => SubmitRpsAsync(AgeNexus.Application.Drafts.CivilizationDraftRpsChoice.Paper)"><span aria-hidden="true">✋</span><strong>Papel</strong></button>
+                    <button type="button" @onclick="() => SubmitRpsAsync(AgeNexus.Application.Drafts.CivilizationDraftRpsChoice.Scissors)"><span aria-hidden="true">✌️</span><strong>Tesoura</strong></button>
+                </div>
+            }
+            else
+            {
+                <div class="draft-rps-waiting">@(MyTeam?.RpsChoiceSubmitted == true ? "Escolha enviada. Aguardando o outro representante." : "Aguardando as escolhas dos representantes.")</div>
+            }
+            <div class="draft-rps-submissions">
+                @foreach (var team in Draft.Teams)
+                {
+                    <span class="@(team.RpsChoiceSubmitted ? "submitted" : null)"><strong>@team.Name</strong>@(team.RpsChoiceSubmitted ? " já escolheu" : " ainda não escolheu")</span>
+                }
+            </div>
+        </section>
     }
     else if (Draft.Phase is AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans or AgeNexus.Application.Drafts.CivilizationDraftPhase.Picks)
     {
@@ -78,6 +106,14 @@ else if (Draft is not null && Profile is not null)
     else if (Draft.Phase == AgeNexus.Application.Drafts.CivilizationDraftPhase.Completed)
     {
         <section class="draft-finalized-banner" role="status" aria-live="polite"><span aria-hidden="true">✓</span><div><strong>Draft finalizado</strong><p>Todos os bans e picks foram definidos. A composição já pode ser compartilhada.</p></div></section>
+    }
+
+    @if (Draft.RockPaperScissors.LastResult is { } rpsResult)
+    {
+        <section class="draft-rps-result @(rpsResult.IsTie ? "is-tie" : null)" aria-live="polite">
+            <strong>@(rpsResult.IsTie ? "Empate — uma nova rodada foi iniciada" : $"{rpsResult.WinnerTeamName} venceu e começa")</strong>
+            <span>@rpsResult.FirstTeamName: @RpsChoiceLabel(rpsResult.FirstTeamChoice) · @rpsResult.SecondTeamName: @RpsChoiceLabel(rpsResult.SecondTeamChoice)</span>
+        </section>
     }
 
     <section class="draft-pool-panel">
@@ -162,6 +198,8 @@ else if (Draft is not null && Profile is not null)
     private bool FloatingStatusCollapsed;
     private string? Message;
     private bool IsOrganizer => Draft?.CreatedByPlayerProfileId == Profile?.Id;
+    private bool IsRepresentative => MyTeam is not null;
+    private bool RepresentativesReady => Draft?.Teams.All(x => x.RepresentativeReady) == true;
     private bool IsMyTurn => Draft?.CurrentPlayerProfileId == Profile?.Id;
     private AgeNexus.Application.Drafts.CivilizationDraftTeamView? MyTeam => Draft?.Teams.SingleOrDefault(x => x.RepresentativePlayerProfileId == Profile?.Id);
     private AgeNexus.Application.Drafts.CivilizationDraftTeamView? CurrentTeam => Draft?.Teams.SingleOrDefault(x => x.RepresentativePlayerProfileId == Draft.CurrentPlayerProfileId);
@@ -178,7 +216,9 @@ else if (Draft is not null && Profile is not null)
             ? "Escolha uma civilização para banir"
             : $"Escolha uma civilização para {MyTeam?.Name}"
         : $"Aguardando {CurrentRepresentativeName}";
-    private string ActionHelp => "A sequência de cada rodada é: ban, ban, pick e pick. Se o tempo acabar, o sistema escolherá automaticamente.";
+    private string ActionHelp => Draft?.OpeningAction == AgeNexus.Application.Drafts.CivilizationDraftOpeningAction.Pick
+        ? "A sequência de cada rodada é: pick, pick, ban e ban. Cada ação dura 1min30s; ao acabar, o sistema escolhe automaticamente."
+        : "A sequência de cada rodada é: ban, ban, pick e pick. Cada ação dura 1min30s; ao acabar, o sistema escolhe automaticamente.";
 
     protected override async Task OnInitializedAsync()
     {
@@ -188,7 +228,7 @@ else if (Draft is not null && Profile is not null)
         await LoadAsync();
         _ = RunClockAsync();
     }
-    protected override async Task OnParametersSetAsync() { if (Profile is not null) await LoadAsync(); }
+    protected override async Task OnParametersSetAsync() { if (!Loading) await LoadAsync(); }
     private async Task LoadAsync(bool showLoading = true)
     {
         // Relógio, notificações e ações do usuário disputam o mesmo DbContext (scoped por circuito).
@@ -202,7 +242,7 @@ else if (Draft is not null && Profile is not null)
             while (reloadRequested)
             {
                 reloadRequested = false;
-                Draft = Profile is null ? null : await Drafts.GetAsync(ShareCode, Profile.Id);
+                Draft = await Drafts.GetAsync(ShareCode, Profile?.Id ?? Guid.Empty);
                 if (!IsMyTurn || PendingFaction is { IsBanned: true } or { IsPicked: true }) CancelPendingAction();
             }
         }
@@ -296,6 +336,8 @@ else if (Draft is not null && Profile is not null)
     }
     private Task ToggleReadyAsync() => RunAsync(() => Drafts.SetReadyAsync(ShareCode, Profile!.Id, !(MyTeam?.RepresentativeReady ?? false)));
     private Task StartAsync() => RunAsync(() => Drafts.StartAsync(ShareCode, Profile!.Id));
+    private Task SubmitRpsAsync(AgeNexus.Application.Drafts.CivilizationDraftRpsChoice choice) =>
+        RunAsync(() => Drafts.SubmitRockPaperScissorsAsync(ShareCode, Profile!.Id, choice));
     private Task CancelAsync() => RunAsync(() => Drafts.CancelAsync(ShareCode, Profile!.Id));
     private void SelectFactionAsync(Guid id)
     {
@@ -329,9 +371,10 @@ else if (Draft is not null && Profile is not null)
     private bool FactionDisabled(AgeNexus.Application.Drafts.CivilizationDraftFactionView faction) => !IsMyTurn || faction.IsBanned || faction.IsPicked;
     private async Task CopyLinkAsync() { await JavaScript.InvokeVoidAsync("ageNexusDraft.copy", Navigation.Uri); Copied = true; }
     private async Task DownloadImageAsync() { await JavaScript.InvokeVoidAsync("ageNexusDraft.download", new { Draft!.Title, Draft.MapName, Mode = ModeLabel(Draft.GameMode), Teams = Draft.Teams.Select(t => new { t.Name, Players = t.Players.Select(p => new { p.DisplayName }), Picks = t.Picks.Select(p => p.FactionName) }) }, $"draft-{Draft.ShareCode}.png"); }
-    private static string PhaseLabel(AgeNexus.Application.Drafts.CivilizationDraftPhase phase) => phase switch { AgeNexus.Application.Drafts.CivilizationDraftPhase.Lobby => "Sala de espera", AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans => "Bans", AgeNexus.Application.Drafts.CivilizationDraftPhase.Picks => "Picks", AgeNexus.Application.Drafts.CivilizationDraftPhase.Completed => "Concluído", _ => "Cancelado" };
+    private static string PhaseLabel(AgeNexus.Application.Drafts.CivilizationDraftPhase phase) => phase switch { AgeNexus.Application.Drafts.CivilizationDraftPhase.Lobby => "Sala de espera", AgeNexus.Application.Drafts.CivilizationDraftPhase.RockPaperScissors => "Pedra, papel e tesoura", AgeNexus.Application.Drafts.CivilizationDraftPhase.Bans => "Bans", AgeNexus.Application.Drafts.CivilizationDraftPhase.Picks => "Picks", AgeNexus.Application.Drafts.CivilizationDraftPhase.Completed => "Concluído", _ => "Cancelado" };
+    private static string RpsChoiceLabel(AgeNexus.Application.Drafts.CivilizationDraftRpsChoice choice) => choice switch { AgeNexus.Application.Drafts.CivilizationDraftRpsChoice.Rock => "Pedra", AgeNexus.Application.Drafts.CivilizationDraftRpsChoice.Paper => "Papel", _ => "Tesoura" };
     private static string ModeLabel(AgeNexus.Domain.Matches.MatchGameMode mode) => mode switch { AgeNexus.Domain.Matches.MatchGameMode.Conquest => "Conquista", AgeNexus.Domain.Matches.MatchGameMode.Regicide => "Regicídio", AgeNexus.Domain.Matches.MatchGameMode.KingOfTheHill => "Rei da Colina", AgeNexus.Domain.Matches.MatchGameMode.EmpireWars => "Guerras de Impérios", _ => mode == AgeNexus.Domain.Matches.MatchGameMode.Standard ? "Padrão" : mode.ToString() };
-    private static string ErrorLabel(string? code) => code switch { "RepresentativesNotReady" => "Os dois representantes precisam confirmar presença.", "RepresentativeOnly" => "Somente o representante desta equipe pode confirmar presença.", "NotYourTurn" => "Aguarde a vez da outra equipe.", "FactionUnavailable" => "Essa civilização já foi banida ou escolhida.", "InvalidPick" => "Esta equipe já concluiu suas escolhas.", "OrganizerOnly" => "Somente o organizador pode fazer isso.", "ConcurrentChange" => "Outra ação chegou primeiro. A sala foi atualizada.", _ => "Não foi possível concluir esta ação." };
+    private static string ErrorLabel(string? code) => code switch { "RepresentativesNotReady" => "Os dois representantes precisam confirmar presença.", "RepresentativeOnly" => "Somente o representante desta equipe pode realizar esta ação.", "RpsChoiceAlreadySubmitted" => "Sua escolha já foi enviada. Aguarde o outro representante.", "InvalidRpsChoice" => "Escolha pedra, papel ou tesoura.", "NotYourTurn" => "Aguarde a vez da outra equipe.", "FactionUnavailable" => "Essa civilização já foi banida ou escolhida.", "InvalidPick" => "Esta equipe já concluiu suas escolhas.", "OrganizerOnly" => "Somente o organizador pode fazer isso.", "ConcurrentChange" => "Outra ação chegou primeiro. A sala foi atualizada.", _ => "Não foi possível concluir esta ação." };
     private enum DraftAction { Ban, Pick }
     public void Dispose() { Notifier.Changed -= DraftChangedAsync; ClockCancellation.Cancel(); ClockCancellation.Dispose(); }
 }

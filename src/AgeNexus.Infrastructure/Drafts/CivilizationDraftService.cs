@@ -15,7 +15,7 @@ public sealed class CivilizationDraftService(
 {
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> Locks = new(StringComparer.OrdinalIgnoreCase);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private static readonly TimeSpan TurnDuration = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan TurnDuration = TimeSpan.FromSeconds(90);
 
     public async Task<CivilizationDraftOperationResult> CreateAsync(
         Guid creatorPlayerProfileId,
@@ -31,6 +31,7 @@ public sealed class CivilizationDraftService(
         if (title.Length is 0 or > 120 || !balancedTeams || teams[0].PlayerProfileIds.Count is < 1 or > 4 ||
             playerIds.Distinct().Count() != playerIds.Length || !validRepresentatives ||
             teams.Select(x => x.RepresentativePlayerProfileId).Distinct().Count() != 2 ||
+            !Enum.IsDefined(request.OpeningAction) ||
             teams.Any(x => x.Name.Trim().Length is 0 or > 40))
         {
             return CivilizationDraftOperationResult.Failure("InvalidSetup");
@@ -66,7 +67,9 @@ public sealed class CivilizationDraftService(
             EditionName = edition.Name,
             MapName = map?.Name,
             GameMode = request.GameMode,
+            OpeningAction = request.OpeningAction,
             Phase = CivilizationDraftPhase.Lobby,
+            RpsRound = 1,
             Pool = factions,
             Teams = teams.Select(team => new TeamState
             {
@@ -148,11 +151,79 @@ public sealed class CivilizationDraftService(
                 return "RepresentativesNotReady";
             }
 
-            var firstTeamIndex = Random.Shared.Next(state.Teams.Count);
+            state.Phase = CivilizationDraftPhase.RockPaperScissors;
+            state.RpsRound = Math.Max(1, state.RpsRound);
+            state.RpsLastResult = null;
+            foreach (var team in state.Teams)
+            {
+                team.RpsChoice = null;
+            }
+            state.Turns.Clear();
+            state.Queue.Clear();
+            state.ActionIndex = 0;
+            state.TurnDeadlineUtc = null;
+            return null;
+        }, cancellationToken);
+
+    public Task<CivilizationDraftOperationResult> SubmitRockPaperScissorsAsync(
+        string shareCode,
+        Guid playerProfileId,
+        CivilizationDraftRpsChoice choice,
+        CancellationToken cancellationToken = default)
+        => MutateAsync(shareCode, playerProfileId, (_, state) =>
+        {
+            if (state.Phase != CivilizationDraftPhase.RockPaperScissors)
+            {
+                return "InvalidPhase";
+            }
+
+            if (!Enum.IsDefined(choice))
+            {
+                return "InvalidRpsChoice";
+            }
+
+            var team = FindRepresentedTeam(state, playerProfileId);
+            if (team is null)
+            {
+                return "RepresentativeOnly";
+            }
+
+            if (team.RpsChoice.HasValue)
+            {
+                return "RpsChoiceAlreadySubmitted";
+            }
+
+            team.RpsChoice = choice;
+            if (state.Teams.Any(x => !x.RpsChoice.HasValue))
+            {
+                return null;
+            }
+
+            var firstChoice = state.Teams[0].RpsChoice!.Value;
+            var secondChoice = state.Teams[1].RpsChoice!.Value;
+            var winnerIndex = CivilizationDraftRockPaperScissors.Winner(firstChoice, secondChoice);
+            state.RpsLastResult = new RpsResultState
+            {
+                FirstTeamChoice = firstChoice,
+                SecondTeamChoice = secondChoice,
+                WinnerTeamIndex = winnerIndex
+            };
+
+            if (!winnerIndex.HasValue)
+            {
+                state.RpsRound++;
+                foreach (var draftTeam in state.Teams)
+                {
+                    draftTeam.RpsChoice = null;
+                }
+                return null;
+            }
+
             state.Turns = CivilizationDraftTurnPlanner.Build(
                     state.Teams.Select(x => x.RepresentativePlayerProfileId).ToArray(),
                     state.Teams[0].Players.Count,
-                    firstTeamIndex)
+                    winnerIndex.Value,
+                    state.OpeningAction)
                 .Select(x => new TurnState { RepresentativePlayerProfileId = x.RepresentativePlayerProfileId, Kind = x.Kind })
                 .ToList();
             state.Queue.Clear();
@@ -473,6 +544,7 @@ public sealed class CivilizationDraftService(
                 team.RepresentativePlayerProfileId,
                 representative.DisplayName,
                 team.RepresentativeReady,
+                team.RpsChoice.HasValue,
                 team.Players.Select(MapPlayer).ToArray(),
                 picks);
         }).ToArray();
@@ -504,9 +576,22 @@ public sealed class CivilizationDraftService(
             }
         }
 
+        CivilizationDraftRpsResultView? rpsResult = null;
+        if (state.RpsLastResult is not null && state.Teams.Count == 2)
+        {
+            rpsResult = new CivilizationDraftRpsResultView(
+                state.Teams[0].Name,
+                state.RpsLastResult.FirstTeamChoice,
+                state.Teams[1].Name,
+                state.RpsLastResult.SecondTeamChoice,
+                !state.RpsLastResult.WinnerTeamIndex.HasValue,
+                state.RpsLastResult.WinnerTeamIndex is { } winnerIndex ? state.Teams[winnerIndex].Name : null);
+        }
+
         return new CivilizationDraftView(
             row.Id, row.ShareCode, state.Title, state.EditionName, state.MapName, state.GameMode, state.Phase,
-            row.CreatorPlayerProfileId, CurrentRepresentative(state), CurrentAction(state), state.TurnDeadlineUtc, lastAction,
+            state.OpeningAction, row.CreatorPlayerProfileId, CurrentRepresentative(state), CurrentAction(state), state.TurnDeadlineUtc, lastAction,
+            new CivilizationDraftRpsView(Math.Max(1, state.RpsRound), rpsResult),
             teams, factions, completedActions,
             totalActions, row.Version, row.UpdatedAtUtc);
     }
@@ -528,6 +613,7 @@ public sealed class CivilizationDraftService(
 
     private static void NormalizeLegacyState(DraftState state)
     {
+        state.RpsRound = Math.Max(1, state.RpsRound);
         var legacyState = state.Teams.Any(x => x.RepresentativePlayerProfileId == Guid.Empty);
         foreach (var team in state.Teams)
         {
@@ -630,7 +716,10 @@ public sealed class CivilizationDraftService(
         public string EditionName { get; set; } = "";
         public string? MapName { get; set; }
         public MatchGameMode GameMode { get; set; }
+        public CivilizationDraftOpeningAction OpeningAction { get; set; }
         public CivilizationDraftPhase Phase { get; set; }
+        public int RpsRound { get; set; } = 1;
+        public RpsResultState? RpsLastResult { get; set; }
         public List<TeamState> Teams { get; set; } = [];
         public List<FactionState> Pool { get; set; } = [];
         public List<Guid> Queue { get; set; } = [];
@@ -647,6 +736,7 @@ public sealed class CivilizationDraftService(
         public string Name { get; set; } = "";
         public Guid RepresentativePlayerProfileId { get; set; }
         public bool RepresentativeReady { get; set; }
+        public CivilizationDraftRpsChoice? RpsChoice { get; set; }
         public List<ParticipantState> Players { get; set; } = [];
         public List<Guid> PickedFactionIds { get; set; } = [];
     }
@@ -670,6 +760,13 @@ public sealed class CivilizationDraftService(
         public Guid FactionId { get; set; }
         public bool WasAutomatic { get; set; }
         public DateTimeOffset OccurredAtUtc { get; set; }
+    }
+
+    private sealed class RpsResultState
+    {
+        public CivilizationDraftRpsChoice FirstTeamChoice { get; set; }
+        public CivilizationDraftRpsChoice SecondTeamChoice { get; set; }
+        public int? WinnerTeamIndex { get; set; }
     }
 
     private sealed class ParticipantState

@@ -59,6 +59,23 @@
 .draft-action-panel h2 { margin: 3px 0 5px; }
 .draft-action-panel p { max-width: 760px; margin: 0; color: var(--muted); }
 .draft-action-buttons { display: flex; flex-wrap: wrap; gap: 9px; }
+.draft-spectator-banner { display: flex; align-items: center; gap: 10px; width: min(100%, 1220px); padding: 11px 15px; margin: 0 auto 14px; color: #d9e7e0; border: 1px solid #446c5d; border-radius: 7px; background: #17372c; font-size: 12px; }
+.draft-spectator-banner strong { flex: 0 0 auto; color: #f0d58f; }
+.draft-rps-panel { display: grid; gap: 18px; padding: 24px; margin-bottom: 18px; border-top: 4px solid var(--gold); }
+.draft-rps-copy h2 { margin: 3px 0 6px; }
+.draft-rps-copy p { margin: 0; color: var(--muted); }
+.draft-rps-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.draft-rps-actions button { display: grid; place-items: center; gap: 6px; min-height: 104px; color: var(--forest); border: 1px solid #d7c99f; border-radius: 8px; background: #fffaf0; cursor: pointer; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.draft-rps-actions button:hover { transform: translateY(-2px); border-color: var(--gold); box-shadow: 0 9px 22px rgba(104, 78, 25, .15); }
+.draft-rps-actions button span { font-size: 32px; }
+.draft-rps-actions button strong { font-size: 13px; }
+.draft-rps-waiting { padding: 16px; color: var(--forest); border: 1px solid #d9cfbd; border-radius: 7px; background: #f7f3e9; font-weight: 800; text-align: center; }
+.draft-rps-submissions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.draft-rps-submissions span { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; background: #faf8f2; font-size: 11px; }
+.draft-rps-submissions span.submitted { color: #245a3f; border-color: #a8cfb6; background: #eaf5ed; }
+.draft-rps-result { display: grid; gap: 4px; width: min(100%, 1220px); padding: 13px 17px; margin: 0 auto 18px; color: #fff; border-left: 4px solid var(--gold); border-radius: 7px; background: #1d4939; }
+.draft-rps-result.is-tie { color: var(--ink); border: 1px solid #ddc47f; border-left-width: 4px; background: #fff3cf; }
+.draft-rps-result span { font-size: 11px; opacity: .84; }
 .draft-pick-target { display: grid; min-width: 240px; gap: 7px; }
 .draft-pick-target span { color: var(--muted); font-size: var(--font-sm); font-weight: 800; }
 .draft-clock { display: grid; flex: 0 0 88px; place-items: center; padding: 9px 12px; color: var(--forest); border: 2px solid var(--gold); border-radius: 7px; background: #fff8df; }
@@ -167,4 +184,8 @@
     .draft-avatar, .draft-avatar img { width: 36px !important; min-width: 36px; max-width: 36px !important; height: 36px !important; min-height: 36px; max-height: 36px !important; }
     .draft-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; }
     .draft-confirm-actions .button { justify-content: center; }
+    .draft-spectator-banner { align-items: flex-start; flex-direction: column; }
+    .draft-rps-actions { grid-template-columns: repeat(3, 1fr); }
+    .draft-rps-actions button { min-height: 88px; padding: 8px 4px; }
+    .draft-rps-submissions { grid-template-columns: 1fr; }
 }

@@ -26,6 +26,7 @@
             <label class="form-field"><span>Edição</span><select @bind="EditionId" @bind:after="EditionChangedAsync">@foreach (var item in Catalog.GameEditions) { <option value="@item.Id">@item.Name</option> }</select></label>
             <label class="form-field"><span>Mapa</span><select @bind="MapId"><option value="">A definir</option>@foreach (var item in Catalog.Maps) { <option value="@item.Id">@item.Name</option> }</select></label>
             <label class="form-field"><span>Tipo de jogo</span><select @bind="GameMode">@foreach (var mode in Enum.GetValues<AgeNexus.Domain.Matches.MatchGameMode>()) { <option value="@mode">@ModeLabel(mode)</option> }</select></label>
+            <label class="form-field"><span>Primeira ação de cada rodada</span><select @bind="OpeningAction"><option value="@AgeNexus.Application.Drafts.CivilizationDraftOpeningAction.Ban">Começar por bans</option><option value="@AgeNexus.Application.Drafts.CivilizationDraftOpeningAction.Pick">Começar por picks</option></select><small>Se não alterar, o draft começa por bans.</small></label>
             <label class="form-field"><span>Formato</span><select value="@TeamSize" @onchange="TeamSizeChanged">@for (var size = 1; size <= 4; size++) { <option value="@size">@size x @size</option> }</select></label>
         </div>
 
@@ -58,6 +59,7 @@
     private Guid EditionId;
     private Guid? MapId;
     private AgeNexus.Domain.Matches.MatchGameMode GameMode = AgeNexus.Domain.Matches.MatchGameMode.Standard;
+    private AgeNexus.Application.Drafts.CivilizationDraftOpeningAction OpeningAction = AgeNexus.Application.Drafts.CivilizationDraftOpeningAction.Ban;
     private bool Loading = true;
     private bool Saving;
     private string? Error;
@@ -110,7 +112,7 @@
         if (Teams.Any(x => !x.RepresentativePlayerId.HasValue || !x.Players.Any(p => p.PlayerId == x.RepresentativePlayerId))) { Error = "Escolha um representante entre os jogadores de cada equipe."; return; }
         Saving = true;
         var request = new AgeNexus.Application.Drafts.CreateCivilizationDraftRequest(Title, EditionId, MapId, GameMode,
-            Teams.Select(x => new AgeNexus.Application.Drafts.CivilizationDraftTeamInput(x.Name, x.Players.Select(p => p.PlayerId!.Value).ToArray(), x.RepresentativePlayerId!.Value)).ToArray());
+            Teams.Select(x => new AgeNexus.Application.Drafts.CivilizationDraftTeamInput(x.Name, x.Players.Select(p => p.PlayerId!.Value).ToArray(), x.RepresentativePlayerId!.Value)).ToArray(), OpeningAction);
         var result = await Drafts.CreateAsync(Profile.Id, request);
         Saving = false;
         if (result.Succeeded) Navigation.NavigateTo($"/partidas/drafts/{result.ShareCode}");
