@@ -419,7 +419,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             from selected in database.PlayerFavoriteFactions.AsNoTracking()
             join faction in database.Factions.AsNoTracking() on selected.FactionId equals faction.Id
             where selected.PlayerProfileId == playerId && selected.Priority == 1
-            select new { faction.Name, faction.ImageUrl })
+            select new { faction.Name, faction.Slug, faction.ImageUrl })
             .SingleOrDefaultAsync(cancellationToken);
 
         var matches = await (
@@ -457,7 +457,10 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
 
         return new PlayerPublicProfileDashboard(
             profile.Id, profile.DisplayName, profile.Bio, profile.Location, profile.AvatarUrl,
-            favorite?.Name, favorite?.ImageUrl,
+            favorite?.Name,
+            favorite is null
+                ? null
+                : favorite.ImageUrl ?? AgeNexus.Infrastructure.GameCatalog.Age2DefinitiveEditionCatalog.GetCivilizationImagePath(favorite.Slug),
             profile.CompetitiveRating, profile.CareerPoints,
             matches.Length, victories, draws, defeats, winRate, factionSummaries);
     }
@@ -677,12 +680,26 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
     private async Task<IReadOnlyCollection<ClanSummary>> GetClansCoreAsync(CancellationToken cancellationToken)
     {
         var clans = await database.Clans.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
-        var counts = await database.ClanMemberships.AsNoTracking()
-            .Where(x => !x.EndedAtUtc.HasValue)
+        var members = await (
+            from membership in database.ClanMemberships.AsNoTracking()
+            join player in database.PlayerProfiles.AsNoTracking()
+                on membership.PlayerProfileId equals player.Id
+            where !membership.EndedAtUtc.HasValue
+            orderby player.DisplayName
+            select new
+            {
+                membership.ClanId,
+                Member = new ClanMemberSummary(player.Id, player.DisplayName, player.AvatarUrl)
+            })
+            .ToArrayAsync(cancellationToken);
+        var membersByClan = members
             .GroupBy(x => x.ClanId)
-            .Select(x => new { ClanId = x.Key, Count = x.Count() })
-            .ToDictionaryAsync(x => x.ClanId, x => x.Count, cancellationToken);
-        return clans.Select(x => new ClanSummary(x.Id, x.Name, x.Tag, counts.GetValueOrDefault(x.Id))).ToArray();
+            .ToDictionary(x => x.Key, x => (IReadOnlyCollection<ClanMemberSummary>)x.Select(y => y.Member).ToArray());
+        return clans.Select(x => new ClanSummary(
+            x.Id,
+            x.Name,
+            x.Tag,
+            membersByClan.GetValueOrDefault(x.Id) ?? [])).ToArray();
     }
 
     public Task<MatchRegistrationCatalog> GetMatchRegistrationCatalogAsync(
@@ -717,7 +734,8 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         var patches = await database.GamePatches.AsNoTracking()
             .Where(x => !selectedEditionId.HasValue || x.GameEditionId == selectedEditionId)
             .OrderByDescending(x => x.EffectiveFromUtc).Select(x => new CatalogOption(x.Id, x.Name)).ToArrayAsync(cancellationToken);
-        return new MatchRegistrationCatalog(editions, players, factions, maps, difficulties, seasons, patches);
+        var clans = await GetClansCoreAsync(cancellationToken);
+        return new MatchRegistrationCatalog(editions, players, factions, maps, difficulties, seasons, patches, clans);
     }
 
     private async Task<RankingDashboard> GetRankingDashboardCoreAsync(
