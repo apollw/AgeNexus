@@ -162,6 +162,19 @@ else
                     </div>
                 </header>
 
+                @if (Catalog.Clans.Count > 0)
+                {
+                    <div class="match-clan-loader">
+                        <label class="form-field"><span>Carregar integrantes de um clã</span>
+                            <InputSelect @bind-Value="team.ClanId">
+                                <option value="">Selecione um clã formado</option>
+                                @foreach (var clan in Catalog.Clans) { <option value="@clan.ClanId">[@clan.Tag] @clan.Name (@clan.ActiveMembers)</option> }
+                            </InputSelect>
+                        </label>
+                        <button class="button button-secondary" type="button" @onclick="() => LoadClan(team)" disabled="@(!team.ClanId.HasValue)">Carregar clã</button>
+                    </div>
+                }
+
                 @foreach (var participant in team.Participants)
                 {
                     <div class="form-grid participant-row" @key="participant">
@@ -371,6 +384,21 @@ else
 
     private void AddParticipant(TeamForm team) => team.Participants.Add(CreateParticipant());
 
+    private void LoadClan(TeamForm team)
+    {
+        var clan = Catalog?.Clans.SingleOrDefault(x => x.ClanId == team.ClanId);
+        if (clan is null || clan.Members.Count == 0)
+        {
+            return;
+        }
+
+        team.Participants.Clear();
+        foreach (var member in clan.Members)
+        {
+            team.Participants.Add(CreateParticipant(member.PlayerProfileId));
+        }
+    }
+
     private bool CanRemoveTeam => Form.Teams.Count >
         (Form.Type == AgeNexus.Domain.Matches.MatchType.FreeForAll ? 3 : 2);
 
@@ -503,6 +531,7 @@ else
     private sealed class TeamForm
     {
         public AgeNexus.Domain.Matches.TeamResult Result { get; set; }
+        public Guid? ClanId { get; set; }
         public List<ParticipantForm> Participants { get; } = [];
     }
 
