@@ -3,6 +3,7 @@ using AgeNexus.Application;
 using AgeNexus.Application.Evidence;
 using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Application.Matches;
+using AgeNexus.Application.Queries;
 using AgeNexus.Domain.Competition;
 using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
@@ -84,6 +85,30 @@ public sealed class AccountSecurityTests
 
         Assert.True((await users.SetLockoutEndDateAsync(user, DateTimeOffset.UtcNow.AddHours(1))).Succeeded);
         Assert.False(await accounts.IsActiveLinkedProfileAsync(linked.Id));
+    }
+
+    [Fact]
+    public async Task Linked_player_can_create_a_clan_with_an_initial_roster()
+    {
+        await using var services = CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var founderUser = await AddUserAsync(users, "founder@example.test");
+        var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+        var founder = new PlayerProfile(Guid.NewGuid(), "Fundador", founderUser.Id);
+        var member = new PlayerProfile(Guid.NewGuid(), "Integrante");
+        var unlinkedCreator = new PlayerProfile(Guid.NewGuid(), "Sem conta");
+        database.PlayerProfiles.AddRange(founder, member, unlinkedCreator);
+        await database.SaveChangesAsync();
+        var clans = scope.ServiceProvider.GetRequiredService<IClanService>();
+
+        var created = await clans.CreateAsync(founder.Id, "Guardiões", "GDN", [member.Id]);
+
+        Assert.True(created.Succeeded);
+        Assert.NotNull(created.ClanId);
+        Assert.Equal(2, await database.ClanMemberships.CountAsync(x => x.ClanId == created.ClanId!.Value));
+        Assert.False((await clans.CreateAsync(unlinkedCreator.Id, "Invasores", "INV", [])).Succeeded);
+        Assert.False((await clans.CreateAsync(founder.Id, "Outro", "OUT", [])).Succeeded);
     }
 
     [Fact]
