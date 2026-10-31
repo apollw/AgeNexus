@@ -1382,10 +1382,6 @@ else
             Rows.Select(row => new AgeNexus.Application.MatchPerformance.UpdateParticipantFaction(
                 row.MatchParticipantId, row.FactionId)).ToArray());
         SetResult(result, "Civilizações atualizadas.");
-        if (result.Succeeded)
-        {
-            await ReloadAsync();
-        }
         Busy = false;
     }
 
