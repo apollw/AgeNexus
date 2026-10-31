@@ -72,7 +72,12 @@ public sealed record MatchTeamSummary(
     Guid TeamId,
     int Position,
     TeamResult Result,
-    IReadOnlyCollection<string> Participants);
+    IReadOnlyCollection<MatchParticipantSummary> Participants);
+
+public sealed record MatchParticipantSummary(
+    string DisplayName,
+    string? FactionName,
+    string? FactionImageUrl);
 
 public sealed record MatchHistoryFilter(
     int Page = 1,

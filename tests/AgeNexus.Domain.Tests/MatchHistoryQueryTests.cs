@@ -29,6 +29,8 @@ public sealed class MatchHistoryQueryTests
 
         var editionId = Guid.NewGuid();
         var map = new MapDefinition(Guid.NewGuid(), editionId, "Arena", "arena");
+        var firstFaction = new Faction(Guid.NewGuid(), editionId, "Mongóis", "mongols");
+        var secondFaction = new Faction(Guid.NewGuid(), editionId, "Romanos", "romans", "https://example.test/romans.png");
         var firstPlayer = new PlayerProfile(Guid.NewGuid(), "Primeiro");
         var secondPlayer = new PlayerProfile(Guid.NewGuid(), "Segundo");
         var match = new Match(
@@ -36,8 +38,8 @@ public sealed class MatchHistoryQueryTests
             MatchType.PlayerVersusPlayer, MatchNature.Ranked);
         var firstTeam = match.AddTeam(Guid.NewGuid());
         var secondTeam = match.AddTeam(Guid.NewGuid());
-        match.AddParticipant(firstTeam.Id, MatchParticipant.Human(Guid.NewGuid(), firstPlayer.Id));
-        match.AddParticipant(secondTeam.Id, MatchParticipant.Human(Guid.NewGuid(), secondPlayer.Id));
+        match.AddParticipant(firstTeam.Id, MatchParticipant.Human(Guid.NewGuid(), firstPlayer.Id, firstFaction.Id));
+        match.AddParticipant(secondTeam.Id, MatchParticipant.Human(Guid.NewGuid(), secondPlayer.Id, secondFaction.Id));
         match.SetTeamResult(firstTeam.Id, TeamResult.Victory);
         match.SetTeamResult(secondTeam.Id, TeamResult.Defeat);
         match.SetCatalogContext(null, map.Id, null);
@@ -53,7 +55,7 @@ public sealed class MatchHistoryQueryTests
         var screenshot = new MatchEvidence(
             Guid.NewGuid(), match.Id, firstPlayer.Id, EvidenceKind.ResultScreenshot,
             DateTimeOffset.UtcNow, objectKey: "matches/screenshot.png");
-        database.AddRange(map, firstPlayer, secondPlayer, match, report, video, screenshot);
+        database.AddRange(map, firstFaction, secondFaction, firstPlayer, secondPlayer, match, report, video, screenshot);
         await database.SaveChangesAsync();
 
         var page = await service.GetPageAsync(new MatchHistoryFilter(PageSize: 10));
@@ -64,6 +66,12 @@ public sealed class MatchHistoryQueryTests
         Assert.Equal("https://example.com/video", summary.YouTubeVideoUrl);
         Assert.Equal(1, summary.ScreenshotCount);
         Assert.Equal(MatchStatisticsStatus.Draft, summary.StatisticsStatus);
-        Assert.Equal(["Primeiro", "Segundo"], summary.Teams.SelectMany(x => x.Participants).ToArray());
+        var participants = summary.Teams.SelectMany(x => x.Participants).ToArray();
+        Assert.Equal(["Primeiro", "Segundo"], participants.Select(x => x.DisplayName).ToArray());
+        Assert.Collection(participants,
+            first => Assert.Equal("Mongóis", first.FactionName),
+            second => Assert.Equal("Romanos", second.FactionName));
+        Assert.Equal("/images/civilizations/mongols.png", participants[0].FactionImageUrl);
+        Assert.Equal("https://example.test/romans.png", participants[1].FactionImageUrl);
     }
 }

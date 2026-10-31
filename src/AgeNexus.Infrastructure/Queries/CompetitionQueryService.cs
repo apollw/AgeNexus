@@ -266,6 +266,9 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             join ai in database.AiDifficulties.AsNoTracking()
                 on participant.AiDifficultyId equals (Guid?)ai.Id into difficulties
             from ai in difficulties.DefaultIfEmpty()
+            join faction in database.Factions.AsNoTracking()
+                on participant.FactionId equals (Guid?)faction.Id into factions
+            from faction in factions.DefaultIfEmpty()
             select new
             {
                 MatchId = match.Id,
@@ -276,7 +279,10 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                 participant.Type,
                 ParticipantName = participant.Type == ParticipantType.Human
                     ? human.DisplayName
-                    : ai.Name
+                    : ai.Name,
+                FactionName = faction == null ? null : faction.Name,
+                FactionSlug = faction == null ? null : faction.Slug,
+                FactionImageUrl = faction == null ? null : faction.ImageUrl
             })
             .ToListAsync(cancellationToken);
         var participantsByMatch = participantRows
@@ -314,10 +320,16 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
                     team.Key.TeamId,
                     team.Key.Position,
                     team.Key.Result,
-                    team.OrderBy(x => x.ParticipantId).Select(participant =>
+                    team.OrderBy(x => x.ParticipantId).Select(participant => new MatchParticipantSummary(
                         participant.Type == ParticipantType.Human
                             ? participant.ParticipantName ?? "Jogador"
-                            : $"IA {participant.ParticipantName ?? "configurada"}").ToArray()))
+                            : $"IA {participant.ParticipantName ?? "configurada"}",
+                        participant.FactionName,
+                        participant.FactionImageUrl ??
+                            (participant.FactionSlug is null
+                                ? null
+                                : AgeNexus.Infrastructure.GameCatalog.Age2DefinitiveEditionCatalog
+                                    .GetCivilizationImagePath(participant.FactionSlug)))).ToArray()))
                     .ToArray();
 
                 return new MatchSummary(
