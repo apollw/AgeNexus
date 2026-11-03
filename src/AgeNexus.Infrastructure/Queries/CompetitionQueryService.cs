@@ -572,9 +572,9 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
 
             Total("research", "Tecnologia", "Mais tecnologias pesquisadas", "Total de tecnologias concluídas.", x => x.ResearchCount),
             Average("explored", "Tecnologia", "Maior exploração média", "Percentual médio do mapa explorado.", x => x.ExploredPercent, GeneralStatisticValueKind.Percentage),
-            Record("fastest-feudal", "Tecnologia", "Feudal mais rápido", "Menor tempo registrado para chegar à Era Feudal.", x => x.FeudalAgeSeconds, GeneralStatisticValueKind.Duration, true),
-            Record("fastest-castle", "Tecnologia", "Castelos mais rápido", "Menor tempo registrado para chegar à Era dos Castelos.", x => x.CastleAgeSeconds, GeneralStatisticValueKind.Duration, true),
-            Record("fastest-imperial", "Tecnologia", "Imperial mais rápido", "Menor tempo registrado para chegar à Era Imperial.", x => x.ImperialAgeSeconds, GeneralStatisticValueKind.Duration, true),
+            Record("fastest-feudal", "Tecnologia", "Feudal mais rápido", "Menor tempo registrado para chegar à Era Feudal.", x => x.FeudalAgeSeconds > 0 ? x.FeudalAgeSeconds : null, GeneralStatisticValueKind.Duration, true),
+            Record("fastest-castle", "Tecnologia", "Castelos mais rápido", "Menor tempo registrado para chegar à Era dos Castelos.", x => x.CastleAgeSeconds > 0 ? x.CastleAgeSeconds : null, GeneralStatisticValueKind.Duration, true),
+            Record("fastest-imperial", "Tecnologia", "Imperial mais rápido", "Menor tempo registrado para chegar à Era Imperial.", x => x.ImperialAgeSeconds > 0 ? x.ImperialAgeSeconds : null, GeneralStatisticValueKind.Duration, true),
 
             Record("villagers", "Sociedade", "Maior população de aldeões", "Maior pico de aldeões em uma partida.", x => x.PeakVillagers),
             Total("castles", "Sociedade", "Mais castelos construídos", "Total de castelos construídos.", x => x.CastlesBuilt),
