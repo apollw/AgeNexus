@@ -267,7 +267,12 @@ public interface IStatisticsQueryService
         CancellationToken cancellationToken = default);
 }
 
-public sealed record ClanMemberSummary(Guid PlayerProfileId, string DisplayName, string? AvatarUrl);
+public sealed record ClanMemberSummary(Guid PlayerProfileId, string DisplayName, string? AvatarUrl)
+{
+    public AgeNexus.Domain.Clans.ClanRole Role { get; init; }
+    public string? Title { get; init; }
+    public string? Note { get; init; }
+}
 
 public sealed record ClanSummary(
     Guid ClanId,
@@ -275,6 +280,11 @@ public sealed record ClanSummary(
     string Tag,
     IReadOnlyCollection<ClanMemberSummary> Members)
 {
+    public Guid CreatedByPlayerProfileId { get; init; }
+    public string? Description { get; init; }
+    public string? Motto { get; init; }
+    public string? ImageUrl { get; init; }
+    public bool IsRecruiting { get; init; }
     public int ActiveMembers => Members.Count;
 }
 
@@ -290,6 +300,21 @@ public interface IClanService
         string name,
         string tag,
         IReadOnlyCollection<Guid> memberPlayerProfileIds,
+        CancellationToken cancellationToken = default);
+    Task<ClanOperationResult> UpdateAsync(System.Security.Claims.ClaimsPrincipal principal, Guid clanId,
+        string name, string tag, string? description, string? motto, bool isRecruiting,
+        CancellationToken cancellationToken = default);
+    Task<ClanOperationResult> UploadImageAsync(System.Security.Claims.ClaimsPrincipal principal, Guid clanId,
+        string fileName, byte[] content, CancellationToken cancellationToken = default);
+    Task<ClanOperationResult> AddMemberAsync(System.Security.Claims.ClaimsPrincipal principal, Guid clanId,
+        Guid playerProfileId, CancellationToken cancellationToken = default);
+    Task<ClanOperationResult> RemoveMemberAsync(System.Security.Claims.ClaimsPrincipal principal, Guid clanId,
+        Guid playerProfileId, CancellationToken cancellationToken = default);
+    Task<ClanOperationResult> ChangeRoleAsync(System.Security.Claims.ClaimsPrincipal principal, Guid clanId,
+        Guid playerProfileId, AgeNexus.Domain.Clans.ClanRole role, CancellationToken cancellationToken = default);
+    Task<ClanOperationResult> UpdateOwnMembershipAsync(System.Security.Claims.ClaimsPrincipal principal, Guid clanId,
+        string? title, string? note, CancellationToken cancellationToken = default);
+    Task<ClanOperationResult> DeleteAsync(System.Security.Claims.ClaimsPrincipal principal, Guid clanId,
         CancellationToken cancellationToken = default);
 }
 

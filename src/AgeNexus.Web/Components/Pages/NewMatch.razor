@@ -233,6 +233,8 @@ else
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> AuthenticationStateTask { get; set; } = null!;
+    [SupplyParameterFromQuery(Name = "cla1")] private Guid? ClanOneId { get; set; }
+    [SupplyParameterFromQuery(Name = "cla2")] private Guid? ClanTwoId { get; set; }
 
     private AgeNexus.Application.Queries.MatchRegistrationCatalog? Catalog { get; set; }
     private AgeNexus.Infrastructure.Identity.PublicProfile? CurrentProfile { get; set; }
@@ -283,6 +285,14 @@ else
         Form.Teams.Add(CreateTeam(AgeNexus.Domain.Matches.TeamResult.Victory, CurrentProfile.Id));
         var opponent = Catalog.Players.FirstOrDefault(x => x.Id != CurrentProfile.Id)?.Id ?? CurrentProfile.Id;
         Form.Teams.Add(CreateTeam(AgeNexus.Domain.Matches.TeamResult.Defeat, opponent));
+        ApplyClanPrefill();
+    }
+
+    private void ApplyClanPrefill()
+    {
+        if (Catalog is null || Form.Teams.Count < 2) return;
+        if (ClanOneId.HasValue) { Form.Teams[0].ClanId = ClanOneId; LoadClan(Form.Teams[0]); }
+        if (ClanTwoId.HasValue) { Form.Teams[1].ClanId = ClanTwoId; LoadClan(Form.Teams[1]); }
     }
 
     private async Task SetupCatalogAsync()

@@ -122,6 +122,8 @@ O sistema de clãs permitirá:
 - confrontos entre clãs;
 - ranking de clãs.
 
+O painel atual organiza cada clã em visão geral, membros, partidas e ranking. O fundador e o administrador podem editar nome, tag, lema, descrição, recrutamento, emblema e elenco; o administrador pode atuar sobre qualquer clã. Membros comuns editam somente o próprio título e apresentação. O registro de partida aceita pré-carregar os integrantes de cada clã, inclusive nos dois lados de um confronto.
+
 O ranking de clãs não deve ser a simples soma dos pontos de todos os membros, pois clãs maiores teriam vantagem automática. A métrica recomendada usa a média conservadora dos melhores integrantes elegíveis, com limite configurável, mais resultados diretos entre clãs.
 
 Uma equipe representa um clã quando pelo menos 50% de seus humanos eram membros ativos na data do jogo. O fator de representação é a proporção exata, entre 0,50 e 1,00. Prestígio PvP usa bases de 50/25/10 (1x1), 100/50/25 (2x2), 120/60/30 (3x3) e 140/70/35 (4x4+), multiplicadas pela representação e pelo desafio; partidas híbridas recebem ainda fator 0,60. PvE de clã exige evidência verificada ou auditada e usa a média dos prêmios PvE humanos multiplicada pela representação.

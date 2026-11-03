@@ -71,7 +71,7 @@
             {
                 <div class="table-row">
                     <span data-label="Tag">[@clan.Tag]</span>
-                    <span data-label="Clã"><strong>@clan.Name</strong></span>
+                    <span data-label="Clã"><a class="clan-name-link" href="/clas/@clan.ClanId"><strong>@clan.Name</strong><small>Ver painel →</small></a></span>
                     <span class="clan-roster" data-label="Integrantes" data-mobile-wide="true">
                         @foreach (var member in clan.Members)
                         {

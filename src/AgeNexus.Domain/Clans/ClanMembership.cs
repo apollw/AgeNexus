@@ -45,6 +45,8 @@ public sealed class ClanMembership
     public ClanRole Role { get; private set; }
     public DateTimeOffset StartedAtUtc { get; private set; }
     public DateTimeOffset? EndedAtUtc { get; private set; }
+    public string? Title { get; private set; }
+    public string? Note { get; private set; }
 
     public bool WasActiveAt(DateTimeOffset instantUtc) =>
         instantUtc >= StartedAtUtc && (!EndedAtUtc.HasValue || instantUtc < EndedAtUtc.Value);
@@ -57,5 +59,17 @@ public sealed class ClanMembership
         }
 
         EndedAtUtc = endedAtUtc;
+    }
+
+    public void ChangeRole(ClanRole role) => Role = role;
+
+    public void UpdateMemberProfile(string? title, string? note)
+    {
+        if (title?.Trim().Length > 80 || note?.Trim().Length > 300)
+        {
+            throw new DomainRuleException("Invalid clan member profile.");
+        }
+        Title = string.IsNullOrWhiteSpace(title) ? null : title.Trim();
+        Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
     }
 }

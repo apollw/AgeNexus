@@ -128,5 +128,6 @@
     .catalog-setup { grid-template-columns: 1fr; padding: 25px 18px; }.catalog-setup-form { padding: 18px 14px; }
     .catalog-sync-banner { align-items: flex-start; flex-direction: column; }.catalog-sync-banner .button { width: 100%; }
     .clan-create-form { padding: 0 16px 20px; }.clan-member-grid { grid-template-columns: 1fr; }.clan-roster a { flex: 1 1 130px; }
+    .clan-hero { grid-template-columns: 1fr; padding: 24px 18px; }.clan-emblem { width: 82px; height: 82px; }.clan-hero .button { width: 100%; }.clan-detail-grid { grid-template-columns: 1fr; }.clan-member-card { grid-template-columns: auto minmax(0,1fr); }.clan-member-actions { grid-column: 1/-1; }.clan-self-edit,.clan-add-member { grid-template-columns: 1fr; }.clan-self-edit h3 { grid-column: auto; }
     .match-clan-loader { grid-template-columns: 1fr; }.match-clan-loader .button { width: 100%; }
 }
