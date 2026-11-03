@@ -32,6 +32,7 @@ public sealed class AgeNexusDbContext(DbContextOptions<AgeNexusDbContext> option
     public DbSet<Season> Seasons => Set<Season>();
     public DbSet<PlayerFavoriteFaction> PlayerFavoriteFactions => Set<PlayerFavoriteFaction>();
     public DbSet<Clan> Clans => Set<Clan>();
+    public DbSet<ClanEmblem> ClanEmblems => Set<ClanEmblem>();
     public DbSet<ClanMembership> ClanMemberships => Set<ClanMembership>();
     public DbSet<ChallengeTicket> ChallengeTickets => Set<ChallengeTicket>();
     public DbSet<MatchEvidence> MatchEvidence => Set<MatchEvidence>();
