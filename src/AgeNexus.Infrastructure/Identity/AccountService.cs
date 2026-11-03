@@ -704,9 +704,12 @@ public sealed class AccountService(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            var databaseError = exception.GetBaseException();
             logger.LogError(exception,
-                "Falha ao mesclar o perfil historico {HistoricalProfileId} no perfil {LinkedProfileId} apos {ElapsedMs} ms.",
-                historicalProfileId, linkedProfileId, elapsed.ElapsedMilliseconds);
+                "Falha ao mesclar o perfil historico {HistoricalProfileId} no perfil {LinkedProfileId} apos {ElapsedMs} ms. " +
+                "Erro do banco: {DatabaseErrorType} - {DatabaseErrorMessage}",
+                historicalProfileId, linkedProfileId, elapsed.ElapsedMilliseconds,
+                databaseError.GetType().Name, databaseError.Message);
             if (transaction is not null)
             {
                 await transaction.RollbackAsync(CancellationToken.None);
@@ -766,6 +769,15 @@ public sealed class AccountService(
             .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.SubmittedByPlayerProfileId, linkedProfileId), cancellationToken);
         await database.Clans.Where(x => x.CreatedByPlayerProfileId == historicalProfileId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.CreatedByPlayerProfileId, linkedProfileId), cancellationToken);
+
+        // Civilization drafts are stored through hand-written SQL and are intentionally
+        // outside the EF model. Their restrictive creator FK must be transferred before
+        // the historical profile can be removed.
+        await database.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE public.civilization_drafts
+               SET created_by_player_profile_id = {linkedProfileId}
+             WHERE created_by_player_profile_id = {historicalProfileId}
+            """, cancellationToken);
 
         // A identidade atual prevalece: avatar, preferências, solicitações, clã e tickets antigos não são herdados.
         await database.PlayerFavoriteFactions.Where(x => x.PlayerProfileId == historicalProfileId)
