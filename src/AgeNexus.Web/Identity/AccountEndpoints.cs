@@ -16,6 +16,7 @@ public static class AccountEndpoints
         group.MapGet("/external/google/callback", CompleteGoogleLoginAsync);
         group.MapPost("/logout", LogoutAsync).RequireAuthorization();
         group.MapPost("/profile", UpdateProfileAsync).RequireAuthorization();
+        group.MapPost("/delete", DeleteAccountAsync).RequireAuthorization();
         endpoints.MapGet("/profile-images/{playerProfileId:guid}", GetProfileImageAsync);
         return endpoints;
     }
@@ -96,6 +97,29 @@ public static class AccountEndpoints
 
         var error = result.ErrorCodes.Contains("DuplicateDisplayName") ? "nick-em-uso" : "perfil-invalido";
         return Results.LocalRedirect(result.Succeeded ? "/perfil?salvo=1" : $"/perfil?erro={error}");
+    }
+
+    private static async Task<IResult> DeleteAccountAsync(
+        HttpContext context,
+        IAntiforgery antiforgery,
+        AccountService accounts,
+        CancellationToken cancellationToken)
+    {
+        await antiforgery.ValidateRequestAsync(context);
+        var form = await context.Request.ReadFormAsync(cancellationToken);
+        var acknowledged = string.Equals(form["irreversible"].ToString(), "true", StringComparison.Ordinal);
+        var result = await accounts.DeleteAccountAsync(
+            context.User,
+            form["confirmation"].ToString(),
+            acknowledged,
+            cancellationToken);
+        if (!result.Succeeded)
+        {
+            return Results.LocalRedirect("/perfil?erro=exclusao-nao-confirmada");
+        }
+
+        await accounts.LogoutAsync();
+        return Results.LocalRedirect("/?conta-excluida=1");
     }
 
     private static string GetSafeReturnUrl(string? returnUrl)

@@ -107,6 +107,20 @@ public sealed class PlayerProfile
         AvatarUrl = normalizedAvatarUrl;
     }
 
+    public void Anonymize(string displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName) || displayName.Trim().Length > 100)
+        {
+            throw new DomainRuleException("An anonymized display name is required.");
+        }
+
+        DisplayName = displayName.Trim();
+        ApplicationUserId = null;
+        Bio = null;
+        Location = null;
+        AvatarUrl = null;
+    }
+
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

@@ -43,6 +43,22 @@
 .profile-private-account span { font-size: var(--font-caption); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .profile-private-account strong { overflow-wrap: anywhere; }
 .profile-private-account small { font-size: var(--font-caption); }
+.profile-delete-zone { display: flex; align-items: center; justify-content: space-between; gap: 24px; max-width: 980px; margin-top: 20px; padding: 24px 28px; border-color: #e1b9b2; background: #fff9f7; }
+.profile-delete-zone h2 { margin: 6px 0 7px; font: 700 19px "Unbounded"; }
+.profile-delete-zone p { max-width: 700px; margin: 0; color: var(--muted); font-size: var(--font-sm); line-height: 1.6; }
+.profile-delete-zone > button { flex: 0 0 auto; }
+.account-delete-backdrop { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(10,19,16,.7); backdrop-filter: blur(3px); }
+.account-delete-dialog { width: min(100%, 500px); padding: 28px; border: 1px solid #d3a39c; border-top: 5px solid #9b4037; border-radius: 8px; background: #fffaf7; box-shadow: 0 24px 70px rgba(0,0,0,.34); }
+.account-delete-dialog h2 { margin: 7px 0 12px; font: 700 22px "Unbounded"; }
+.account-delete-dialog p { margin: 0; color: var(--muted); line-height: 1.65; }
+.account-delete-dialog p strong { color: #79332c; }
+.account-delete-form { display: grid; gap: 16px; margin-top: 20px; }
+.account-delete-check { display: flex; align-items: flex-start; gap: 10px; color: var(--ink); font-size: var(--font-sm); font-weight: 700; line-height: 1.5; }
+.account-delete-check input { margin-top: 3px; accent-color: #8d392f; }
+.account-delete-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 24px; }
+.account-delete-form .account-delete-actions { margin-top: 4px; }
+.button-danger { color: #fff; border-color: #87372f; background: #87372f; }
+.button-danger:hover { border-color: #6f2b25; background: #6f2b25; }
 .player-directory-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(35,29,18,.1); }
 .player-directory-card > b { margin-left: auto; color: var(--gold); font-size: 20px; }
 .public-profile-back { display: inline-flex; align-items: center; margin-bottom: 14px; color: var(--muted); font-size: var(--font-caption); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; transition: color .16s ease; }

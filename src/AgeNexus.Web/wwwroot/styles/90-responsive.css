@@ -107,6 +107,7 @@
     .account-intro { margin-bottom: 30px; }.account-intro h1 { font-size: 37px; }.account-intro > p { font-size: 14px; }.account-benefits { display: none; }
     .account-card { padding: 24px 18px; }.form-grid { grid-template-columns: 1fr; }
     .profile-layout, .onboarding-grid, .public-profile-grid { grid-template-columns: 1fr; }.profile-preview { padding: 28px 20px; }.profile-form-card { padding: 24px 18px; }
+    .profile-delete-zone { align-items: stretch; flex-direction: column; padding: 22px 18px; }.profile-delete-zone > button { width: 100%; }.account-delete-dialog { padding: 24px 18px; }.account-delete-actions { align-items: stretch; flex-direction: column-reverse; }.account-delete-actions .button { width: 100%; }
     .match-team-adder { align-items: stretch; flex-direction: column; padding: 20px 18px; }
     .match-team-actions { align-items: stretch; flex-direction: column; width: 100%; }
     .onboarding-result, .public-profile-hero, .public-profile-identity { align-items: flex-start; flex-direction: column; }.onboarding-result .button { width: 100%; }
