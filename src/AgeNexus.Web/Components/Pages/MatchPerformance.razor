@@ -350,13 +350,13 @@ else
             <section class="performance-screen">
                 <header><span class="eyebrow">Tela 1</span><h3>Placar</h3></header>
                 <div class="performance-screen-table-wrap"><table class="performance-screen-table">
-                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th @key="row.MatchParticipantId">@row.DisplayName</th> }</tr></thead>
                     <tbody>
-                        <tr><th>Pontuação militar *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.MilitaryScore" /></td> }</tr>
-                        <tr><th>Pontuação econômica *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.EconomyScore" /></td> }</tr>
-                        <tr><th>Pontuação tecnológica *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TechnologyScore" /></td> }</tr>
-                        <tr><th>Pontuação social *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.SocietyScore" /></td> }</tr>
-                        <tr><th>Pontuação total *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TotalScore" /></td> }</tr>
+                        <tr><th>Pontuação militar *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.MilitaryScore" /></td> }</tr>
+                        <tr><th>Pontuação econômica *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.EconomyScore" /></td> }</tr>
+                        <tr><th>Pontuação tecnológica *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.TechnologyScore" /></td> }</tr>
+                        <tr><th>Pontuação social *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.SocietyScore" /></td> }</tr>
+                        <tr><th>Pontuação total *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.TotalScore" /></td> }</tr>
                     </tbody>
                 </table></div>
             </section>
@@ -364,14 +364,14 @@ else
             <section class="performance-screen">
                 <header><span class="eyebrow">Tela 2</span><h3>Militar</h3></header>
                 <div class="performance-screen-table-wrap"><table class="performance-screen-table">
-                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th @key="row.MatchParticipantId">@row.DisplayName</th> }</tr></thead>
                     <tbody>
-                        <tr><th>Unidades eliminadas *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.UnitsKilled" /></td> }</tr>
-                        <tr><th>Unidades perdidas *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.UnitsLost" /></td> }</tr>
-                        <tr><th>Edifícios destruídos *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.BuildingsDestroyed" /></td> }</tr>
-                        <tr><th>Edifícios perdidos *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.BuildingsLost" /></td> }</tr>
-                        <tr><th>Conversões</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.UnitsConverted" /></td> }</tr>
-                        <tr><th>Maior exército *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.LargestArmy" /></td> }</tr>
+                        <tr><th>Unidades eliminadas *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.UnitsKilled" /></td> }</tr>
+                        <tr><th>Unidades perdidas *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.UnitsLost" /></td> }</tr>
+                        <tr><th>Edifícios destruídos *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.BuildingsDestroyed" /></td> }</tr>
+                        <tr><th>Edifícios perdidos *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.BuildingsLost" /></td> }</tr>
+                        <tr><th>Conversões</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.UnitsConverted" /></td> }</tr>
+                        <tr><th>Maior exército *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.LargestArmy" /></td> }</tr>
                     </tbody>
                 </table></div>
             </section>
@@ -379,16 +379,16 @@ else
             <section class="performance-screen">
                 <header><span class="eyebrow">Tela 3</span><h3>Economia</h3></header>
                 <div class="performance-screen-table-wrap"><table class="performance-screen-table">
-                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th @key="row.MatchParticipantId">@row.DisplayName</th> }</tr></thead>
                     <tbody>
-                        <tr><th>Comida *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.FoodCollected" /></td> }</tr>
-                        <tr><th>Madeira *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.WoodCollected" /></td> }</tr>
-                        <tr><th>Ouro *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.GoldCollected" /></td> }</tr>
-                        <tr><th>Pedra *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.StoneCollected" /></td> }</tr>
-                        <tr><th>Ouro comercial</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TradeGold" /></td> }</tr>
-                        <tr><th>Ouro de relíquias</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.RelicGold" /></td> }</tr>
-                        <tr><th>Tributo enviado</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TributeSent" /></td> }</tr>
-                        <tr><th>Tributo recebido</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.TributeReceived" /></td> }</tr>
+                        <tr><th>Comida *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.FoodCollected" /></td> }</tr>
+                        <tr><th>Madeira *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.WoodCollected" /></td> }</tr>
+                        <tr><th>Ouro *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.GoldCollected" /></td> }</tr>
+                        <tr><th>Pedra *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.StoneCollected" /></td> }</tr>
+                        <tr><th>Ouro comercial</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.TradeGold" /></td> }</tr>
+                        <tr><th>Ouro de relíquias</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.RelicGold" /></td> }</tr>
+                        <tr><th>Tributo enviado</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.TributeSent" /></td> }</tr>
+                        <tr><th>Tributo recebido</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.TributeReceived" /></td> }</tr>
                     </tbody>
                 </table></div>
             </section>
@@ -396,20 +396,20 @@ else
             <section class="performance-screen">
                 <header><span class="eyebrow">Tela 4</span><h3>Tecnologia</h3></header>
                 <div class="performance-screen-table-wrap"><table class="performance-screen-table">
-                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th @key="row.MatchParticipantId">@row.DisplayName</th> }</tr></thead>
                     <tbody>
-                        <tr><th>Tecnologias</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.ResearchCount" /></td> }</tr>
-                        <tr><th>Pesquisas concluídas (%)</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.ResearchPercent" step="0.01" /></td> }</tr>
-                        <tr><th>Mapa explorado (%)</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.ExploredPercent" /></td> }</tr>
+                        <tr><th>Tecnologias</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.ResearchCount" /></td> }</tr>
+                        <tr><th>Pesquisas concluídas (%)</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.ResearchPercent" step="0.01" /></td> }</tr>
+                        <tr><th>Mapa explorado (%)</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.ExploredPercent" /></td> }</tr>
                         @if (IgnoresEraTimes)
                         {
                             <tr><th>Tempos de avanço</th><td colspan="@Rows.Count"><span class="ignored-statistic">Ignorados em Combate Mortal, pois a partida já começa na Era Imperial.</span></td></tr>
                         }
                         else
                         {
-                            <tr><th>Era Feudal (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.FeudalAge" /></td> }</tr>
-                            <tr><th>Era dos Castelos (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.CastleAge" /></td> }</tr>
-                            <tr><th>Era Imperial (hh:mm:ss)</th>@foreach (var row in Rows) { <td><EraTimeInputs Value="row.ImperialAge" /></td> }</tr>
+                            <tr><th>Era Feudal (hh:mm:ss)</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><EraTimeInputs Value="row.FeudalAge" /></td> }</tr>
+                            <tr><th>Era dos Castelos (hh:mm:ss)</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><EraTimeInputs Value="row.CastleAge" /></td> }</tr>
+                            <tr><th>Era Imperial (hh:mm:ss)</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><EraTimeInputs Value="row.ImperialAge" /></td> }</tr>
                         }
                     </tbody>
                 </table></div>
@@ -418,13 +418,13 @@ else
             <section class="performance-screen">
                 <header><span class="eyebrow">Tela 5</span><h3>Sociedade</h3></header>
                 <div class="performance-screen-table-wrap"><table class="performance-screen-table">
-                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th>@row.DisplayName</th> }</tr></thead>
+                    <thead><tr><th>Estatística</th>@foreach (var row in Rows) { <th @key="row.MatchParticipantId">@row.DisplayName</th> }</tr></thead>
                     <tbody>
-                        <tr><th>Máximo de aldeões *</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.PeakVillagers" /></td> }</tr>
-                        <tr><th>Maravilhas construídas</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.WondersBuilt" /></td> }</tr>
-                        <tr><th>Castelos construídos</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.CastlesBuilt" /></td> }</tr>
-                        <tr><th>Relíquias capturadas</th>@foreach (var row in Rows) { <td><InputNumber @bind-Value="row.RelicsCaptured" /></td> }</tr>
-                        <tr><th>Sobreviveu até o fim</th>@foreach (var row in Rows) { <td><InputSelect @bind-Value="row.Survived"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></InputSelect></td> }</tr>
+                        <tr><th>Máximo de aldeões *</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.PeakVillagers" /></td> }</tr>
+                        <tr><th>Maravilhas construídas</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.WondersBuilt" /></td> }</tr>
+                        <tr><th>Castelos construídos</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.CastlesBuilt" /></td> }</tr>
+                        <tr><th>Relíquias capturadas</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputNumber @bind-Value="row.RelicsCaptured" /></td> }</tr>
+                        <tr><th>Sobreviveu até o fim</th>@foreach (var row in Rows) { <td @key="row.MatchParticipantId"><InputSelect @bind-Value="row.Survived"><option value="">Não informado</option><option value="true">Sim</option><option value="false">Não</option></InputSelect></td> }</tr>
                     </tbody>
                 </table></div>
             </section>
@@ -1204,24 +1204,28 @@ else
         {
             return;
         }
-        if (JsonImportResult.PlayerCount != Rows.Count)
-        {
-            Message = $"O JSON contém {JsonImportResult.PlayerCount} jogadores, mas a partida possui {Rows.Count} participantes no total.";
-            HasError = true;
-            return;
-        }
-        if (JsonMappings.Any(x => !x.MatchParticipantId.HasValue) ||
-            JsonMappings.Select(x => x.MatchParticipantId).Distinct().Count() != JsonMappings.Count)
+        if (JsonMappings.Any(x => !x.MatchParticipantId.HasValue))
         {
             Message = "Associe cada posição a um participante diferente da partida.";
             HasError = true;
             return;
         }
 
-        foreach (var imported in JsonImportResult.Players)
+        var assignment = AgeNexus.Application.MatchPerformance.AgeExtractorPlayerAssignment.Assign(
+            JsonImportResult,
+            JsonMappings.Select(x => new AgeNexus.Application.MatchPerformance.AgeExtractorParticipantMapping(
+                x.PlayerNumber, x.MatchParticipantId!.Value)).ToArray(),
+            Rows.Select(x => x.MatchParticipantId).ToArray());
+        if (!assignment.Succeeded || assignment.Players is null)
         {
-            var mapping = JsonMappings.Single(x => x.PlayerNumber == imported.PlayerNumber);
-            Rows.Single(x => x.MatchParticipantId == mapping.MatchParticipantId).Apply(imported.Values);
+            Message = assignment.Error;
+            HasError = true;
+            return;
+        }
+
+        foreach (var row in Rows)
+        {
+            row.Apply(assignment.Players[row.MatchParticipantId].Values);
         }
 
         Source = AgeNexus.Domain.MatchPerformance.MatchStatisticsSource.JsonImport;
