@@ -38,6 +38,8 @@ Em produção, a aplicação executa somente as migrations pendentes uma vez dur
 
 `Supabase__EvidenceBucket=match-evidence` já possui valor no Blueprint. Essas três configurações habilitam o envio de capturas e replays; sem elas, o restante do site e os links do YouTube continuam funcionando normalmente.
 
+Avatares de jogadores e emblemas de clãs possuem fallback próprio no PostgreSQL, com limite de 2 MB, validação de JPEG/PNG/WebP e cache HTTP. Portanto, continuam disponíveis mesmo quando o Storage não estiver configurado. As imagens temporárias do AgeXtractor não usam esse fallback nem são persistidas.
+
 Confirme a criação. O primeiro build publica o Blazor em .NET 8 e inicia a aplicação na porta fornecida pelo Render. O Render verifica a disponibilidade do processo em `/health`, sem abrir conexões periódicas com o banco.
 
 O diagnóstico manual `/health/database` continua disponível para confirmar a conexão com o PostgreSQL quando necessário.
