@@ -722,14 +722,16 @@ public sealed class PerformanceStatisticsService(
 
     private static MatchStatisticValues NormalizeForGameMode(
         MatchGameMode gameMode,
-        MatchStatisticValues values) =>
-        gameMode == MatchGameMode.DeathMatch
-            ? values with
-            {
-                FeudalAgeSeconds = null,
-                CastleAgeSeconds = null,
-                ImperialAgeSeconds = null
-            }
-            : values;
+        MatchStatisticValues values) => values with
+        {
+            FeudalAgeSeconds = gameMode == MatchGameMode.DeathMatch
+                ? null : PositiveDuration(values.FeudalAgeSeconds),
+            CastleAgeSeconds = gameMode == MatchGameMode.DeathMatch
+                ? null : PositiveDuration(values.CastleAgeSeconds),
+            ImperialAgeSeconds = gameMode == MatchGameMode.DeathMatch
+                ? null : PositiveDuration(values.ImperialAgeSeconds)
+        };
+
+    private static int? PositiveDuration(int? seconds) => seconds is > 0 ? seconds : null;
 
 }
