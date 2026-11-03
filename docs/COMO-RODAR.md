@@ -110,6 +110,8 @@ O sufixo `/signin-google` pertence ao middleware OAuth e não deve ser alterado.
 
 O Age Nexus não expõe cadastro nem login por e-mail e senha. As páginas `/conta/criar` e `/conta/login` iniciam o mesmo fluxo seguro do Google; sem as duas credenciais OAuth configuradas, nenhum novo acesso poderá ser concluído.
 
+Na página `/perfil`, o usuário pode excluir definitivamente sua conta após duas confirmações. O endpoint `POST /account/delete` exige autenticação, token antifalsificação, aceite da irreversibilidade e a frase exata `EXCLUIR`. O registro do Identity e o login externo são apagados; dados competitivos pessoais são removidos e referências indispensáveis a partidas compartilhadas ficam anonimizadas como `Jogador removido`.
+
 Novas contas Google podem entrar como jogadores, mas não recebem permissão administrativa. Se o nick já existir no histórico, o jogador solicita a vinculação e a conta administradora aprova em `/jogadores/gerenciar`. Se o nick ainda não existir, ele pode criar um perfil novo. A ordem de cadastro não concede privilégios. Em uma instalação sem administrador, configure `Security__BootstrapAdministratorEmail` com o e-mail exato do responsável (em User Secrets: `Security:BootstrapAdministratorEmail`). A conta precisa ter e-mail confirmado. Após a atribuição, remova essa configuração de bootstrap; administradores existentes permanecem cadastrados.
 
 Fotos de perfil usam o mesmo Storage já configurado para evidências. O servidor aceita JPEG, PNG ou WebP de até 2 MB e grava no banco somente a URL pública, nunca o arquivo dentro do PostgreSQL.

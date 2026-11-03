@@ -79,7 +79,12 @@
                 }
                 else if (!string.IsNullOrWhiteSpace(Error))
                 {
-                    <div class="form-alert form-alert-error" role="alert">@(Error == "nick-em-uso" ? "Esse nick já pertence a outro jogador." : "Revise os dados do perfil.")</div>
+                    <div class="form-alert form-alert-error" role="alert">@(Error switch
+                    {
+                        "nick-em-uso" => "Esse nick já pertence a outro jogador.",
+                        "exclusao-nao-confirmada" => "A conta não foi excluída. Confirme novamente todos os campos obrigatórios.",
+                        _ => "Revise os dados do perfil."
+                    })</div>
                 }
                 @if (!string.IsNullOrWhiteSpace(Message))
                 {
@@ -120,6 +125,53 @@
                 </form>
             </div>
         </div>
+
+        <section class="profile-delete-zone panel">
+            <div>
+                <span class="eyebrow">Privacidade e conta</span>
+                <h2>Excluir minha conta</h2>
+                <p>Remove seu login, e-mail, perfil, foto, preferências, rankings, conquistas e estatísticas pessoais. Nas partidas compartilhadas permanece apenas “Jogador removido”, sem dados que identifiquem você.</p>
+            </div>
+            <button class="table-action-button table-action-danger" type="button" @onclick="() => DeleteStage = 1" disabled="@Busy">Excluir minha conta</button>
+        </section>
+
+        @if (DeleteStage > 0)
+        {
+            <div class="account-delete-backdrop" role="presentation">
+                <section class="account-delete-dialog" role="dialog" aria-modal="true" aria-labelledby="account-delete-title">
+                    <span class="eyebrow">Processo irreversível</span>
+                    @if (DeleteStage == 1)
+                    {
+                        <h2 id="account-delete-title">Deseja iniciar a exclusão?</h2>
+                        <p>Seu acesso pelo Google será desvinculado e seus dados pessoais serão apagados. Esta ação não poderá ser desfeita.</p>
+                        <div class="account-delete-actions">
+                            <button class="button button-secondary" type="button" @onclick="CloseDeleteDialog">Cancelar</button>
+                            <button class="button button-danger" type="button" @onclick="() => DeleteStage = 2">Continuar</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <h2 id="account-delete-title">Confirme definitivamente</h2>
+                        <p>Para concluir, marque a confirmação e digite <strong>EXCLUIR</strong>. Ao enviar, sua sessão será encerrada imediatamente.</p>
+                        <form method="post" action="/account/delete" class="account-delete-form">
+                            <AntiforgeryToken />
+                            <label class="account-delete-check">
+                                <input type="checkbox" name="irreversible" value="true" required />
+                                <span>Entendo que o processo é irreversível.</span>
+                            </label>
+                            <label class="form-field">
+                                <span>Digite EXCLUIR</span>
+                                <input name="confirmation" required pattern="EXCLUIR" autocomplete="off" />
+                            </label>
+                            <div class="account-delete-actions">
+                                <button class="button button-secondary" type="button" @onclick="() => DeleteStage = 1">Voltar</button>
+                                <button class="button button-danger" type="submit">Excluir permanentemente</button>
+                            </div>
+                        </form>
+                    }
+                </section>
+            </div>
+        }
     }
 </section>
 
@@ -139,6 +191,7 @@
     private bool HasError { get; set; }
     private bool Busy { get; set; }
     private bool IsLoading { get; set; } = true;
+    private int DeleteStage { get; set; }
     private string AccountEmail { get; set; } = string.Empty;
 
     protected override async Task OnInitializedAsync()
@@ -201,5 +254,7 @@
             _ => "Não foi possível atualizar a foto agora."
         };
     }
+
+    private void CloseDeleteDialog() => DeleteStage = 0;
 
 }

@@ -454,6 +454,54 @@ public sealed class AccountSecurityTests
         Assert.False(await provider.IsSessionValidAsync(principal));
     }
 
+    [Fact]
+    public async Task Account_deletion_requires_explicit_confirmation_and_anonymizes_shared_history()
+    {
+        await using var services = CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = await AddUserAsync(users, "delete-me@example.test");
+        var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+        var player = new PlayerProfile(Guid.NewGuid(), "Nome pessoal", user.Id);
+        player.UpdatePublicProfile("Nome pessoal", "Biografia", "Fortaleza", "https://example.test/avatar.png");
+        var opponent = new PlayerProfile(Guid.NewGuid(), "Adversário");
+        database.PlayerProfiles.AddRange(player, opponent);
+        var match = new Match(Guid.NewGuid(), Guid.NewGuid(), player.Id, DateTimeOffset.UtcNow,
+            MatchType.PlayerVersusPlayer, MatchNature.Ranked);
+        var firstTeam = match.AddTeam(Guid.NewGuid());
+        var secondTeam = match.AddTeam(Guid.NewGuid());
+        var playerParticipant = MatchParticipant.Human(Guid.NewGuid(), player.Id, Guid.NewGuid());
+        match.AddParticipant(firstTeam.Id, playerParticipant);
+        match.AddParticipant(secondTeam.Id, MatchParticipant.Human(Guid.NewGuid(), opponent.Id));
+        database.Matches.Add(match);
+        database.RatingEvents.Add(new RatingEvent(Guid.NewGuid(), match.Id, player.Id, null,
+            RatingScopeKind.GeneralCompetitive, 20m, "test", "{}", DateTimeOffset.UtcNow));
+        await database.SaveChangesAsync();
+        var accounts = scope.ServiceProvider.GetRequiredService<AccountService>();
+        var principal = Principal(user);
+
+        var rejected = await accounts.DeleteAccountAsync(principal, "excluir", true);
+
+        Assert.False(rejected.Succeeded);
+        Assert.NotNull(await users.FindByIdAsync(user.Id.ToString()));
+
+        var deleted = await accounts.DeleteAccountAsync(
+            principal, AccountService.AccountDeletionConfirmation, true);
+
+        Assert.True(deleted.Succeeded);
+        Assert.Null(await users.FindByIdAsync(user.Id.ToString()));
+        var anonymized = await database.PlayerProfiles.AsNoTracking().SingleAsync(x => x.Id == player.Id);
+        Assert.Equal(AccountService.DeletedProfileDisplayName, anonymized.DisplayName);
+        Assert.Null(anonymized.ApplicationUserId);
+        Assert.Null(anonymized.Bio);
+        Assert.Null(anonymized.Location);
+        Assert.Null(anonymized.AvatarUrl);
+        Assert.True(await database.Matches.AnyAsync(x => x.Id == match.Id));
+        Assert.False(await database.RatingEvents.AnyAsync(x => x.BeneficiaryId == player.Id));
+        Assert.Null((await database.MatchParticipants.AsNoTracking()
+            .SingleAsync(x => x.Id == playerParticipant.Id)).FactionId);
+    }
+
     private static ServiceProvider CreateServices(string? bootstrapEmail = null)
     {
         var services = new ServiceCollection();

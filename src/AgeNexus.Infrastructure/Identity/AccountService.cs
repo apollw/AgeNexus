@@ -31,6 +31,8 @@ public sealed class AccountService(
     public const string AdministratorRole = "Administrator";
     public const string GoogleEmailVerifiedClaim = "urn:agenexus:google:email_verified";
     public const string GoogleHostedDomainClaim = "urn:agenexus:google:hosted_domain";
+    public const string AccountDeletionConfirmation = "EXCLUIR";
+    public const string DeletedProfileDisplayName = "Jogador removido";
 
     public Task LogoutAsync() => signInManager.SignOutAsync();
 
@@ -263,7 +265,9 @@ public sealed class AccountService(
         IReadOnlyCollection<ClaimablePlayerProfile> available = linkedProfile is not null || pending is not null
             ? []
             : await database.PlayerProfiles.AsNoTracking()
-                .Where(x => !x.ApplicationUserId.HasValue && !unavailableProfileIds.Contains(x.Id))
+                .Where(x => !x.ApplicationUserId.HasValue &&
+                            x.DisplayName != DeletedProfileDisplayName &&
+                            !unavailableProfileIds.Contains(x.Id))
                 .OrderBy(x => x.DisplayName)
                 .Select(x => new ClaimablePlayerProfile(x.Id, x.DisplayName, x.AvatarUrl))
                 .ToArrayAsync(cancellationToken);
@@ -551,6 +555,239 @@ public sealed class AccountService(
         return AccountOperationResult.Success();
     }
 
+    public async Task<AccountOperationResult> DeleteAccountAsync(
+        ClaimsPrincipal principal,
+        string confirmation,
+        bool acknowledgedIrreversibility,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetUserId(principal);
+        if (!userId.HasValue)
+        {
+            return AccountOperationResult.Failure(["NotAuthenticated"]);
+        }
+
+        if (!acknowledgedIrreversibility ||
+            !string.Equals(confirmation.Trim(), AccountDeletionConfirmation, StringComparison.Ordinal))
+        {
+            return AccountOperationResult.Failure(["AccountDeletionNotConfirmed"]);
+        }
+
+        var user = await userManager.FindByIdAsync(userId.Value.ToString());
+        if (user is null)
+        {
+            return AccountOperationResult.Failure(["AccountNotFound"]);
+        }
+
+        var profile = await database.PlayerProfiles.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.ApplicationUserId == userId.Value, cancellationToken);
+        var avatarObjectKey = profile?.AvatarUrl is null || !storage.IsConfigured
+            ? null
+            : storage.TryGetObjectKey(profile.AvatarUrl);
+        var evidenceObjectKeys = profile is null
+            ? []
+            : await database.MatchEvidence.AsNoTracking()
+                .Where(x => x.SubmittedByPlayerProfileId == profile.Id && x.ObjectKey != null)
+                .Select(x => x.ObjectKey!)
+                .ToArrayAsync(cancellationToken);
+
+        try
+        {
+            var strategy = database.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = database.Database.IsRelational()
+                    ? await database.Database.BeginTransactionAsync(cancellationToken)
+                    : null;
+                try
+                {
+                    if (profile is not null)
+                    {
+                        if (database.Database.IsRelational())
+                        {
+                            await DeleteProfileDataRelationalAsync(profile.Id, userId.Value, cancellationToken);
+                        }
+                        else
+                        {
+                            await DeleteProfileDataInMemoryAsync(profile.Id, userId.Value, cancellationToken);
+                        }
+                    }
+                    else
+                    {
+                        await RemoveIdentityAuditReferencesAsync(userId.Value, cancellationToken);
+                    }
+
+                    var deletion = await userManager.DeleteAsync(user);
+                    if (!deletion.Succeeded)
+                    {
+                        throw new InvalidOperationException(string.Join(", ", deletion.Errors.Select(x => x.Code)));
+                    }
+
+                    if (transaction is not null)
+                    {
+                        await transaction.CommitAsync(cancellationToken);
+                    }
+                }
+                catch
+                {
+                    if (transaction is not null)
+                    {
+                        await transaction.RollbackAsync(CancellationToken.None);
+                    }
+                    database.ChangeTracker.Clear();
+                    throw;
+                }
+            });
+
+            services.GetService<CompetitionQueryCache>()?.Invalidate();
+            services.GetService<CatalogQueryCache>()?.Invalidate();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Falha ao excluir definitivamente a conta {ApplicationUserId}.", userId.Value);
+            return AccountOperationResult.Failure(["AccountDeletionFailed"]);
+        }
+
+        foreach (var objectKey in evidenceObjectKeys.Append(avatarObjectKey)
+                     .Where(_ => storage.IsConfigured)
+                     .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct())
+        {
+            await TryDeleteStorageObjectAsync(objectKey!, CancellationToken.None);
+        }
+
+        logger.LogInformation("Conta {ApplicationUserId} excluida e perfil anonimizado.", userId.Value);
+        return AccountOperationResult.Success();
+    }
+
+    private async Task DeleteProfileDataRelationalAsync(
+        Guid profileId,
+        Guid applicationUserId,
+        CancellationToken cancellationToken)
+    {
+        await database.Database.ExecuteSqlInterpolatedAsync($"""
+            DELETE FROM public.rating_events
+             WHERE scope = 'TeamLineup'
+               AND beneficiary_id IN (
+                   SELECT DISTINCT team_lineup_id FROM public.team_lineup_members
+                    WHERE player_profile_id = {profileId});
+            DELETE FROM public.team_lineups
+             WHERE id IN (
+                   SELECT DISTINCT team_lineup_id FROM public.team_lineup_members
+                    WHERE player_profile_id = {profileId});
+
+            DELETE FROM public.rating_events WHERE beneficiary_id = {profileId};
+            DELETE FROM public.point_events WHERE beneficiary_id = {profileId};
+            DELETE FROM public.player_performance_scores WHERE player_profile_id = {profileId};
+            DELETE FROM public.player_match_statistics WHERE player_profile_id = {profileId};
+            DELETE FROM public.statistics_confirmations WHERE confirmed_by_player_profile_id = {profileId};
+            DELETE FROM public.match_confirmations WHERE player_profile_id = {profileId};
+            DELETE FROM public.match_evidence WHERE submitted_by_player_profile_id = {profileId};
+            DELETE FROM public.clan_memberships WHERE player_profile_id = {profileId};
+            DELETE FROM public.challenge_tickets WHERE player_profile_id = {profileId};
+            DELETE FROM public.player_favorite_factions WHERE player_profile_id = {profileId};
+            DELETE FROM public.player_profile_avatars WHERE player_profile_id = {profileId};
+            DELETE FROM public.player_profile_claims WHERE player_profile_id = {profileId}
+                                                      OR application_user_id = {applicationUserId};
+            UPDATE public.player_profile_claims
+               SET decided_by_application_user_id = NULL
+             WHERE decided_by_application_user_id = {applicationUserId};
+            DELETE FROM public.match_revisions WHERE changed_by_application_user_id = {applicationUserId};
+            DELETE FROM public.verification_decisions WHERE decided_by_application_user_id = {applicationUserId};
+            DELETE FROM public.civilization_drafts
+             WHERE created_by_player_profile_id = {profileId}
+                OR state_json::text LIKE ('%' || {profileId.ToString()} || '%');
+
+            UPDATE public.match_participants SET faction_id = NULL WHERE player_profile_id = {profileId};
+            UPDATE public.player_profiles
+               SET display_name = {DeletedProfileDisplayName}, application_user_id = NULL,
+                   bio = NULL, location = NULL, avatar_url = NULL
+             WHERE id = {profileId};
+            """, cancellationToken);
+        database.ChangeTracker.Clear();
+    }
+
+    private async Task DeleteProfileDataInMemoryAsync(
+        Guid profileId,
+        Guid applicationUserId,
+        CancellationToken cancellationToken)
+    {
+        var affectedLineups = await database.TeamLineups.Include(x => x.Members)
+            .Where(x => x.Members.Any(member => member.PlayerProfileId == profileId))
+            .ToArrayAsync(cancellationToken);
+        var affectedLineupIds = affectedLineups.Select(x => x.Id).ToArray();
+        database.RatingEvents.RemoveRange(await database.RatingEvents.Where(x =>
+            x.BeneficiaryId == profileId ||
+            (x.Scope == RatingScopeKind.TeamLineup && affectedLineupIds.Contains(x.BeneficiaryId)))
+            .ToArrayAsync(cancellationToken));
+        database.TeamLineups.RemoveRange(affectedLineups);
+        database.PointEvents.RemoveRange(await database.PointEvents.Where(x => x.BeneficiaryId == profileId)
+            .ToArrayAsync(cancellationToken));
+        database.PlayerPerformanceScores.RemoveRange(await database.PlayerPerformanceScores
+            .Where(x => x.PlayerProfileId == profileId).ToArrayAsync(cancellationToken));
+        database.PlayerMatchStatistics.RemoveRange(await database.PlayerMatchStatistics
+            .Where(x => x.PlayerProfileId == profileId).ToArrayAsync(cancellationToken));
+        database.StatisticsConfirmations.RemoveRange(await database.StatisticsConfirmations
+            .Where(x => x.ConfirmedByPlayerProfileId == profileId).ToArrayAsync(cancellationToken));
+        database.MatchConfirmations.RemoveRange(await database.MatchConfirmations
+            .Where(x => x.PlayerProfileId == profileId).ToArrayAsync(cancellationToken));
+        database.MatchEvidence.RemoveRange(await database.MatchEvidence
+            .Where(x => x.SubmittedByPlayerProfileId == profileId).ToArrayAsync(cancellationToken));
+        database.ClanMemberships.RemoveRange(await database.ClanMemberships
+            .Where(x => x.PlayerProfileId == profileId).ToArrayAsync(cancellationToken));
+        database.ChallengeTickets.RemoveRange(await database.ChallengeTickets
+            .Where(x => x.PlayerProfileId == profileId).ToArrayAsync(cancellationToken));
+        database.PlayerFavoriteFactions.RemoveRange(await database.PlayerFavoriteFactions
+            .Where(x => x.PlayerProfileId == profileId).ToArrayAsync(cancellationToken));
+        database.PlayerProfileAvatars.RemoveRange(await database.PlayerProfileAvatars
+            .Where(x => x.PlayerProfileId == profileId).ToArrayAsync(cancellationToken));
+        database.PlayerProfileClaims.RemoveRange(await database.PlayerProfileClaims.Where(x =>
+            x.PlayerProfileId == profileId || x.ApplicationUserId == applicationUserId ||
+            x.DecidedByApplicationUserId == applicationUserId).ToArrayAsync(cancellationToken));
+        database.MatchRevisions.RemoveRange(await database.MatchRevisions
+            .Where(x => x.ChangedByApplicationUserId == applicationUserId).ToArrayAsync(cancellationToken));
+        database.VerificationDecisions.RemoveRange(await database.VerificationDecisions
+            .Where(x => x.DecidedByApplicationUserId == applicationUserId).ToArrayAsync(cancellationToken));
+        var participants = await database.MatchParticipants.Where(x => x.PlayerProfileId == profileId)
+            .ToArrayAsync(cancellationToken);
+        foreach (var participant in participants)
+        {
+            participant.SetFaction(null);
+        }
+        var profile = await database.PlayerProfiles.SingleAsync(x => x.Id == profileId, cancellationToken);
+        profile.Anonymize(DeletedProfileDisplayName);
+        await database.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task RemoveIdentityAuditReferencesAsync(
+        Guid applicationUserId,
+        CancellationToken cancellationToken)
+    {
+        if (database.Database.IsRelational())
+        {
+            await database.Database.ExecuteSqlInterpolatedAsync($"""
+                DELETE FROM public.player_profile_claims WHERE application_user_id = {applicationUserId};
+                UPDATE public.player_profile_claims SET decided_by_application_user_id = NULL
+                 WHERE decided_by_application_user_id = {applicationUserId};
+                DELETE FROM public.match_revisions WHERE changed_by_application_user_id = {applicationUserId};
+                DELETE FROM public.verification_decisions WHERE decided_by_application_user_id = {applicationUserId};
+                """, cancellationToken);
+            return;
+        }
+
+        database.PlayerProfileClaims.RemoveRange(await database.PlayerProfileClaims.Where(x =>
+            x.ApplicationUserId == applicationUserId || x.DecidedByApplicationUserId == applicationUserId)
+            .ToArrayAsync(cancellationToken));
+        database.MatchRevisions.RemoveRange(await database.MatchRevisions
+            .Where(x => x.ChangedByApplicationUserId == applicationUserId).ToArrayAsync(cancellationToken));
+        database.VerificationDecisions.RemoveRange(await database.VerificationDecisions
+            .Where(x => x.DecidedByApplicationUserId == applicationUserId).ToArrayAsync(cancellationToken));
+        await database.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyCollection<ManagedPlayerProfile>> GetManagedProfilesAsync(
         ClaimsPrincipal principal,
         CancellationToken cancellationToken = default)
@@ -561,6 +798,7 @@ public sealed class AccountService(
         }
 
         return await database.PlayerProfiles.AsNoTracking()
+            .Where(x => x.DisplayName != DeletedProfileDisplayName)
             .OrderBy(x => x.DisplayName)
             .Select(x => new ManagedPlayerProfile(
                 x.Id, x.DisplayName, x.Bio, x.Location, x.AvatarUrl, x.ApplicationUserId.HasValue,

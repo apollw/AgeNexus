@@ -4,6 +4,7 @@ using AgeNexus.Domain.EvidenceAndModeration;
 using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
 using AgeNexus.Infrastructure.GameCatalog;
+using AgeNexus.Infrastructure.Identity;
 using AgeNexus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -101,6 +102,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         catalogCache.GetOrCreateAsync<IReadOnlyCollection<CatalogOption>>(
             "match-history:players",
             async token => await database.PlayerProfiles.AsNoTracking()
+                .Where(player => player.DisplayName != AccountService.DeletedProfileDisplayName)
                 .OrderBy(player => player.DisplayName)
                 .Select(player => new CatalogOption(player.Id, player.DisplayName))
                 .ToArrayAsync(token),
@@ -376,6 +378,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         CancellationToken cancellationToken)
     {
         return await database.PlayerProfiles.AsNoTracking()
+            .Where(x => x.DisplayName != AccountService.DeletedProfileDisplayName)
             .OrderBy(x => x.DisplayName)
             .Take(limit)
             .Select(player => new PlayerSummary(
@@ -405,7 +408,7 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         CancellationToken cancellationToken)
     {
         var profile = await database.PlayerProfiles.AsNoTracking()
-            .Where(x => x.Id == playerId)
+            .Where(x => x.Id == playerId && x.DisplayName != AccountService.DeletedProfileDisplayName)
             .Select(player => new
             {
                 player.Id,
@@ -729,7 +732,9 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
         var editions = await database.GameEditions.AsNoTracking().Where(x => x.IsActive)
             .OrderBy(x => x.Name).Select(x => new CatalogOption(x.Id, x.Name)).ToArrayAsync(cancellationToken);
         var selectedEditionId = gameEditionId ?? editions.FirstOrDefault()?.Id;
-        var players = await database.PlayerProfiles.AsNoTracking().OrderBy(x => x.DisplayName)
+        var players = await database.PlayerProfiles.AsNoTracking()
+            .Where(x => x.DisplayName != AccountService.DeletedProfileDisplayName)
+            .OrderBy(x => x.DisplayName)
             .Select(x => new CatalogOption(x.Id, x.DisplayName)).ToArrayAsync(cancellationToken);
         var factions = await database.Factions.AsNoTracking()
             .Where(x => !selectedEditionId.HasValue || x.GameEditionId == selectedEditionId)
