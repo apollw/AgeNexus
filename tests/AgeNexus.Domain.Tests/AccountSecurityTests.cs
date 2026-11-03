@@ -116,6 +116,11 @@ public sealed class AccountSecurityTests
             "Ataque", "ATK", null, null, false)).Succeeded);
         Assert.True((await clans.UpdateOwnMembershipAsync(Principal(memberUser), created.ClanId.Value,
             "Estrategista", "Especialista em mapas fechados")).Succeeded);
+        Assert.True((await clans.UploadImageAsync(Principal(founderUser), created.ClanId.Value,
+            "emblema.png", [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])).Succeeded);
+        Assert.True(await database.ClanEmblems.AnyAsync(x => x.ClanId == created.ClanId.Value));
+        Assert.StartsWith($"/clan-images/{created.ClanId.Value:D}",
+            (await database.Clans.AsNoTracking().SingleAsync(x => x.Id == created.ClanId.Value)).ImageUrl);
         Assert.False((await clans.CreateAsync(unlinkedCreator.Id, "Invasores", "INV", [])).Succeeded);
         Assert.False((await clans.CreateAsync(founder.Id, "Outro", "OUT", [])).Succeeded);
     }

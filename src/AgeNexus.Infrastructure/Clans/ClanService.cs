@@ -6,6 +6,7 @@ using AgeNexus.Infrastructure.Identity;
 using AgeNexus.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Security.Cryptography;
 
 namespace AgeNexus.Infrastructure.Clans;
 
@@ -103,16 +104,22 @@ public sealed class ClanService(AgeNexusDbContext database, AccountService accou
         string fileName, byte[] content, CancellationToken cancellationToken = default)
     {
         if (!await CanManageAsync(principal, clanId, cancellationToken)) return ClanOperationResult.Failure("NotAuthorized");
-        if (!storage.IsConfigured) return ClanOperationResult.Failure("StorageUnavailable");
         if (!TryIdentifyImage(fileName, content, out var extension, out var type)) return ClanOperationResult.Failure("InvalidImage");
         var clan = await database.Clans.SingleOrDefaultAsync(x => x.Id == clanId, cancellationToken);
         if (clan is null) return ClanOperationResult.Failure("ClanNotFound");
+        if (!storage.IsConfigured)
+        {
+            return await SaveDatabaseEmblemAsync(clan, type, content, cancellationToken);
+        }
         var oldKey = clan.ImageUrl is null ? null : storage.TryGetObjectKey(clan.ImageUrl);
         var key = $"clans/{clanId:N}/emblem-{Guid.NewGuid():N}.{extension}";
         try
         {
             await storage.UploadAsync(key, type, content, cancellationToken);
             clan.UpdateImage(storage.GetPublicUrl(key));
+            var databaseEmblem = await database.ClanEmblems.SingleOrDefaultAsync(
+                x => x.ClanId == clanId, cancellationToken);
+            if (databaseEmblem is not null) database.ClanEmblems.Remove(databaseEmblem);
             await database.SaveChangesAsync(cancellationToken);
             if (oldKey is not null && oldKey.StartsWith($"clans/{clanId:N}/", StringComparison.Ordinal))
                 try { await storage.DeleteAsync(oldKey, CancellationToken.None); } catch (HttpRequestException) { }
@@ -207,5 +214,33 @@ public sealed class ClanService(AgeNexusDbContext database, AccountService accou
         if (content.Length >= 3 && ext is ".jpg" or ".jpeg" && content[0]==0xff && content[1]==0xd8 && content[2]==0xff) { extension="jpg"; type="image/jpeg"; return true; }
         if (content.Length >= 12 && ext == ".webp" && content.AsSpan(0,4).SequenceEqual("RIFF"u8) && content.AsSpan(8,4).SequenceEqual("WEBP"u8)) { extension="webp"; type="image/webp"; return true; }
         return false;
+    }
+
+    private async Task<ClanOperationResult> SaveDatabaseEmblemAsync(
+        Clan clan, string contentType, byte[] content, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var hash = Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
+            var emblem = await database.ClanEmblems.SingleOrDefaultAsync(
+                x => x.ClanId == clan.Id, cancellationToken);
+            if (emblem is null)
+            {
+                database.ClanEmblems.Add(new ClanEmblem(
+                    clan.Id, contentType, content, hash, DateTimeOffset.UtcNow));
+            }
+            else
+            {
+                emblem.Replace(contentType, content, hash, DateTimeOffset.UtcNow);
+            }
+
+            clan.UpdateImage($"/clan-images/{clan.Id:D}?v={hash[..12]}");
+            await database.SaveChangesAsync(cancellationToken);
+            return ClanOperationResult.Success(clan.Id);
+        }
+        catch (Exception exception) when (exception is DomainRuleException or DbUpdateException)
+        {
+            return ClanOperationResult.Failure("ImageUploadFailed");
+        }
     }
 }
