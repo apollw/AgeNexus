@@ -705,6 +705,11 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             {
                 membership.ClanId,
                 Member = new ClanMemberSummary(player.Id, player.DisplayName, player.AvatarUrl)
+                {
+                    Role = membership.Role,
+                    Title = membership.Title,
+                    Note = membership.Note
+                }
             })
             .ToArrayAsync(cancellationToken);
         var membersByClan = members
@@ -714,7 +719,14 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
             x.Id,
             x.Name,
             x.Tag,
-            membersByClan.GetValueOrDefault(x.Id) ?? [])).ToArray();
+            membersByClan.GetValueOrDefault(x.Id) ?? [])
+        {
+            CreatedByPlayerProfileId = x.CreatedByPlayerProfileId,
+            Description = x.Description,
+            Motto = x.Motto,
+            ImageUrl = x.ImageUrl,
+            IsRecruiting = x.IsRecruiting
+        }).ToArray();
     }
 
     public Task<MatchRegistrationCatalog> GetMatchRegistrationCatalogAsync(

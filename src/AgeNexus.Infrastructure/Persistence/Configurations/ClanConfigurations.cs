@@ -14,6 +14,10 @@ internal sealed class ClanConfiguration : IEntityTypeConfiguration<Clan>
         builder.Property(x => x.Id).HasColumnName("id").ValueGeneratedNever();
         builder.Property(x => x.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
         builder.Property(x => x.Tag).HasColumnName("tag").HasMaxLength(8).IsRequired();
+        builder.Property(x => x.Description).HasColumnName("description").HasMaxLength(500);
+        builder.Property(x => x.Motto).HasColumnName("motto").HasMaxLength(120);
+        builder.Property(x => x.ImageUrl).HasColumnName("image_url").HasMaxLength(500);
+        builder.Property(x => x.IsRecruiting).HasColumnName("is_recruiting");
         builder.Property(x => x.CreatedByPlayerProfileId).HasColumnName("created_by_player_profile_id");
         builder.Property(x => x.CreatedAtUtc).HasColumnName("created_at_utc").HasColumnType("timestamp with time zone");
         builder.HasOne<PlayerProfile>().WithMany().HasForeignKey(x => x.CreatedByPlayerProfileId).OnDelete(DeleteBehavior.Restrict)
@@ -35,6 +39,8 @@ internal sealed class ClanMembershipConfiguration : IEntityTypeConfiguration<Cla
         builder.Property(x => x.Role).HasColumnName("role").HasConversion<string>().HasMaxLength(24);
         builder.Property(x => x.StartedAtUtc).HasColumnName("started_at_utc").HasColumnType("timestamp with time zone");
         builder.Property(x => x.EndedAtUtc).HasColumnName("ended_at_utc").HasColumnType("timestamp with time zone");
+        builder.Property(x => x.Title).HasColumnName("title").HasMaxLength(80);
+        builder.Property(x => x.Note).HasColumnName("note").HasMaxLength(300);
         builder.HasOne<Clan>().WithMany().HasForeignKey(x => x.ClanId).OnDelete(DeleteBehavior.Cascade)
             .HasConstraintName("fk_clan_memberships_clan");
         builder.HasOne<PlayerProfile>().WithMany().HasForeignKey(x => x.PlayerProfileId).OnDelete(DeleteBehavior.Restrict)

@@ -96,9 +96,10 @@ public sealed class AccountSecurityTests
         await using var scope = services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var founderUser = await AddUserAsync(users, "founder@example.test");
+        var memberUser = await AddUserAsync(users, "member@example.test");
         var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
         var founder = new PlayerProfile(Guid.NewGuid(), "Fundador", founderUser.Id);
-        var member = new PlayerProfile(Guid.NewGuid(), "Integrante");
+        var member = new PlayerProfile(Guid.NewGuid(), "Integrante", memberUser.Id);
         var unlinkedCreator = new PlayerProfile(Guid.NewGuid(), "Sem conta");
         database.PlayerProfiles.AddRange(founder, member, unlinkedCreator);
         await database.SaveChangesAsync();
@@ -109,6 +110,12 @@ public sealed class AccountSecurityTests
         Assert.True(created.Succeeded);
         Assert.NotNull(created.ClanId);
         Assert.Equal(2, await database.ClanMemberships.CountAsync(x => x.ClanId == created.ClanId!.Value));
+        Assert.True((await clans.UpdateAsync(Principal(founderUser), created.ClanId.Value,
+            "Guardiões Renovados", "GDR", "Descrição", "Lema", true)).Succeeded);
+        Assert.False((await clans.UpdateAsync(Principal(memberUser), created.ClanId.Value,
+            "Ataque", "ATK", null, null, false)).Succeeded);
+        Assert.True((await clans.UpdateOwnMembershipAsync(Principal(memberUser), created.ClanId.Value,
+            "Estrategista", "Especialista em mapas fechados")).Succeeded);
         Assert.False((await clans.CreateAsync(unlinkedCreator.Id, "Invasores", "INV", [])).Succeeded);
         Assert.False((await clans.CreateAsync(founder.Id, "Outro", "OUT", [])).Succeeded);
     }
