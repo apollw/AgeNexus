@@ -84,6 +84,39 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                     b.ToTable("clans", "public");
                 });
 
+            modelBuilder.Entity("AgeNexus.Domain.Clans.ClanEmblem", b =>
+                {
+                    b.Property<Guid>("ClanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("clan_id");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("content");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("content_type");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("ClanId")
+                        .HasName("pk_clan_emblems");
+
+                    b.ToTable("clan_emblems", "public");
+                });
+
             modelBuilder.Entity("AgeNexus.Domain.Clans.ClanMembership", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1815,6 +1848,16 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_clans_founder");
+                });
+
+            modelBuilder.Entity("AgeNexus.Domain.Clans.ClanEmblem", b =>
+                {
+                    b.HasOne("AgeNexus.Domain.Clans.Clan", null)
+                        .WithOne()
+                        .HasForeignKey("AgeNexus.Domain.Clans.ClanEmblem", "ClanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_clan_emblems_clan");
                 });
 
             modelBuilder.Entity("AgeNexus.Domain.Clans.ClanMembership", b =>
