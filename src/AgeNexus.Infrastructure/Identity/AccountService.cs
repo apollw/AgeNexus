@@ -629,64 +629,94 @@ public sealed class AccountService(
             return AccountOperationResult.Failure(["ProfilesShareLineup"]);
         }
 
-        var replacementLineups = affectedLineups.Select(oldLineup => new
-        {
-            Old = oldLineup,
-            New = TeamLineup.Create(
-                oldLineup.GameEditionId,
-                oldLineup.Members.Select(member => member.PlayerProfileId == historicalProfileId
-                    ? linkedProfileId
-                    : member.PlayerProfileId).ToArray(),
-                oldLineup.CreatedAtUtc)
-        }).ToArray();
-        var replacementIds = replacementLineups.Select(x => x.New.Id).ToArray();
-        var existingReplacementIds = replacementIds.Length == 0
-            ? []
-            : await database.TeamLineups.AsNoTracking()
-                .Where(x => replacementIds.Contains(x.Id)).Select(x => x.Id).ToArrayAsync(cancellationToken);
+        var affectedLineupIds = affectedLineups.Select(x => x.Id).ToArray();
 
         var historicalAvatarKey = historicalProfile.AvatarUrl is null || !storage.IsConfigured
             ? null
             : storage.TryGetObjectKey(historicalProfile.AvatarUrl);
 
-        await using var transaction = database.Database.IsRelational()
-            ? await database.Database.BeginTransactionAsync(cancellationToken)
-            : null;
         try
         {
-            foreach (var replacement in replacementLineups)
+            var executionStrategy = database.Database.CreateExecutionStrategy();
+            await executionStrategy.ExecuteAsync(async () =>
             {
-                if (!existingReplacementIds.Contains(replacement.New.Id))
+                // A retry must start from a clean tracker and recreate every entity changed
+                // inside the transaction. Otherwise a transient failure could reuse stale states.
+                database.ChangeTracker.Clear();
+                await using var transaction = database.Database.IsRelational()
+                    ? await database.Database.BeginTransactionAsync(cancellationToken)
+                    : null;
+                try
                 {
-                    database.TeamLineups.Add(replacement.New);
+                    var lineupsToReplace = affectedLineupIds.Length == 0
+                        ? []
+                        : await database.TeamLineups.Include(x => x.Members)
+                            .Where(x => affectedLineupIds.Contains(x.Id))
+                            .ToArrayAsync(cancellationToken);
+                    var replacementLineups = lineupsToReplace.Select(oldLineup => new
+                    {
+                        Old = oldLineup,
+                        New = TeamLineup.Create(
+                            oldLineup.GameEditionId,
+                            oldLineup.Members.Select(member => member.PlayerProfileId == historicalProfileId
+                                ? linkedProfileId
+                                : member.PlayerProfileId).ToArray(),
+                            oldLineup.CreatedAtUtc)
+                    }).ToArray();
+                    var replacementIds = replacementLineups.Select(x => x.New.Id).ToArray();
+                    var existingReplacementIds = replacementIds.Length == 0
+                        ? []
+                        : await database.TeamLineups.AsNoTracking()
+                            .Where(x => replacementIds.Contains(x.Id))
+                            .Select(x => x.Id).ToArrayAsync(cancellationToken);
+
+                    foreach (var replacement in replacementLineups)
+                    {
+                        if (!existingReplacementIds.Contains(replacement.New.Id))
+                        {
+                            database.TeamLineups.Add(replacement.New);
+                        }
+
+                        var lineupEvents = await database.RatingEvents
+                            .Where(x => x.Scope == RatingScopeKind.TeamLineup &&
+                                        x.BeneficiaryId == replacement.Old.Id)
+                            .ToArrayAsync(cancellationToken);
+                        SetGuid(lineupEvents, nameof(RatingEvent.BeneficiaryId), replacement.New.Id);
+                        database.TeamLineups.Remove(replacement.Old);
+                    }
+
+                    if (database.Database.IsRelational())
+                    {
+                        // Persist the few lineup replacements first, then transfer the potentially large
+                        // history with set-based SQL instead of loading and updating every row in memory.
+                        if (replacementLineups.Length > 0)
+                        {
+                            await database.SaveChangesAsync(cancellationToken);
+                        }
+                        await BulkTransferProfileHistoryAsync(
+                            historicalProfileId, linkedProfileId, cancellationToken);
+                    }
+                    else
+                    {
+                        await TransferProfileHistoryInMemoryAsync(
+                            historicalProfile, historicalProfileId, linkedProfileId, cancellationToken);
+                    }
+
+                    if (transaction is not null)
+                    {
+                        await transaction.CommitAsync(cancellationToken);
+                    }
                 }
-
-                var lineupEvents = await database.RatingEvents
-                    .Where(x => x.Scope == RatingScopeKind.TeamLineup && x.BeneficiaryId == replacement.Old.Id)
-                    .ToArrayAsync(cancellationToken);
-                SetGuid(lineupEvents, nameof(RatingEvent.BeneficiaryId), replacement.New.Id);
-                database.TeamLineups.Remove(replacement.Old);
-            }
-
-            if (database.Database.IsRelational())
-            {
-                // Persist the few lineup replacements first, then transfer the potentially large
-                // history with set-based SQL instead of loading and updating every row in memory.
-                if (replacementLineups.Length > 0)
+                catch
                 {
-                    await database.SaveChangesAsync(cancellationToken);
+                    if (transaction is not null)
+                    {
+                        await transaction.RollbackAsync(CancellationToken.None);
+                    }
+                    database.ChangeTracker.Clear();
+                    throw;
                 }
-                await BulkTransferProfileHistoryAsync(historicalProfileId, linkedProfileId, cancellationToken);
-            }
-            else
-            {
-                await TransferProfileHistoryInMemoryAsync(
-                    historicalProfile, historicalProfileId, linkedProfileId, cancellationToken);
-            }
-            if (transaction is not null)
-            {
-                await transaction.CommitAsync(cancellationToken);
-            }
+            });
 
             // ExecuteUpdate/Delete bypass SaveChanges interceptors. Invalidate both caches only
             // after the atomic transfer commits so no request can keep offering the removed profile.
@@ -695,10 +725,6 @@ public sealed class AccountService(
         }
         catch (OperationCanceledException)
         {
-            if (transaction is not null)
-            {
-                await transaction.RollbackAsync(CancellationToken.None);
-            }
             database.ChangeTracker.Clear();
             throw;
         }
@@ -710,10 +736,6 @@ public sealed class AccountService(
                 "Erro do banco: {DatabaseErrorType} - {DatabaseErrorMessage}",
                 historicalProfileId, linkedProfileId, elapsed.ElapsedMilliseconds,
                 databaseError.GetType().Name, databaseError.Message);
-            if (transaction is not null)
-            {
-                await transaction.RollbackAsync(CancellationToken.None);
-            }
             database.ChangeTracker.Clear();
             return AccountOperationResult.Failure(["ProfileMergeConflict"]);
         }
