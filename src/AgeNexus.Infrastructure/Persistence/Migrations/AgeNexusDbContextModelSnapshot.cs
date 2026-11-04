@@ -1412,6 +1412,10 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("ClanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("clan_id");
+
                     b.Property<int>("Position")
                         .HasColumnType("integer")
                         .HasColumnName("position");
@@ -1428,6 +1432,8 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_match_teams");
+
+                    b.HasIndex("ClanId");
 
                     b.HasIndex("match_id", "Position")
                         .IsUnique()
@@ -2208,6 +2214,12 @@ namespace AgeNexus.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AgeNexus.Domain.Matches.MatchTeam", b =>
                 {
+                    b.HasOne("AgeNexus.Domain.Clans.Clan", null)
+                        .WithMany()
+                        .HasForeignKey("ClanId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_match_teams_clan");
+
                     b.HasOne("AgeNexus.Domain.Matches.Match", null)
                         .WithMany("Teams")
                         .HasForeignKey("match_id")
