@@ -159,6 +159,14 @@ public sealed class Match
         team.SetResult(result);
     }
 
+    public void SetTeamClan(Guid teamId, Guid? clanId)
+    {
+        EnsureDraft();
+        var team = _teams.SingleOrDefault(x => x.Id == teamId)
+            ?? throw new DomainRuleException("Team does not belong to this match.");
+        team.AssignClan(clanId);
+    }
+
     public void Submit()
     {
         EnsureDraft();

@@ -23,6 +23,7 @@ public sealed class MatchTeam
 
     public Guid Id { get; private set; }
     public int Position { get; private set; }
+    public Guid? ClanId { get; private set; }
     public TeamResult Result { get; private set; } = TeamResult.Undecided;
     public IReadOnlyCollection<MatchParticipant> Participants => _participants.AsReadOnly();
     public int HumanCount => _participants.Count(x => x.Type == ParticipantType.Human);
@@ -41,4 +42,6 @@ public sealed class MatchTeam
     }
 
     internal void SetResult(TeamResult result) => Result = result;
+
+    internal void AssignClan(Guid? clanId) => ClanId = clanId == Guid.Empty ? null : clanId;
 }

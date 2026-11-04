@@ -41,6 +41,31 @@ public sealed class MatchWorkflowService(
             return MatchWorkflowResult.Failure(matchId, "UnsupportedMatchType");
         }
 
+        var selectedClanIds = request.Teams.Where(x => x.ClanId.HasValue).Select(x => x.ClanId!.Value).ToArray();
+        if (selectedClanIds.Length > 0)
+        {
+            if (request.Teams.Count != 2 || request.Teams.Any(x => !x.ClanId.HasValue) ||
+                selectedClanIds.Distinct().Count() != 2)
+            {
+                return MatchWorkflowResult.Failure(matchId, "InvalidClanMatch");
+            }
+
+            foreach (var requestedTeam in request.Teams)
+            {
+                var humanIds = requestedTeam.Participants
+                    .Where(x => x.Type == ParticipantType.Human && x.PlayerProfileId.HasValue)
+                    .Select(x => x.PlayerProfileId!.Value).Distinct().ToArray();
+                var validMembers = await database.ClanMemberships.AsNoTracking().CountAsync(x =>
+                    x.ClanId == requestedTeam.ClanId && humanIds.Contains(x.PlayerProfileId) &&
+                    x.StartedAtUtc <= request.PlayedAtUtc &&
+                    (!x.EndedAtUtc.HasValue || x.EndedAtUtc > request.PlayedAtUtc), cancellationToken);
+                if (humanIds.Length == 0 || validMembers != humanIds.Length)
+                {
+                    return MatchWorkflowResult.Failure(matchId, "InvalidClanLineup");
+                }
+            }
+        }
+
         try
         {
             var match = new Match(
@@ -63,6 +88,7 @@ public sealed class MatchWorkflowService(
             foreach (var requestedTeam in request.Teams)
             {
                 var team = match.AddTeam(Guid.NewGuid());
+                match.SetTeamClan(team.Id, requestedTeam.ClanId);
                 foreach (var requestedParticipant in requestedTeam.Participants)
                 {
                     var participant = requestedParticipant.Type == ParticipantType.Human
