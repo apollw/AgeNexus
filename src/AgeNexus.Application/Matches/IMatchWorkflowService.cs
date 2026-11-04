@@ -53,7 +53,8 @@ public sealed record UpdateMatchMetadataRequest(
 
 public sealed record RegisterMatchTeam(
     TeamResult Result,
-    IReadOnlyCollection<RegisterMatchParticipant> Participants);
+    IReadOnlyCollection<RegisterMatchParticipant> Participants,
+    Guid? ClanId = null);
 
 public sealed record RegisterMatchParticipant(
     ParticipantType Type,
