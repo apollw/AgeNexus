@@ -5,6 +5,7 @@ using AgeNexus.Application.MatchPerformance;
 using AgeNexus.Application.Matches;
 using AgeNexus.Application.Queries;
 using AgeNexus.Domain.Competition;
+using AgeNexus.Domain.Clans;
 using AgeNexus.Domain.GameCatalog;
 using AgeNexus.Domain.MatchPerformance;
 using AgeNexus.Domain.Matches;
@@ -234,6 +235,54 @@ public sealed class AccountSecurityTests
         Assert.Equal(creator.Id, match.CreatedByPlayerProfileId);
         Assert.Equal(MatchStatus.AwaitingConfirmation, match.Status);
         Assert.False(await users.IsInRoleAsync(user, AccountService.AdministratorRole));
+    }
+
+    [Fact]
+    public async Task Clan_match_persists_each_clan_and_accepts_a_partial_roster()
+    {
+        await using var services = CreateServices();
+        await using var scope = services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var firstUser = await AddUserAsync(users, "first-clan@example.test");
+        var secondUser = await AddUserAsync(users, "second-clan@example.test");
+        var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
+        var first = new PlayerProfile(Guid.NewGuid(), "Primeiro", firstUser.Id);
+        var firstAlly = new PlayerProfile(Guid.NewGuid(), "Aliado 1");
+        var firstReserve = new PlayerProfile(Guid.NewGuid(), "Reserva 1");
+        var second = new PlayerProfile(Guid.NewGuid(), "Segundo", secondUser.Id);
+        var secondAlly = new PlayerProfile(Guid.NewGuid(), "Aliado 2");
+        var secondReserve = new PlayerProfile(Guid.NewGuid(), "Reserva 2");
+        database.PlayerProfiles.AddRange(first, firstAlly, firstReserve, second, secondAlly, secondReserve);
+        await database.SaveChangesAsync();
+        var clans = scope.ServiceProvider.GetRequiredService<IClanService>();
+        var firstClan = await clans.CreateAsync(first.Id, "Clã Um", "UM", [firstAlly.Id, firstReserve.Id]);
+        var secondClan = await clans.CreateAsync(second.Id, "Clã Dois", "DOIS", [secondAlly.Id, secondReserve.Id]);
+        Assert.True(firstClan.Succeeded);
+        Assert.True(secondClan.Succeeded);
+
+        var workflow = scope.ServiceProvider.GetRequiredService<IMatchWorkflowService>();
+        var result = await workflow.RegisterAsync(new RegisterMatchRequest(
+            Guid.NewGuid(), first.Id, DateTimeOffset.UtcNow, MatchType.PlayerVersusPlayer,
+            MatchNature.Ranked, MatchGameMode.Standard, null, null, null,
+            [
+                new RegisterMatchTeam(TeamResult.Victory,
+                    [
+                        new RegisterMatchParticipant(ParticipantType.Human, first.Id, null, null, FactionSelection.Unknown),
+                        new RegisterMatchParticipant(ParticipantType.Human, firstAlly.Id, null, null, FactionSelection.Unknown)
+                    ], firstClan.ClanId),
+                new RegisterMatchTeam(TeamResult.Defeat,
+                    [
+                        new RegisterMatchParticipant(ParticipantType.Human, second.Id, null, null, FactionSelection.Unknown),
+                        new RegisterMatchParticipant(ParticipantType.Human, secondAlly.Id, null, null, FactionSelection.Unknown)
+                    ], secondClan.ClanId)
+            ]));
+
+        Assert.True(result.Succeeded);
+        var teams = await database.MatchTeams.AsNoTracking().Include(x => x.Participants)
+            .Where(x => EF.Property<Guid>(x, "match_id") == result.MatchId)
+            .OrderBy(x => x.Position).ToArrayAsync();
+        Assert.Equal(new Guid?[] { firstClan.ClanId, secondClan.ClanId }, teams.Select(x => x.ClanId).ToArray());
+        Assert.All(teams, team => Assert.Equal(2, team.HumanCount));
     }
 
     [Fact]
