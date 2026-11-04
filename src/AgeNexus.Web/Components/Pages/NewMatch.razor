@@ -147,6 +147,16 @@ else
             </div>
         </div>
 
+        @if (Catalog.Clans.Count > 1 && Form.Type != AgeNexus.Domain.Matches.MatchType.FreeForAll)
+        {
+            <section class="panel clan-match-setup">
+                <label class="clan-match-toggle">
+                    <InputCheckbox @bind-Value="Form.IsClanMatch" @bind-Value:after="ClanMatchChanged" />
+                    <span><strong>Confronto entre clãs</strong><small>Selecione os dois clãs e ajuste somente quem participou desta partida.</small></span>
+                </label>
+            </section>
+        }
+
         @for (var teamIndex = 0; teamIndex < Form.Teams.Count; teamIndex++)
         {
             var team = Form.Teams[teamIndex];
@@ -162,16 +172,19 @@ else
                     </div>
                 </header>
 
-                @if (Catalog.Clans.Count > 0)
+                @if (Form.IsClanMatch && Catalog.Clans.Count > 1)
                 {
                     <div class="match-clan-loader">
-                        <label class="form-field"><span>Carregar integrantes de um clã</span>
-                            <InputSelect @bind-Value="team.ClanId">
-                                <option value="">Selecione um clã formado</option>
+                        <label class="form-field"><span>Clã da equipe @(teamIndex + 1)</span>
+                            <InputSelect @bind-Value="team.ClanId" @bind-Value:after="() => LoadClan(team)">
+                                <option value="">Selecione o clã</option>
                                 @foreach (var clan in Catalog.Clans) { <option value="@clan.ClanId">[@clan.Tag] @clan.Name (@clan.ActiveMembers)</option> }
                             </InputSelect>
                         </label>
-                        <button class="button button-secondary" type="button" @onclick="() => LoadClan(team)" disabled="@(!team.ClanId.HasValue)">Carregar clã</button>
+                        <div class="clan-lineup-hint">
+                            <strong>@SelectedClanMemberCount(team) escalado(s)</strong>
+                            <span>O elenco é sugerido automaticamente. Remova quem não jogou para formar 2x2, 3x3 ou 4x4.</span>
+                        </div>
                     </div>
                 }
 
@@ -188,7 +201,7 @@ else
                         {
                             <label class="form-field"><span>Jogador</span>
                                 <InputSelect @bind-Value="participant.PlayerProfileId">
-                                    @foreach (var option in Catalog.Players) { <option value="@option.Id">@option.Name</option> }
+                                    @foreach (var option in PlayerOptions(team)) { <option value="@option.Id">@option.Name</option> }
                                 </InputSelect>
                             </label>
                         }
@@ -291,6 +304,7 @@ else
     private void ApplyClanPrefill()
     {
         if (Catalog is null || Form.Teams.Count < 2) return;
+        Form.IsClanMatch = ClanOneId.HasValue || ClanTwoId.HasValue;
         if (ClanOneId.HasValue) { Form.Teams[0].ClanId = ClanOneId; LoadClan(Form.Teams[0]); }
         if (ClanTwoId.HasValue) { Form.Teams[1].ClanId = ClanTwoId; LoadClan(Form.Teams[1]); }
     }
@@ -392,7 +406,23 @@ else
         AiDifficultyId = Catalog?.AiDifficulties.FirstOrDefault()?.Id
     };
 
-    private void AddParticipant(TeamForm team) => team.Participants.Add(CreateParticipant());
+    private void AddParticipant(TeamForm team)
+    {
+        var used = team.Participants.Where(x => x.PlayerProfileId.HasValue)
+            .Select(x => x.PlayerProfileId!.Value).ToHashSet();
+        var player = PlayerOptions(team).FirstOrDefault(x => !used.Contains(x.Id));
+        if (Form.IsClanMatch && team.ClanId.HasValue && player is null) return;
+        team.Participants.Add(CreateParticipant(player?.Id));
+    }
+
+    private IEnumerable<AgeNexus.Application.Queries.CatalogOption> PlayerOptions(TeamForm team)
+    {
+        if (Catalog is null) return [];
+        if (!Form.IsClanMatch || !team.ClanId.HasValue) return Catalog.Players;
+        var memberIds = Catalog.Clans.SingleOrDefault(x => x.ClanId == team.ClanId)?.Members
+            .Select(x => x.PlayerProfileId).ToHashSet() ?? [];
+        return Catalog.Players.Where(x => memberIds.Contains(x.Id));
+    }
 
     private void LoadClan(TeamForm team)
     {
@@ -409,6 +439,21 @@ else
         }
     }
 
+    private int SelectedClanMemberCount(TeamForm team)
+    {
+        var clan = Catalog?.Clans.SingleOrDefault(x => x.ClanId == team.ClanId);
+        if (clan is null) return 0;
+        var memberIds = clan.Members.Select(x => x.PlayerProfileId).ToHashSet();
+        return team.Participants.Count(x => x.Type == AgeNexus.Domain.Matches.ParticipantType.Human &&
+                                            x.PlayerProfileId.HasValue && memberIds.Contains(x.PlayerProfileId.Value));
+    }
+
+    private void ClanMatchChanged()
+    {
+        if (Form.IsClanMatch) return;
+        foreach (var team in Form.Teams) team.ClanId = null;
+    }
+
     private bool CanRemoveTeam => Form.Teams.Count >
         (Form.Type == AgeNexus.Domain.Matches.MatchType.FreeForAll ? 3 : 2);
 
@@ -416,6 +461,8 @@ else
     {
         if (Form.Type == AgeNexus.Domain.Matches.MatchType.FreeForAll)
         {
+            Form.IsClanMatch = false;
+            foreach (var team in Form.Teams) team.ClanId = null;
             while (Form.Teams.Count < 3)
             {
                 AddTeam();
@@ -478,8 +525,25 @@ else
             return;
         }
 
-        Saving = true;
         Error = null;
+        if (Form.IsClanMatch)
+        {
+            var selectedClans = Form.Teams.Select(x => x.ClanId).ToArray();
+            if (Form.Teams.Count != 2 || selectedClans.Any(x => !x.HasValue) || selectedClans.Distinct().Count() != 2)
+            {
+                Error = "selecione dois clãs diferentes para o confronto.";
+                return;
+            }
+            if (Form.Teams.Any(team => SelectedClanMemberCount(team) == 0 ||
+                team.Participants.Any(player => player.Type == AgeNexus.Domain.Matches.ParticipantType.Human &&
+                    !PlayerOptions(team).Any(option => option.Id == player.PlayerProfileId))))
+            {
+                Error = "cada equipe deve usar apenas integrantes do clã selecionado.";
+                return;
+            }
+        }
+
+        Saving = true;
         var request = new AgeNexus.Application.Matches.RegisterMatchRequest(
             Form.GameEditionId,
             CurrentProfile.Id,
@@ -499,7 +563,8 @@ else
                     participant.FactionId,
                     participant.FactionId.HasValue
                         ? AgeNexus.Domain.Matches.FactionSelection.Manual
-                        : AgeNexus.Domain.Matches.FactionSelection.Unknown)).ToArray())).ToArray());
+                        : AgeNexus.Domain.Matches.FactionSelection.Unknown)).ToArray(),
+                Form.IsClanMatch ? team.ClanId : null)).ToArray());
         var result = await Workflow.RegisterAsync(request);
         Saving = false;
         if (result.Succeeded)
@@ -513,6 +578,8 @@ else
             "NotAuthorized" => "seu perfil precisa estar vinculado e ativo para registrar esta partida.",
             "UnsupportedMatchType" => "partidas exclusivamente entre humanos e IA não são mais registradas.",
             "InvalidMatch" => "revise as equipes, os participantes e o resultado informado.",
+            "InvalidClanMatch" => "selecione dois clãs diferentes para o confronto.",
+            "InvalidClanLineup" => "todos os humanos escalados precisam pertencer ao respectivo clã.",
             _ => "ocorreu um problema inesperado. Revise os dados e tente novamente."
         };
     }
@@ -524,6 +591,7 @@ else
         public AgeNexus.Domain.Matches.MatchGameMode GameMode { get; set; } = AgeNexus.Domain.Matches.MatchGameMode.Standard;
         public Guid? MapDefinitionId { get; set; }
         public Guid? GamePatchId { get; set; }
+        public bool IsClanMatch { get; set; }
         public List<TeamForm> Teams { get; } = [];
     }
 
