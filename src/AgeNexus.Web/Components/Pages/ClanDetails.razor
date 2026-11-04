@@ -9,7 +9,7 @@
 @inject NavigationManager Navigation
 
 <PageTitle>@(Clan?.Name ?? "Clã") · Age Nexus</PageTitle>
-<LoadingOverlay Visible="@(Loading || Saving)" Message="@(Saving ? "Salvando clã..." : "Carregando clã...")" />
+<LoadingOverlay Visible="@(Loading || Saving || UploadingImage)" Message="@(UploadingImage ? "Atualizando emblema..." : Saving ? "Salvando clã..." : "Carregando clã...")" />
 
 @if (!Loading && Clan is null)
 {
@@ -21,7 +21,6 @@ else if (Clan is not null)
     <section class="panel clan-hero">
         <div class="clan-emblem">@if (!string.IsNullOrWhiteSpace(Clan.ImageUrl)) { <img src="@Clan.ImageUrl" alt="Emblema de @Clan.Name" /> } else { <strong>@Clan.Tag</strong> }</div>
         <div><span class="eyebrow">[@Clan.Tag] · @(Clan.IsRecruiting ? "Recrutando" : "Elenco fechado")</span><h1>@Clan.Name</h1><p>@(Clan.Motto ?? "Unidos pela estratégia e pela comunidade.")</p></div>
-        <a class="button button-primary" href="/partidas/nova?cla1=@Clan.ClanId">Registrar confronto</a>
     </section>
 
     @if (!string.IsNullOrWhiteSpace(Message)) { <div class="form-alert @(Failed ? "form-alert-error" : "form-alert-success")">@Message</div> }
@@ -44,7 +43,7 @@ else if (Clan is not null)
                         <label class="form-field"><span>Descrição</span><textarea @bind="EditDescription" maxlength="500" rows="4"></textarea></label>
                         <label class="account-delete-check"><input type="checkbox" @bind="EditRecruiting" /><span>Clã aberto a novos integrantes</span></label>
                         <button class="button button-primary" @onclick="SaveClanAsync">Salvar identidade</button>
-                        <label class="button button-secondary clan-image-upload">Enviar emblema<InputFile OnChange="UploadImageAsync" accept=".jpg,.jpeg,.png,.webp" /></label>
+                        <label class="button button-secondary clan-image-upload">@(UploadingImage ? "Enviando..." : "Enviar emblema")<InputFile OnChange="UploadImageAsync" accept=".jpg,.jpeg,.png,.webp" disabled="@UploadingImage" /></label>
                         <button class="table-action-button table-action-danger" type="button" @onclick="DeleteClanAsync">Excluir clã</button>
                     </div>
                 </article>
@@ -69,7 +68,7 @@ else if (Clan is not null)
     }
     else if (ActiveTab == "partidas")
     {
-        <section class="panel clan-action-panel"><span class="eyebrow">Confrontos oficiais</span><h2>Clã contra clã</h2><p>Abra o registro com este elenco já selecionado e escolha o clã adversário na segunda equipe.</p><a class="button button-primary" href="/partidas/nova?cla1=@Clan.ClanId">Registrar partida do clã</a></section>
+        <section class="panel clan-action-panel"><span class="eyebrow">Confrontos oficiais</span><h2>Partidas do clã</h2><p>Os confrontos entre clãs são registrados pela opção <strong>Nova partida</strong> no menu Partidas, onde é possível escolher os clãs e ajustar a escalação real.</p></section>
     }
     else
     {
@@ -86,7 +85,7 @@ else if (Clan is not null)
     private IReadOnlyCollection<AgeNexus.Application.Queries.PlayerSummary> PlayerItems = [];
     private ClaimsPrincipal Principal = new(new ClaimsIdentity());
     private string ActiveTab="visao", EditName="", EditTag="", EditDescription="", EditMotto="", MemberTitle="", MemberNote="";
-    private bool EditRecruiting, Loading=true, Saving, IsAdmin, Failed; private string? Message; private Guid? NewMemberId;
+    private bool EditRecruiting, Loading=true, Saving, UploadingImage, IsAdmin, Failed; private string? Message; private Guid? NewMemberId;
     private bool CanManage => Clan is not null && (IsAdmin || Profile?.Id == Clan.CreatedByPlayerProfileId);
     private bool IsMember => Clan?.Members.Any(x => x.PlayerProfileId == Profile?.Id) == true;
     private IEnumerable<AgeNexus.Application.Queries.PlayerSummary> AvailablePlayers => PlayerItems.Where(x => Clan?.Members.All(m => m.PlayerProfileId != x.PlayerId) == true);
@@ -94,7 +93,7 @@ else if (Clan is not null)
     private async Task ReloadAsync() { Clan=(await ClanQueries.GetAsync()).SingleOrDefault(x=>x.ClanId==ClanId); PlayerItems=await Players.GetAsync(500); ClanRanking=(await Rankings.GetAsync(AgeNexus.Application.Queries.RankingBoard.ClanCompetitive,limit:500)).SingleOrDefault(x=>x.BeneficiaryId==ClanId); if(Clan is not null){EditName=Clan.Name;EditTag=Clan.Tag;EditDescription=Clan.Description??"";EditMotto=Clan.Motto??"";EditRecruiting=Clan.IsRecruiting;var me=Clan.Members.SingleOrDefault(x=>x.PlayerProfileId==Profile?.Id);MemberTitle=me?.Title??"";MemberNote=me?.Note??"";} }
     private async Task RunAsync(Func<Task<AgeNexus.Application.Queries.ClanOperationResult>> action,string success){Saving=true;var r=await action();Failed=!r.Succeeded;Message=r.Succeeded?success:ErrorText(r.ErrorCode);if(r.Succeeded)await ReloadAsync();Saving=false;}
     private Task SaveClanAsync()=>RunAsync(()=>ClanCommands.UpdateAsync(Principal,ClanId,EditName,EditTag,EditDescription,EditMotto,EditRecruiting),"Clã atualizado.");
-    private async Task UploadImageAsync(InputFileChangeEventArgs e){try{await using var s=e.File.OpenReadStream(2*1024*1024);using var m=new MemoryStream();await s.CopyToAsync(m);await RunAsync(()=>ClanCommands.UploadImageAsync(Principal,ClanId,e.File.Name,m.ToArray()),"Emblema atualizado.");}catch(IOException){Failed=true;Message="A imagem deve ter até 2 MB.";}}
+    private async Task UploadImageAsync(InputFileChangeEventArgs e){UploadingImage=true;try{await using var s=e.File.OpenReadStream(2*1024*1024);using var m=new MemoryStream();await s.CopyToAsync(m);await RunAsync(()=>ClanCommands.UploadImageAsync(Principal,ClanId,e.File.Name,m.ToArray()),"Emblema atualizado.");}catch(IOException){Failed=true;Message="A imagem deve ter até 2 MB.";}finally{UploadingImage=false;}}
     private Task AddMemberAsync()=>RunAsync(()=>ClanCommands.AddMemberAsync(Principal,ClanId,NewMemberId!.Value),"Integrante adicionado.");
     private Task RemoveMemberAsync(AgeNexus.Application.Queries.ClanMemberSummary m)=>RunAsync(()=>ClanCommands.RemoveMemberAsync(Principal,ClanId,m.PlayerProfileId),"Integrante removido.");
     private Task ChangeRoleAsync(AgeNexus.Application.Queries.ClanMemberSummary m,AgeNexus.Domain.Clans.ClanRole r)=>RunAsync(()=>ClanCommands.ChangeRoleAsync(Principal,ClanId,m.PlayerProfileId,r),"Permissão atualizada.");
