@@ -77,17 +77,36 @@ internal sealed class GeneralStatisticsQueryService(
                 ResearchCount = group.Sum(x => (decimal?)x.Statistic.ResearchCount),
                 ResearchCountMatches = group.Count(x => x.Statistic.ResearchCount.HasValue),
                 ExploredPercent = group.Average(x => (decimal?)x.Statistic.ExploredPercent),
-                ExploredPercentTotal = group.Sum(x => (decimal?)x.Statistic.ExploredPercent),
+                ExploredPercentMaximum = group.Max(x => (decimal?)x.Statistic.ExploredPercent),
+                ExploredPercentMinimum = group.Min(x => (decimal?)x.Statistic.ExploredPercent),
                 ExploredPercentMatches = group.Count(x => x.Statistic.ExploredPercent.HasValue),
-                FeudalAgeSeconds = group.Min(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.FeudalAgeSeconds > 0 ? (decimal?)x.Statistic.FeudalAgeSeconds : null),
-                FeudalAgeSecondsTotal = group.Sum(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.FeudalAgeSeconds > 0 ? (decimal?)x.Statistic.FeudalAgeSeconds : null),
-                FeudalAgeMatches = group.Count(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.FeudalAgeSeconds > 0),
-                CastleAgeSeconds = group.Min(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.CastleAgeSeconds > 0 ? (decimal?)x.Statistic.CastleAgeSeconds : null),
-                CastleAgeSecondsTotal = group.Sum(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.CastleAgeSeconds > 0 ? (decimal?)x.Statistic.CastleAgeSeconds : null),
-                CastleAgeMatches = group.Count(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.CastleAgeSeconds > 0),
-                ImperialAgeSeconds = group.Min(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.ImperialAgeSeconds > 0 ? (decimal?)x.Statistic.ImperialAgeSeconds : null),
-                ImperialAgeSecondsTotal = group.Sum(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.ImperialAgeSeconds > 0 ? (decimal?)x.Statistic.ImperialAgeSeconds : null),
-                ImperialAgeMatches = group.Count(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.ImperialAgeSeconds > 0),
+                FeudalAgeSeconds = group.Min(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.FeudalAgeSeconds > 0 &&
+                    (!x.Statistic.CastleAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.CastleAgeSeconds) &&
+                    (!x.Statistic.ImperialAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.ImperialAgeSeconds) ? (decimal?)x.Statistic.FeudalAgeSeconds : null),
+                FeudalAgeSecondsTotal = group.Sum(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.FeudalAgeSeconds > 0 &&
+                    (!x.Statistic.CastleAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.CastleAgeSeconds) &&
+                    (!x.Statistic.ImperialAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.ImperialAgeSeconds) ? (decimal?)x.Statistic.FeudalAgeSeconds : null),
+                FeudalAgeMatches = group.Count(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.FeudalAgeSeconds > 0 &&
+                    (!x.Statistic.CastleAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.CastleAgeSeconds) &&
+                    (!x.Statistic.ImperialAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.ImperialAgeSeconds)),
+                CastleAgeSeconds = group.Min(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.CastleAgeSeconds > 0 &&
+                    (!x.Statistic.FeudalAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.CastleAgeSeconds) &&
+                    (!x.Statistic.ImperialAgeSeconds.HasValue || x.Statistic.CastleAgeSeconds <= x.Statistic.ImperialAgeSeconds) ? (decimal?)x.Statistic.CastleAgeSeconds : null),
+                CastleAgeSecondsTotal = group.Sum(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.CastleAgeSeconds > 0 &&
+                    (!x.Statistic.FeudalAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.CastleAgeSeconds) &&
+                    (!x.Statistic.ImperialAgeSeconds.HasValue || x.Statistic.CastleAgeSeconds <= x.Statistic.ImperialAgeSeconds) ? (decimal?)x.Statistic.CastleAgeSeconds : null),
+                CastleAgeMatches = group.Count(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.CastleAgeSeconds > 0 &&
+                    (!x.Statistic.FeudalAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.CastleAgeSeconds) &&
+                    (!x.Statistic.ImperialAgeSeconds.HasValue || x.Statistic.CastleAgeSeconds <= x.Statistic.ImperialAgeSeconds)),
+                ImperialAgeSeconds = group.Min(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.ImperialAgeSeconds > 0 &&
+                    (!x.Statistic.FeudalAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.ImperialAgeSeconds) &&
+                    (!x.Statistic.CastleAgeSeconds.HasValue || x.Statistic.CastleAgeSeconds <= x.Statistic.ImperialAgeSeconds) ? (decimal?)x.Statistic.ImperialAgeSeconds : null),
+                ImperialAgeSecondsTotal = group.Sum(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.ImperialAgeSeconds > 0 &&
+                    (!x.Statistic.FeudalAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.ImperialAgeSeconds) &&
+                    (!x.Statistic.CastleAgeSeconds.HasValue || x.Statistic.CastleAgeSeconds <= x.Statistic.ImperialAgeSeconds) ? (decimal?)x.Statistic.ImperialAgeSeconds : null),
+                ImperialAgeMatches = group.Count(x => (x.GameMode == MatchGameMode.Standard || x.GameMode == MatchGameMode.Conquest) && x.Statistic.ImperialAgeSeconds > 0 &&
+                    (!x.Statistic.FeudalAgeSeconds.HasValue || x.Statistic.FeudalAgeSeconds <= x.Statistic.ImperialAgeSeconds) &&
+                    (!x.Statistic.CastleAgeSeconds.HasValue || x.Statistic.CastleAgeSeconds <= x.Statistic.ImperialAgeSeconds)),
                 PeakVillagers = group.Max(x => (decimal?)x.Statistic.PeakVillagers),
                 PeakVillagersTotal = group.Sum(x => (decimal?)x.Statistic.PeakVillagers),
                 PeakVillagersMatches = group.Count(x => x.Statistic.PeakVillagers.HasValue),
@@ -172,7 +191,7 @@ internal sealed class GeneralStatisticsQueryService(
             Board("trade-gold", "Economia", "O Magnata das Rotas", "Maior total de ouro produzido por comércio.", GeneralStatisticValueKind.Integer, x => x.TradeGold, x => x.TradeGoldMatches),
             Board("relic-gold", "Economia", "O Cofre Sagrado", "Maior total de ouro gerado por relíquias.", GeneralStatisticValueKind.Integer, x => x.RelicGold, x => x.RelicGoldMatches),
             Board("research", "Tecnologia", "O Sábio", "Maior total de tecnologias concluídas.", GeneralStatisticValueKind.Integer, x => x.ResearchCount, x => x.ResearchCountMatches),
-            Board("explored", "Tecnologia", "O Cartógrafo", "Maior exploração média do mapa ao longo das partidas.", GeneralStatisticValueKind.Percentage, x => x.ExploredPercent, x => x.ExploredPercentMatches, x => x.ExploredPercentTotal, x => x.ExploredPercent),
+            Board("explored", "Tecnologia", "O Cartógrafo", "Maior exploração média do mapa ao longo das partidas; a marca mostra o maior percentual alcançado em uma partida.", GeneralStatisticValueKind.Percentage, x => x.ExploredPercent, x => x.ExploredPercentMatches, x => x.ExploredPercentMaximum, x => x.ExploredPercent, absoluteLabel: "Maior marca"),
             Board("fastest-feudal", "Tecnologia", "O Precursor", "Menor tempo para chegar à Era Feudal em partidas Padrão ou Conquista; a média considera apenas esses modos comparáveis.", GeneralStatisticValueKind.Duration, x => x.FeudalAgeSeconds, x => x.FeudalAgeMatches, x => x.FeudalAgeSeconds, x => Average(x.FeudalAgeSecondsTotal, x.FeudalAgeMatches), descending: false, absoluteLabel: "Melhor tempo"),
             Board("fastest-castle", "Tecnologia", "O Senhor Feudal", "Menor tempo para chegar à Era dos Castelos em partidas Padrão ou Conquista; a média considera apenas esses modos comparáveis.", GeneralStatisticValueKind.Duration, x => x.CastleAgeSeconds, x => x.CastleAgeMatches, x => x.CastleAgeSeconds, x => Average(x.CastleAgeSecondsTotal, x.CastleAgeMatches), descending: false, absoluteLabel: "Melhor tempo"),
             Board("fastest-imperial", "Tecnologia", "O Imperador Relâmpago", "Menor tempo para chegar à Era Imperial em partidas Padrão ou Conquista; a média considera apenas esses modos comparáveis.", GeneralStatisticValueKind.Duration, x => x.ImperialAgeSeconds, x => x.ImperialAgeMatches, x => x.ImperialAgeSeconds, x => Average(x.ImperialAgeSecondsTotal, x.ImperialAgeMatches), descending: false, absoluteLabel: "Melhor tempo"),
@@ -196,7 +215,7 @@ internal sealed class GeneralStatisticsQueryService(
             LowestAverage("worst-market", "Economia", "O Pior Mercado", "Menor média de ouro produzido pelo comércio por partida.", GeneralStatisticValueKind.Integer, x => x.TradeGold, x => x.TradeGoldMatches),
             LowestAverage("least-relic-gold", "Economia", "O Cofre Profanado", "Menor média de ouro gerado por relíquias por partida.", GeneralStatisticValueKind.Integer, x => x.RelicGold, x => x.RelicGoldMatches),
             LowestAverage("least-research", "Tecnologia", "O Atrasado", "Menor média de tecnologias concluídas por partida.", GeneralStatisticValueKind.Integer, x => x.ResearchCount, x => x.ResearchCountMatches),
-            LowestAverage("least-explored", "Tecnologia", "O Mapa em Branco", "Menor percentual médio de mapa explorado.", GeneralStatisticValueKind.Percentage, x => x.ExploredPercentTotal, x => x.ExploredPercentMatches),
+            Board("least-explored", "Tecnologia", "O Mapa em Branco", "Menor percentual médio de mapa explorado; a marca mostra o menor percentual registrado em uma partida.", GeneralStatisticValueKind.Percentage, x => x.ExploredPercent, x => x.ExploredPercentMatches, x => x.ExploredPercentMinimum, x => x.ExploredPercent, descending: false, isNegative: true, absoluteLabel: "Menor marca"),
             Board("slowest-feudal", "Tecnologia", "O Feudal Tardio", "Maior tempo médio para chegar à Era Feudal em partidas Padrão ou Conquista.", GeneralStatisticValueKind.Duration, x => Average(x.FeudalAgeSecondsTotal, x.FeudalAgeMatches), x => x.FeudalAgeMatches, x => x.FeudalAgeSeconds, x => Average(x.FeudalAgeSecondsTotal, x.FeudalAgeMatches), isNegative: true, absoluteLabel: "Melhor tempo"),
             Board("slowest-castle", "Tecnologia", "Os Castelos Distantes", "Maior tempo médio para chegar à Era dos Castelos em partidas Padrão ou Conquista.", GeneralStatisticValueKind.Duration, x => Average(x.CastleAgeSecondsTotal, x.CastleAgeMatches), x => x.CastleAgeMatches, x => x.CastleAgeSeconds, x => Average(x.CastleAgeSecondsTotal, x.CastleAgeMatches), isNegative: true, absoluteLabel: "Melhor tempo"),
             Board("slowest-imperial", "Tecnologia", "O Império Atrasado", "Maior tempo médio para chegar à Era Imperial em partidas Padrão ou Conquista.", GeneralStatisticValueKind.Duration, x => Average(x.ImperialAgeSecondsTotal, x.ImperialAgeMatches), x => x.ImperialAgeMatches, x => x.ImperialAgeSeconds, x => Average(x.ImperialAgeSecondsTotal, x.ImperialAgeMatches), isNegative: true, absoluteLabel: "Melhor tempo"),
@@ -251,7 +270,8 @@ internal sealed class GeneralStatisticsQueryService(
         public decimal? ResearchCount { get; init; }
         public int ResearchCountMatches { get; init; }
         public decimal? ExploredPercent { get; init; }
-        public decimal? ExploredPercentTotal { get; init; }
+        public decimal? ExploredPercentMaximum { get; init; }
+        public decimal? ExploredPercentMinimum { get; init; }
         public int ExploredPercentMatches { get; init; }
         public decimal? FeudalAgeSeconds { get; init; }
         public decimal? FeudalAgeSecondsTotal { get; init; }
