@@ -187,5 +187,15 @@ public sealed class PlayerMatchStatistics
         {
             throw new DomainRuleException("Match statistics cannot contain negative values or invalid percentages.");
         }
+
+        if ((values.FeudalAgeSeconds.HasValue && values.CastleAgeSeconds.HasValue &&
+             values.FeudalAgeSeconds.Value > values.CastleAgeSeconds.Value) ||
+            (values.FeudalAgeSeconds.HasValue && values.ImperialAgeSeconds.HasValue &&
+             values.FeudalAgeSeconds.Value > values.ImperialAgeSeconds.Value) ||
+            (values.CastleAgeSeconds.HasValue && values.ImperialAgeSeconds.HasValue &&
+             values.CastleAgeSeconds.Value > values.ImperialAgeSeconds.Value))
+        {
+            throw new DomainRuleException("Age advancement times must follow Feudal, Castle and Imperial order.");
+        }
     }
 }
