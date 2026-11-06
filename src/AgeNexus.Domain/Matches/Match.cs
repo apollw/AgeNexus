@@ -162,6 +162,21 @@ public sealed class Match
     public void SetTeamClan(Guid teamId, Guid? clanId)
     {
         EnsureDraft();
+        AssignTeamClan(teamId, clanId);
+    }
+
+    public void UpdateTeamClan(Guid teamId, Guid? clanId)
+    {
+        if (Status == MatchStatus.Voided)
+        {
+            throw new DomainRuleException("A voided match cannot be edited.");
+        }
+
+        AssignTeamClan(teamId, clanId);
+    }
+
+    private void AssignTeamClan(Guid teamId, Guid? clanId)
+    {
         var team = _teams.SingleOrDefault(x => x.Id == teamId)
             ?? throw new DomainRuleException("Team does not belong to this match.");
         team.AssignClan(clanId);
