@@ -95,7 +95,16 @@ public sealed record MatchMetadataEditView(
     Guid GameEditionId,
     string GameEditionName,
     Guid? MapDefinitionId,
-    MatchGameMode GameMode);
+    MatchGameMode GameMode,
+    IReadOnlyCollection<MatchMetadataEditTeam> Teams);
+
+public sealed record MatchMetadataEditTeam(
+    Guid TeamId,
+    int Position,
+    Guid? ClanId,
+    IReadOnlyCollection<MatchMetadataEditPlayer> Players);
+
+public sealed record MatchMetadataEditPlayer(Guid PlayerProfileId, string DisplayName);
 
 public sealed record PagedMatchHistory(
     IReadOnlyCollection<MatchSummary> Items,
