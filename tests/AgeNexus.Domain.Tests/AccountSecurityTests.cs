@@ -240,11 +240,12 @@ public sealed class AccountSecurityTests
     [Fact]
     public async Task Clan_match_persists_each_clan_and_accepts_a_partial_roster()
     {
-        await using var services = CreateServices();
+        await using var services = CreateServices("first-clan@example.test");
         await using var scope = services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var firstUser = await AddUserAsync(users, "first-clan@example.test");
         var secondUser = await AddUserAsync(users, "second-clan@example.test");
+        await scope.ServiceProvider.GetRequiredService<AccountService>().EnsureAdministratorRoleAsync();
         var database = scope.ServiceProvider.GetRequiredService<AgeNexusDbContext>();
         var first = new PlayerProfile(Guid.NewGuid(), "Primeiro", firstUser.Id);
         var firstAlly = new PlayerProfile(Guid.NewGuid(), "Aliado 1");
@@ -283,6 +284,22 @@ public sealed class AccountSecurityTests
             .OrderBy(x => x.Position).ToArrayAsync();
         Assert.Equal(new Guid?[] { firstClan.ClanId, secondClan.ClanId }, teams.Select(x => x.ClanId).ToArray());
         Assert.All(teams, team => Assert.Equal(2, team.HumanCount));
+
+        var removeClanAssociation = await workflow.UpdateMetadataAsync(new UpdateMatchMetadataRequest(
+            result.MatchId, first.Id, null, MatchGameMode.Standard,
+            teams.Select(x => new UpdateMatchTeamClan(x.Id, null)).ToArray()));
+        Assert.True(removeClanAssociation.Succeeded);
+        Assert.All(await database.MatchTeams.AsNoTracking()
+            .Where(x => EF.Property<Guid>(x, "match_id") == result.MatchId).ToArrayAsync(),
+            team => Assert.Null(team.ClanId));
+
+        var restoreClanAssociation = await workflow.UpdateMetadataAsync(new UpdateMatchMetadataRequest(
+            result.MatchId, first.Id, null, MatchGameMode.Standard,
+            [
+                new UpdateMatchTeamClan(teams[0].Id, firstClan.ClanId),
+                new UpdateMatchTeamClan(teams[1].Id, secondClan.ClanId)
+            ]));
+        Assert.True(restoreClanAssociation.Succeeded);
     }
 
     [Fact]

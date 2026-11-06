@@ -11,7 +11,7 @@
 <LoadingOverlay Visible="@(Loading || Saving)" Message="@(Saving ? "Salvando alterações..." : "Carregando partida...")" />
 
 <section class="page-heading compact-heading">
-    <div><span class="eyebrow">Ajustes da batalha</span><h1>Editar partida</h1><p>Atualize o mapa e o tipo da partida.</p></div>
+    <div><span class="eyebrow">Ajustes da batalha</span><h1>Editar partida</h1><p>Atualize mapa, modalidade e associação de clãs.</p></div>
     <a class="button button-secondary" href="/partidas/@MatchId">Cancelar</a>
 </section>
 
@@ -53,6 +53,35 @@ else if (View is not null)
                 </label>
             </div>
         </section>
+
+        <section class="panel clan-match-setup edit-clan-match-setup">
+            <label class="clan-match-toggle">
+                <InputCheckbox @bind-Value="Form.IsClanMatch" @bind-Value:after="ClanMatchChanged"
+                               disabled="@(Form.Teams.Count != 2 || Clans.Count < 2)" />
+                <span>
+                    <strong>Esta é uma partida entre clãs</strong>
+                    <small>@(Clans.Count < 2 ? "É necessário ter pelo menos dois clãs cadastrados." : "Associe cada equipe ao clã que ela representou nesta partida.")</small>
+                </span>
+            </label>
+
+            @if (Form.IsClanMatch)
+            {
+                <div class="edit-clan-team-grid">
+                    @foreach (var team in Form.Teams.OrderBy(x => x.Position))
+                    {
+                        <article class="match-clan-loader" @key="team.TeamId">
+                            <label class="form-field"><span>Clã da equipe @team.Position</span>
+                                <InputSelect @bind-Value="team.ClanId">
+                                    <option value="">Selecione o clã</option>
+                                    @foreach (var clan in Clans) { <option value="@clan.ClanId">[@clan.Tag] @clan.Name</option> }
+                                </InputSelect>
+                            </label>
+                            <div class="clan-lineup-hint"><strong>Jogadores registrados</strong><span>@string.Join(", ", team.Players.Select(x => x.DisplayName))</span></div>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
         <button class="button button-primary account-submit" type="submit" disabled="@Saving">Salvar alterações</button>
     </EditForm>
 }
@@ -63,6 +92,7 @@ else if (View is not null)
 
     private AgeNexus.Application.Queries.MatchMetadataEditView? View { get; set; }
     private IReadOnlyCollection<AgeNexus.Application.Queries.CatalogOption> Maps { get; set; } = [];
+    private IReadOnlyCollection<AgeNexus.Application.Queries.ClanSummary> Clans { get; set; } = [];
     private EditMatchForm Form { get; } = new();
     private bool Loading { get; set; } = true;
     private bool Saving { get; set; }
@@ -78,8 +108,18 @@ else if (View is not null)
 
             var catalog = await CatalogQueries.GetMatchRegistrationCatalogAsync(View.GameEditionId);
             Maps = catalog.Maps;
+            Clans = catalog.Clans;
             Form.MapDefinitionId = View.MapDefinitionId;
             Form.GameMode = View.GameMode;
+            Form.Teams.Clear();
+            Form.Teams.AddRange(View.Teams.Select(x => new EditMatchTeamForm
+            {
+                TeamId = x.TeamId,
+                Position = x.Position,
+                ClanId = x.ClanId,
+                Players = x.Players
+            }));
+            Form.IsClanMatch = Form.Teams.Any(x => x.ClanId.HasValue);
         }
         finally
         {
@@ -99,13 +139,22 @@ else if (View is not null)
 
         Saving = true;
         Error = null;
+        if (Form.IsClanMatch &&
+            (Form.Teams.Any(x => !x.ClanId.HasValue) || Form.Teams.Select(x => x.ClanId).Distinct().Count() != 2))
+        {
+            Error = "Selecione dois clãs diferentes, um para cada equipe.";
+            Saving = false;
+            return;
+        }
         try
         {
             var result = await Workflow.UpdateMetadataAsync(new(
                 MatchId,
                 profile.Id,
                 Form.MapDefinitionId,
-                Form.GameMode));
+                Form.GameMode,
+                Form.Teams.Select(x => new AgeNexus.Application.Matches.UpdateMatchTeamClan(
+                    x.TeamId, Form.IsClanMatch ? x.ClanId : null)).ToArray()));
             if (result.Succeeded)
             {
                 Navigation.NavigateTo($"/partidas/{MatchId}");
@@ -118,6 +167,8 @@ else if (View is not null)
                 "InvalidMatchState" => "Uma partida anulada não pode ser editada.",
                 "NotAuthorized" => "Sua conta não possui permissão para editar esta partida.",
                 "MatchNotFound" => "A partida não foi encontrada.",
+                "InvalidClanMatch" => "Selecione dois clãs diferentes, um para cada equipe.",
+                "InvalidClanLineup" => "Os jogadores de uma das equipes não pertenciam ao clã selecionado na data da partida.",
                 _ => "Não foi possível salvar as alterações."
             };
         }
@@ -131,5 +182,21 @@ else if (View is not null)
     {
         public Guid? MapDefinitionId { get; set; }
         public AgeNexus.Domain.Matches.MatchGameMode GameMode { get; set; }
+        public bool IsClanMatch { get; set; }
+        public List<EditMatchTeamForm> Teams { get; } = [];
+    }
+
+    private sealed class EditMatchTeamForm
+    {
+        public Guid TeamId { get; set; }
+        public int Position { get; set; }
+        public Guid? ClanId { get; set; }
+        public IReadOnlyCollection<AgeNexus.Application.Queries.MatchMetadataEditPlayer> Players { get; set; } = [];
+    }
+
+    private void ClanMatchChanged()
+    {
+        if (Form.IsClanMatch) return;
+        foreach (var team in Form.Teams) team.ClanId = null;
     }
 }

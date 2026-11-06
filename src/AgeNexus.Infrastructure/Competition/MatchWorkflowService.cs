@@ -143,9 +143,50 @@ public sealed class MatchWorkflowService(
             return MatchWorkflowResult.Failure(request.MatchId, "InvalidMap");
         }
 
+        if (request.TeamClans is not null)
+        {
+            if (request.TeamClans.Count != match.Teams.Count ||
+                request.TeamClans.Select(x => x.TeamId).Distinct().Count() != match.Teams.Count ||
+                request.TeamClans.Any(x => match.Teams.All(team => team.Id != x.TeamId)))
+            {
+                return MatchWorkflowResult.Failure(request.MatchId, "InvalidClanMatch");
+            }
+
+            var selectedClanIds = request.TeamClans.Where(x => x.ClanId.HasValue)
+                .Select(x => x.ClanId!.Value).ToArray();
+            if (selectedClanIds.Length > 0 &&
+                (match.Teams.Count != 2 || request.TeamClans.Any(x => !x.ClanId.HasValue) ||
+                 selectedClanIds.Distinct().Count() != 2))
+            {
+                return MatchWorkflowResult.Failure(request.MatchId, "InvalidClanMatch");
+            }
+
+            foreach (var assignment in request.TeamClans.Where(x => x.ClanId.HasValue))
+            {
+                var team = match.Teams.Single(x => x.Id == assignment.TeamId);
+                var humanIds = team.Participants.Where(x => x.Type == ParticipantType.Human)
+                    .Select(x => x.PlayerProfileId!.Value).Distinct().ToArray();
+                var validMembers = await database.ClanMemberships.AsNoTracking().CountAsync(x =>
+                    x.ClanId == assignment.ClanId && humanIds.Contains(x.PlayerProfileId) &&
+                    x.StartedAtUtc <= match.PlayedAtUtc &&
+                    (!x.EndedAtUtc.HasValue || x.EndedAtUtc > match.PlayedAtUtc), cancellationToken);
+                if (humanIds.Length == 0 || validMembers != humanIds.Length)
+                {
+                    return MatchWorkflowResult.Failure(request.MatchId, "InvalidClanLineup");
+                }
+            }
+        }
+
         try
         {
             match.UpdatePublicMetadata(request.MapDefinitionId, request.GameMode);
+            if (request.TeamClans is not null)
+            {
+                foreach (var assignment in request.TeamClans)
+                {
+                    match.UpdateTeamClan(assignment.TeamId, assignment.ClanId);
+                }
+            }
             await database.SaveChangesAsync(cancellationToken);
             return MatchWorkflowResult.Success(match.Id);
         }

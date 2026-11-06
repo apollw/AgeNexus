@@ -49,7 +49,10 @@ public sealed record UpdateMatchMetadataRequest(
     Guid MatchId,
     Guid RequestedByPlayerProfileId,
     Guid? MapDefinitionId,
-    MatchGameMode GameMode);
+    MatchGameMode GameMode,
+    IReadOnlyCollection<UpdateMatchTeamClan>? TeamClans = null);
+
+public sealed record UpdateMatchTeamClan(Guid TeamId, Guid? ClanId);
 
 public sealed record RegisterMatchTeam(
     TeamResult Result,
