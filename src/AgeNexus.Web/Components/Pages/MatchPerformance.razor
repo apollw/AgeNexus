@@ -1287,7 +1287,7 @@ else
 
         if (Rows.Any(x => !x.HasValidEraTimes))
         {
-            Message = "Nos horários das eras, minutos e segundos devem ficar entre 00 e 59.";
+            Message = "Revise os horários: minutos e segundos devem ficar entre 00 e 59, e a ordem deve ser Feudal, Castelos e Imperial.";
             HasError = true;
             return;
         }
@@ -1528,7 +1528,23 @@ else
         public int? RelicsCaptured { get; set; }
         public bool IsTeamMvp { get; set; }
         public bool? Survived { get; set; }
-        public bool HasValidEraTimes => FeudalAge.IsValid && CastleAge.IsValid && ImperialAge.IsValid;
+        public bool HasValidEraTimes
+        {
+            get
+            {
+                if (!FeudalAge.IsValid || !CastleAge.IsValid || !ImperialAge.IsValid)
+                {
+                    return false;
+                }
+
+                var feudal = FeudalAge.ToTotalSeconds();
+                var castle = CastleAge.ToTotalSeconds();
+                var imperial = ImperialAge.ToTotalSeconds();
+                return (!feudal.HasValue || !castle.HasValue || feudal.Value <= castle.Value) &&
+                       (!feudal.HasValue || !imperial.HasValue || feudal.Value <= imperial.Value) &&
+                       (!castle.HasValue || !imperial.HasValue || castle.Value <= imperial.Value);
+            }
+        }
 
         public static PlayerForm From(AgeNexus.Application.MatchPerformance.PerformancePlayerView view, int teamPosition)
         {
