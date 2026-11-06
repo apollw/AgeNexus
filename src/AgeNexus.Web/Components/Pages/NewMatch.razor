@@ -147,12 +147,12 @@ else
             </div>
         </div>
 
-        @if (Catalog.Clans.Count > 1 && Form.Type != AgeNexus.Domain.Matches.MatchType.FreeForAll)
+        @if (Form.Type != AgeNexus.Domain.Matches.MatchType.FreeForAll)
         {
             <section class="panel clan-match-setup">
                 <label class="clan-match-toggle">
-                    <InputCheckbox @bind-Value="Form.IsClanMatch" @bind-Value:after="ClanMatchChanged" />
-                    <span><strong>Confronto entre clãs</strong><small>Selecione os dois clãs e ajuste somente quem participou desta partida.</small></span>
+                    <InputCheckbox @bind-Value="Form.IsClanMatch" @bind-Value:after="ClanMatchChanged" disabled="@(Catalog.Clans.Count < 2)" />
+                    <span><strong>Confronto entre clãs</strong><small>@(Catalog.Clans.Count < 2 ? "É necessário cadastrar pelo menos dois clãs para habilitar esta opção." : "Selecione os dois clãs e ajuste somente quem participou desta partida.")</small></span>
                 </label>
             </section>
         }
@@ -172,7 +172,7 @@ else
                     </div>
                 </header>
 
-                @if (Form.IsClanMatch && Catalog.Clans.Count > 1)
+                @if (Form.IsClanMatch)
                 {
                     <div class="match-clan-loader">
                         <label class="form-field"><span>Clã da equipe @(teamIndex + 1)</span>
