@@ -120,19 +120,53 @@ internal sealed class CompetitionQueryService(AgeNexusDbContext database, Compet
 
     public async Task<MatchMetadataEditView?> GetMetadataForEditAsync(
         Guid matchId,
-        CancellationToken cancellationToken = default) =>
-        await (
+        CancellationToken cancellationToken = default)
+    {
+        var metadata = await (
             from match in database.Matches.AsNoTracking()
             join edition in database.GameEditions.AsNoTracking()
                 on match.GameEditionId equals edition.Id
             where match.Id == matchId
-            select new MatchMetadataEditView(
+            select new
+            {
                 match.Id,
                 match.GameEditionId,
-                edition.Name,
+                GameEditionName = edition.Name,
                 match.MapDefinitionId,
-                match.GameMode))
+                match.GameMode
+            })
             .SingleOrDefaultAsync(cancellationToken);
+        if (metadata is null) return null;
+
+        var teams = await database.MatchTeams.AsNoTracking()
+            .Include(x => x.Participants)
+            .Where(x => EF.Property<Guid>(x, "match_id") == matchId)
+            .OrderBy(x => x.Position)
+            .ToArrayAsync(cancellationToken);
+        var playerIds = teams.SelectMany(x => x.Participants)
+            .Where(x => x.PlayerProfileId.HasValue)
+            .Select(x => x.PlayerProfileId!.Value).Distinct().ToArray();
+        var playerNames = await database.PlayerProfiles.AsNoTracking()
+            .Where(x => playerIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.DisplayName, cancellationToken);
+        var editTeams = teams.Select(team => new MatchMetadataEditTeam(
+            team.Id,
+            team.Position,
+            team.ClanId,
+            team.Participants.Where(x => x.PlayerProfileId.HasValue)
+                .Select(x => new MatchMetadataEditPlayer(
+                    x.PlayerProfileId!.Value,
+                    playerNames.GetValueOrDefault(x.PlayerProfileId.Value, "Jogador")))
+                .ToArray())).ToArray();
+
+        return new MatchMetadataEditView(
+            metadata.Id,
+            metadata.GameEditionId,
+            metadata.GameEditionName,
+            metadata.MapDefinitionId,
+            metadata.GameMode,
+            editTeams);
+    }
 
     private async Task<IReadOnlyCollection<MatchSummary>> GetRecentCoreAsync(
         int limit,
