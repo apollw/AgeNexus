@@ -38,7 +38,16 @@ internal sealed class GeneralStatisticsQueryService(
             where statistic.PlayerProfileId.HasValue && match.Status == MatchStatus.Validated &&
                   (report.Status == MatchStatisticsStatus.Confirmed ||
                    report.Status == MatchStatisticsStatus.Awarded)
-            select new { Statistic = statistic, team.Result, match.GameMode, PlayerId = player.Id, player.DisplayName, player.AvatarUrl };
+            select new
+            {
+                Statistic = statistic,
+                team.Result,
+                TeamSize = team.Participants.Count,
+                match.GameMode,
+                PlayerId = player.Id,
+                player.DisplayName,
+                player.AvatarUrl
+            };
 
         var rows = await source
             .GroupBy(x => new { x.PlayerId, x.DisplayName, x.AvatarUrl })
@@ -48,6 +57,7 @@ internal sealed class GeneralStatisticsQueryService(
                 DisplayName = group.Key.DisplayName,
                 AvatarUrl = group.Key.AvatarUrl,
                 RowCount = group.Count(),
+                MvpAwards = group.Count(x => x.Statistic.IsTeamMvp && x.TeamSize > 1),
                 Defeats = group.Count(x => x.Result == TeamResult.Defeat),
                 UnitsKilled = group.Sum(x => (decimal?)x.Statistic.UnitsKilled),
                 UnitsKilledMatches = group.Count(x => x.Statistic.UnitsKilled.HasValue),
@@ -156,7 +166,9 @@ internal sealed class GeneralStatisticsQueryService(
                 .Select((x, index) => new GeneralStatisticEntry(
                     index + 1, x.PlayerId, x.DisplayName, x.AvatarUrl, value(x)!.Value, matches(x),
                     absolute?.Invoke(x) ?? value(x),
-                    average?.Invoke(x) ?? Average(absolute?.Invoke(x) ?? value(x), matches(x))))
+                    average is null
+                        ? Average(absolute?.Invoke(x) ?? value(x), matches(x))
+                        : average(x)))
                 .ToArray();
             return new GeneralStatisticBoard(key, category, title, description, valueKind, entries,
                 isNegative, averageValueKind, absoluteLabel, averageLabel);
@@ -203,6 +215,7 @@ internal sealed class GeneralStatisticsQueryService(
             Board("military-score", "Placar", "O Estrategista", "Maior pontuação militar média nas partidas.", GeneralStatisticValueKind.Decimal, x => x.MilitaryScore, x => x.MilitaryScoreMatches, x => x.MilitaryScoreTotal, x => x.MilitaryScore),
             Board("economy-score", "Placar", "O Grão-Mestre da Economia", "Maior pontuação econômica média nas partidas.", GeneralStatisticValueKind.Decimal, x => x.EconomyScore, x => x.EconomyScoreMatches, x => x.EconomyScoreTotal, x => x.EconomyScore),
 
+            Board("mvp-awards", "Resultados", "O Mais Valioso", "Maior número de MVPs conquistados em equipes com mais de um integrante.", GeneralStatisticValueKind.Integer, x => x.MvpAwards, x => x.MvpAwards, x => x.MvpAwards, _ => null, absoluteLabel: "MVPs"),
             Board("defeats", "Resultados", "O Veterano das Derrotas", "Maior número de derrotas em partidas validadas; a média é exibida como taxa de derrotas.", GeneralStatisticValueKind.Integer, x => x.Defeats, x => x.RowCount, x => x.Defeats, x => x.RowCount > 0 ? x.Defeats * 100m / x.RowCount : null, isNegative: true, averageValueKind: GeneralStatisticValueKind.Percentage, absoluteLabel: "Derrotas", averageLabel: "Taxa de derrotas"),
             LowestAverage("least-kills", "Combate", "O Exército Inofensivo", "Menor média de unidades inimigas eliminadas por partida.", GeneralStatisticValueKind.Integer, x => x.UnitsKilled, x => x.UnitsKilledMatches),
             LowestAverage("least-destruction", "Combate", "O Cerco Sem Impacto", "Menor média de edifícios inimigos destruídos por partida.", GeneralStatisticValueKind.Integer, x => x.BuildingsDestroyed, x => x.BuildingsDestroyedMatches),
@@ -241,6 +254,7 @@ internal sealed class GeneralStatisticsQueryService(
         public string DisplayName { get; init; } = string.Empty;
         public string? AvatarUrl { get; init; }
         public int RowCount { get; init; }
+        public int MvpAwards { get; init; }
         public int Defeats { get; init; }
         public decimal? UnitsKilled { get; init; }
         public int UnitsKilledMatches { get; init; }
